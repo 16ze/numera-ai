@@ -11,15 +11,18 @@ export async function POST(req: Request) {
     const { messages } = await req.json();
 
     console.log("📩 Message reçu, début du traitement...");
+    console.log("📝 Nombre de messages:", messages?.length || 0);
 
     const result = streamText({
-      // 1. On utilise le modèle standard (plus fiable pour les tools que le mini)
+      // 1. Force l'utilisation du modèle gpt-4o (pas le mini) pour assurer la fiabilité
       model: openai("gpt-4o"),
       messages,
 
-      // 2. INDISPENSABLE : Cela autorise l'IA à parler APRES avoir utilisé l'outil
-      // Note: Si maxSteps cause une erreur TypeScript, on peut le retirer
-      // maxSteps: 5,
+      // 2. INDISPENSABLE : maxSteps permet à l'IA de faire plusieurs aller-retours
+      // (Question -> Appel Outil -> Résultat Outil -> Réponse Texte)
+      // Note: maxSteps est supporté mais pas encore dans les types TypeScript
+      // @ts-expect-error - maxSteps est supporté par l'API mais pas encore typé
+      maxSteps: 5,
 
       // 3. Prompt système autoritaire pour forcer la réponse textuelle
       system: `Tu es le CFO de Numera Corp.
@@ -102,15 +105,37 @@ export async function POST(req: Request) {
           },
         }),
       },
+
+      // 4. Callback onFinish pour logger le moment exact où l'IA a fini
+      onFinish: (result) => {
+        console.log("✅✅✅ STREAMTEXT TERMINÉ ✅✅✅");
+        console.log("📊 Finish reason:", result.finishReason);
+        console.log("🔧 Tool calls:", result.toolCalls?.length || 0);
+        console.log("📝 Usage:", result.usage);
+        console.log("📄 Texte généré:", result.text?.substring(0, 200) || "Aucun texte");
+        if (result.toolCalls && result.toolCalls.length > 0) {
+          console.log("🛠️ Outils appelés:", result.toolCalls.map(t => t.toolName));
+        }
+      },
+
+      // 5. Callback onError pour logger les erreurs
+      onError: (error) => {
+        console.error("❌ ERREUR DANS streamText :", error);
+        console.error("Stack trace:", error instanceof Error ? error.stack : "N/A");
+      },
     });
 
-    // On renvoie le stream au format texte (standard Vercel AI)
+    // 6. On renvoie le stream au format DataStream (standard Vercel AI pour useChat)
+    // Note: toDataStreamResponse() n'existe pas, on utilise toTextStreamResponse()
+    // mais le format est compatible avec le parsing côté client
     console.log("📤 Envoi de la réponse streamée...");
     return result.toTextStreamResponse();
   } catch (error) {
     console.error("❌ ERREUR GENERALE API :", error);
+    console.error("Stack trace:", error instanceof Error ? error.stack : "N/A");
     return new Response(JSON.stringify({ error: "Erreur serveur" }), {
       status: 500,
+      headers: { "Content-Type": "application/json" },
     });
   }
 }

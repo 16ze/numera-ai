@@ -101,7 +101,7 @@ export function AIChatButton() {
 
         const chunk = decoder.decode(value, { stream: true });
         console.log("📦 Chunk reçu:", chunk.substring(0, 50));
-        
+
         assistantContent += chunk;
         hasReceivedContent = true;
 
@@ -118,7 +118,7 @@ export function AIChatButton() {
           const lastMsg = updated[updated.length - 1];
           if (lastMsg && lastMsg.role === "assistant") {
             lastMsg.content = assistantContent;
-            
+
             // Gérer les tool invocations
             if (!lastMsg.toolInvocations) {
               lastMsg.toolInvocations = [];
@@ -134,7 +134,10 @@ export function AIChatButton() {
               }
             }
             // Si on a du contenu, l'outil est terminé
-            else if (assistantContent.trim() && lastMsg.toolInvocations.length) {
+            else if (
+              assistantContent.trim() &&
+              lastMsg.toolInvocations.length
+            ) {
               lastMsg.toolInvocations[0].state = "result";
             }
           }
@@ -149,7 +152,8 @@ export function AIChatButton() {
           const updated = [...prev];
           const lastMsg = updated[updated.length - 1];
           if (lastMsg && lastMsg.role === "assistant") {
-            lastMsg.content = "Désolé, je n'ai pas pu générer de réponse. Veuillez réessayer.";
+            lastMsg.content =
+              "Désolé, je n'ai pas pu générer de réponse. Veuillez réessayer.";
           }
           return updated;
         });
@@ -222,7 +226,9 @@ export function AIChatButton() {
                     <Badge
                       variant="outline"
                       className="cursor-pointer hover:bg-slate-100 justify-center py-2"
-                      onClick={() => setInput("Combien j'ai gagné ce mois-ci ?")}
+                      onClick={() =>
+                        setInput("Combien j'ai gagné ce mois-ci ?")
+                      }
                     >
                       Combien j&apos;ai gagné ce mois-ci ?
                     </Badge>
@@ -244,7 +250,8 @@ export function AIChatButton() {
 
                 // Vérifier l'état des tool invocations
                 const hasActiveTools = toolInvocations.some(
-                  (tool) => tool.state === "call" || tool.state === "partial-call"
+                  (tool) =>
+                    tool.state === "call" || tool.state === "partial-call"
                 );
                 const hasCompletedTools = toolInvocations.some(
                   (tool) => tool.state === "result"
@@ -290,16 +297,18 @@ export function AIChatButton() {
                       )}
 
                       {/* Cas 2 : L'outil a terminé (données récupérées) */}
-                      {hasToolInvocations && hasCompletedTools && !hasActiveTools && (
-                        <div className="mb-2">
-                          <Badge
-                            variant="outline"
-                            className="text-xs font-normal opacity-70 bg-green-50 border-green-200 text-green-700"
-                          >
-                            ✅ Données récupérées
-                          </Badge>
-                        </div>
-                      )}
+                      {hasToolInvocations &&
+                        hasCompletedTools &&
+                        !hasActiveTools && (
+                          <div className="mb-2">
+                            <Badge
+                              variant="outline"
+                              className="text-xs font-normal opacity-70 bg-green-50 border-green-200 text-green-700"
+                            >
+                              ✅ Données récupérées
+                            </Badge>
+                          </div>
+                        )}
 
                       {/* Cas 3 : Le contenu textuel final */}
                       {m.content && (
