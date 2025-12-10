@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       getStats: tool({
         description: 'Récupère le Chiffre d\'Affaires (revenue), les Dépenses (expenses) et le Net du mois en cours.',
         parameters: z.object({}),
-        execute: async () => {
+        execute: async (): Promise<{ revenue: number; expense: number; net: number; month: string }> => {
           // Logique identique à ton dashboard
           const now = new Date();
           const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       getLastTransactions: tool({
         description: 'Récupère les 5 dernières transactions bancaires.',
         parameters: z.object({}),
-        execute: async () => {
+        execute: async (): Promise<Array<{ date: Date; description: string | null; amount: any; type: any }>> => {
           const user = await prisma.user.findUnique({ where: { email: 'demo@numera.ai' }, include: { companies: true }});
           if (!user?.companies[0]) throw new Error("Pas d'entreprise trouvée");
           
