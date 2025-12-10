@@ -13,3 +13,222 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ============================================
+// ENUMS
+// ============================================
+
+/**
+ * Statut d'une facture
+ */
+enum InvoiceStatus {
+  DRAFT // Brouillon
+  SENT // Envoyée
+  PAID // Payée
+  OVERDUE // En retard
+  CANCELLED // Annulée
+}
+
+/**
+ * Type de transaction (entrée ou sortie d'argent)
+ */
+enum TransactionType {
+  INCOME // Recette
+  EXPENSE // Dépense
+}
+
+/**
+ * Catégorie de transaction pour le classement comptable
+ */
+enum TransactionCategory {
+  TRANSPORT // Transport
+  REPAS // Repas
+  MATERIEL // Matériel
+  PRESTATION // Prestation de service
+  IMPOTS // Impôts et taxes
+  SALAIRES // Salaires
+  AUTRE // Autre
+}
+
+/**
+ * Statut d'une transaction bancaire
+ */
+enum TransactionStatus {
+  PENDING // En attente
+  COMPLETED // Complétée
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+/**
+ * Utilisateur (entrepreneur) du système
+ * Un utilisateur peut gérer plusieurs entreprises (multi-sociétés)
+ */
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  name           String?
+  passwordHash   String? // Nullable si authentification via provider externe
+  authProviderId String? // ID du provider externe (Google, GitHub, etc.)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  companies        Company[]
+  assistantThreads AssistantThread[]
+
+  @@index([email])
+  @@map("users")
+}
+
+/**
+ * Entreprise gérée par l'utilisateur
+ * Entité centrale : toutes les factures et transactions sont liées à une Company
+ */
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  siret     String?  @unique // Numéro SIRET (unique par entreprise)
+  vatNumber String? // Numéro de TVA intracommunautaire
+  address   String?
+  logoUrl   String?
+  currency  String   @default("EUR") // Devise par défaut
+  userId    String // Propriétaire de l'entreprise
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clients      Client[]
+  invoices     Invoice[]
+  transactions Transaction[]
+
+  @@index([userId])
+  @@index([siret])
+  @@map("companies")
+}
+
+/**
+ * Client de l'entreprise
+ * Les factures sont émises pour ces clients
+ */
+model Client {
+  id        String   @id @default(uuid())
+  name      String
+  email     String?
+  address   String?
+  siret     String? // SIRET du client
+  vatIntra  String? // Numéro TVA intracommunautaire du client
+  companyId String // Entreprise propriétaire
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+
+  @@index([companyId])
+  @@index([email])
+  @@map("clients")
+}
+
+/**
+ * Facture émise par l'entreprise à un client
+ * Contient plusieurs lignes (InvoiceRow) détaillant les prestations
+ */
+model Invoice {
+  id         String        @id @default(uuid())
+  number     String // Numéro de facture (ex: INV-001)
+  issuedDate DateTime // Date d'émission
+  dueDate    DateTime? // Date d'échéance (optionnelle)
+  status     InvoiceStatus @default(DRAFT)
+  companyId  String // Entreprise émettrice
+  clientId   String // Client destinataire
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  // Relations
+  company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client  Client       @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  rows    InvoiceRow[]
+
+  @@unique([companyId, number]) // Numéro unique par entreprise
+  @@index([companyId])
+  @@index([clientId])
+  @@index([status])
+  @@index([number])
+  @@map("invoices")
+}
+
+/**
+ * Ligne de facture détaillant une prestation ou un produit
+ * Chaque facture contient une ou plusieurs lignes
+ */
+model InvoiceRow {
+  id          String   @id @default(uuid())
+  description String // Description de la prestation/produit
+  quantity    Float    @default(1.0) // Quantité
+  unitPrice   Decimal  @db.Decimal(10, 2) // Prix unitaire HT
+  vatRate     Float    @default(0.0) // Taux de TVA (ex: 20.0 pour 20%)
+  invoiceId   String // Facture parente
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_rows")
+}
+
+/**
+ * Transaction bancaire réelle
+ * Gère le flux d'argent réel (entrées et sorties)
+ * Base de la comptabilité quotidienne
+ */
+model Transaction {
+  id          String              @id @default(uuid())
+  date        DateTime // Date de la transaction
+  amount      Decimal             @db.Decimal(10, 2) // Montant (toujours positif)
+  description String?
+  type        TransactionType // INCOME ou EXPENSE
+  category    TransactionCategory // Catégorie comptable
+  status      TransactionStatus   @default(PENDING)
+  receiptUrl  String? // URL de la photo du ticket (pour OCR futur)
+  companyId   String // Entreprise propriétaire
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([date])
+  @@index([type])
+  @@index([category])
+  @@index([status])
+  @@map("transactions")
+}
+
+/**
+ * Thread de conversation avec l'assistant IA (CFO IA)
+ * Stocke l'historique des conversations pour le contexte
+ */
+model AssistantThread {
+  id          String   @id @default(uuid())
+  userId      String // Utilisateur propriétaire du thread
+  userMessage String // Message de l'utilisateur
+  aiResponse  String // Réponse de l'IA
+  tokensUsed  Int? // Nombre de tokens utilisés (pour tracking coûts)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("assistant_threads")
+}
