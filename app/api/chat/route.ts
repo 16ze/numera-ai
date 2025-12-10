@@ -216,8 +216,8 @@ export async function POST(req: Request) {
       },
     });
 
-    // Utiliser toDataStreamResponse pour un format compatible avec useChat
-    return result.toDataStreamResponse();
+    // Utiliser toTextStreamResponse qui retourne un format TextStream
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error("Erreur dans la route API chat:", error);
     const errorMessage =

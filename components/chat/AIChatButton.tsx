@@ -131,7 +131,9 @@ export function AIChatButton() {
           // Format TextStream peut être :
           // 1. Format SSE : "data: {...}" ou "0: {...}"
           // 2. Format direct JSON
+          // 3. Texte brut (si le format est simplifié)
           let jsonStr = "";
+          let parsed = false;
           
           if (line.startsWith("data: ")) {
             jsonStr = line.slice(6);
@@ -140,36 +142,47 @@ export function AIChatButton() {
           } else if (line.startsWith("{")) {
             jsonStr = line;
           } else {
-            // Log les lignes non reconnues
-            console.log("Ligne non parsée:", line);
-            continue;
+            // Peut-être du texte brut ? Log pour voir
+            console.log("Ligne non JSON:", line);
+            // Essayer de traiter comme texte brut
+            if (line.length > 0 && !line.includes(":")) {
+              assistantContent += line;
+              parsed = true;
+            }
           }
 
-          try {
-            const data = JSON.parse(jsonStr);
-            
-            // Log pour déboguer
-            console.log("Chunk reçu:", data);
+          if (!parsed && jsonStr) {
+            try {
+              const data = JSON.parse(jsonStr);
+              
+              // Log pour déboguer
+              console.log("Chunk JSON reçu:", data);
 
-            // Format TextStream : text-delta contient le texte
-            if (data.type === "text-delta") {
-              // Le texte peut être dans textDelta, delta, ou directement dans text
-              const textChunk = data.textDelta || data.delta || data.text || "";
-              if (textChunk) {
-                assistantContent += textChunk;
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  const lastMsg = updated[updated.length - 1];
-                  if (lastMsg && lastMsg.role === "assistant") {
-                    lastMsg.content = assistantContent;
-                  }
-                  return updated;
-                });
+              // Format TextStream : text-delta contient le texte
+              if (data.type === "text-delta") {
+                // Le texte peut être dans textDelta, delta, ou directement dans text
+                const textChunk = data.textDelta || data.delta || data.text || "";
+                if (textChunk) {
+                  assistantContent += textChunk;
+                  parsed = true;
+                }
               }
+            } catch (e) {
+              // Log pour déboguer
+              console.warn("Erreur parsing JSON:", e, "Ligne:", line);
             }
-          } catch (e) {
-            // Log pour déboguer
-            console.warn("Erreur parsing chunk:", e, line);
+          }
+
+          // Mettre à jour le message si on a du contenu
+          if (parsed && assistantContent) {
+            setMessages((prev) => {
+              const updated = [...prev];
+              const lastMsg = updated[updated.length - 1];
+              if (lastMsg && lastMsg.role === "assistant") {
+                lastMsg.content = assistantContent;
+              }
+              return updated;
+            });
           }
         }
       }
