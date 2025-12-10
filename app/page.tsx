@@ -1,65 +1,258 @@
-import Image from "next/image";
+/**
+ * Page Dashboard - Vue d'ensemble financière
+ * Affiche les KPIs, graphiques et transactions récentes
+ */
 
-export default function Home() {
+import { getDashboardData } from "@/app/actions/dashboard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+
+/**
+ * Formatage monétaire en EUR (format français)
+ */
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+  }).format(amount);
+}
+
+/**
+ * Formatage de date (format français)
+ */
+function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(date));
+}
+
+/**
+ * Obtention du label de catégorie en français
+ */
+function getCategoryLabel(category: string): string {
+  const labels: Record<string, string> = {
+    TRANSPORT: "Transport",
+    REPAS: "Repas",
+    MATERIEL: "Matériel",
+    PRESTATION: "Prestation",
+    IMPOTS: "Impôts",
+    SALAIRES: "Salaires",
+    AUTRE: "Autre",
+  };
+  return labels[category] || category;
+}
+
+/**
+ * Composant principal de la page Dashboard
+ */
+export default async function DashboardPage() {
+  // Récupération des données via Server Action
+  const data = await getDashboardData();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="min-h-screen bg-background p-6">
+      <div className="mx-auto max-w-7xl space-y-6">
+        {/* En-tête */}
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground mt-2">
+            Vue d'ensemble de votre activité financière
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Cartes KPI */}
+        <div className="grid gap-4 md:grid-cols-3">
+          {/* Chiffre d'affaires */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Chiffre d'affaires
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(data.totalRevenue)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Ce mois
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Dépenses */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Dépenses</CardTitle>
+              <TrendingDown className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(data.totalExpenses)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Ce mois
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Résultat net */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Résultat net</CardTitle>
+              <DollarSign className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div
+                className={`text-2xl font-bold ${
+                  data.netIncome >= 0 ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {formatCurrency(data.netIncome)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {data.netIncome >= 0 ? "Bénéfice" : "Déficit"} ce mois
+              </p>
+            </CardContent>
+          </Card>
         </div>
-      </main>
+
+        {/* Graphique Recettes vs Dépenses */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recettes vs Dépenses (30 derniers jours)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={data.chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(value) => {
+                    const date = new Date(value);
+                    return `${date.getDate()}/${date.getMonth() + 1}`;
+                  }}
+                />
+                <YAxis
+                  tickFormatter={(value) => formatCurrency(value)}
+                />
+                <Tooltip
+                  formatter={(value: number) => formatCurrency(value)}
+                  labelFormatter={(label) => {
+                    const date = new Date(label);
+                    return formatDate(date);
+                  }}
+                />
+                <Legend />
+                <Bar
+                  dataKey="recettes"
+                  fill="#22c55e"
+                  name="Recettes"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="depenses"
+                  fill="#ef4444"
+                  name="Dépenses"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Tableau des transactions récentes */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Transactions récentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Catégorie</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead className="text-right">Montant</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.recentTransactions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                      Aucune transaction
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  data.recentTransactions.map((transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell className="font-medium">
+                        {formatDate(transaction.date)}
+                      </TableCell>
+                      <TableCell>
+                        {transaction.description || "Sans description"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {getCategoryLabel(transaction.category)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            transaction.type === "INCOME"
+                              ? "default"
+                              : "destructive"
+                          }
+                        >
+                          {transaction.type === "INCOME" ? "Recette" : "Dépense"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            transaction.status === "COMPLETED"
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {transaction.status === "COMPLETED"
+                            ? "Complétée"
+                            : "En attente"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell
+                        className={`text-right font-medium ${
+                          transaction.type === "INCOME"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {transaction.type === "INCOME" ? "+" : "-"}
+                        {formatCurrency(transaction.amount)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
