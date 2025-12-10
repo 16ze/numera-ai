@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { RevenueChart } from "@/components/dashboard/RevenueChart";
 
 /**
  * Formatage monétaire en EUR (format français)
@@ -135,41 +135,7 @@ export default async function DashboardPage() {
             <CardTitle>Recettes vs Dépenses (30 derniers jours)</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={data.chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(value) => {
-                    const date = new Date(value);
-                    return `${date.getDate()}/${date.getMonth() + 1}`;
-                  }}
-                />
-                <YAxis
-                  tickFormatter={(value) => formatCurrency(value)}
-                />
-                <Tooltip
-                  formatter={(value: number) => formatCurrency(value)}
-                  labelFormatter={(label) => {
-                    const date = new Date(label);
-                    return formatDate(date);
-                  }}
-                />
-                <Legend />
-                <Bar
-                  dataKey="recettes"
-                  fill="#22c55e"
-                  name="Recettes"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="depenses"
-                  fill="#ef4444"
-                  name="Dépenses"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            <RevenueChart data={data.chartData} />
           </CardContent>
         </Card>
 
