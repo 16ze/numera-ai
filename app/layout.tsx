@@ -1,8 +1,9 @@
+import { Sidebar } from "@/components/layout/Sidebar";
+import { UserNav } from "@/components/layout/UserNav";
+import { AIChatButton } from "@/components/chat/AIChatButton";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { UserNav } from "@/components/layout/UserNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,9 @@ export default function RootLayout({
             {/* Contenu de la page */}
             <main className="flex-1 overflow-y-auto">{children}</main>
           </div>
+
+          {/* Bouton de chat flottant (accessible partout) */}
+          <AIChatButton />
         </div>
       </body>
     </html>
