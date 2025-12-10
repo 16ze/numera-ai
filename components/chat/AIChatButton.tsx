@@ -88,20 +88,29 @@ export function AIChatButton() {
 
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Variable pour tracker si un outil est en cours
-      let toolInProgress = false;
+      // Variable pour tracker l'état : on commence par supposer qu'un outil sera appelé
+      let hasReceivedContent = false;
+      let toolCallDetected = false;
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log("📥 Stream terminé. Contenu final:", assistantContent);
+          break;
+        }
 
         const chunk = decoder.decode(value, { stream: true });
+        console.log("📦 Chunk reçu:", chunk.substring(0, 50));
+        
         assistantContent += chunk;
+        hasReceivedContent = true;
 
-        // Détecter si un outil est appelé (via les logs ou le contenu)
-        // Si le contenu est vide mais qu'on reçoit des chunks, c'est probablement un outil
-        if (!assistantContent.trim() && chunk.length > 0) {
-          toolInProgress = true;
+        // Si on reçoit du contenu après un délai, c'est probablement la réponse finale
+        // Sinon, on est encore dans la phase d'appel d'outil
+        const isToolCallPhase = !assistantContent.trim() && chunk.length > 0;
+        if (isToolCallPhase && !toolCallDetected) {
+          toolCallDetected = true;
+          console.log("🔧 Détection d'un appel d'outil");
         }
 
         setMessages((prev) => {
@@ -110,20 +119,39 @@ export function AIChatButton() {
           if (lastMsg && lastMsg.role === "assistant") {
             lastMsg.content = assistantContent;
             
-            // Mettre à jour les tool invocations
-            if (toolInProgress && !lastMsg.toolInvocations?.length) {
-              lastMsg.toolInvocations = [
-                {
+            // Gérer les tool invocations
+            if (!lastMsg.toolInvocations) {
+              lastMsg.toolInvocations = [];
+            }
+
+            // Si on détecte un appel d'outil (pas encore de contenu)
+            if (toolCallDetected && !assistantContent.trim()) {
+              if (!lastMsg.toolInvocations.length) {
+                lastMsg.toolInvocations.push({
                   toolName: "getStats",
-                  state: assistantContent.trim() ? "result" : "call",
-                },
-              ];
-            } else if (lastMsg.toolInvocations && assistantContent.trim()) {
-              // Marquer l'outil comme terminé quand on a du contenu
+                  state: "call",
+                });
+              }
+            }
+            // Si on a du contenu, l'outil est terminé
+            else if (assistantContent.trim() && lastMsg.toolInvocations.length) {
               lastMsg.toolInvocations[0].state = "result";
             }
           }
           return [...updated];
+        });
+      }
+
+      // Si on n'a pas reçu de contenu à la fin, c'est un problème
+      if (!hasReceivedContent || !assistantContent.trim()) {
+        console.warn("⚠️ Aucun contenu reçu du stream");
+        setMessages((prev) => {
+          const updated = [...prev];
+          const lastMsg = updated[updated.length - 1];
+          if (lastMsg && lastMsg.role === "assistant") {
+            lastMsg.content = "Désolé, je n'ai pas pu générer de réponse. Veuillez réessayer.";
+          }
+          return updated;
         });
       }
 
