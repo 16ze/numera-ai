@@ -1,7 +1,7 @@
-import { openai } from '@ai-sdk/openai';
-import { streamText, tool } from 'ai';
-import { z } from 'zod';
-import { prisma } from '@/app/lib/prisma';
+import { prisma } from "@/app/lib/prisma";
+import { openai } from "@ai-sdk/openai";
+import { streamText, tool } from "ai";
+import { z } from "zod";
 
 // On laisse 30 secondes max pour éviter les timeouts
 export const maxDuration = 30;
@@ -13,29 +13,41 @@ export async function POST(req: Request) {
     console.log("📩 Message reçu, début du traitement...");
 
     const result = streamText({
-      // On utilise le modèle "mini" pour que ce soit ultra rapide le temps des tests
-      model: openai('gpt-4o-mini'),
+      // 1. On utilise le modèle standard (plus fiable pour les tools que le mini)
+      model: openai("gpt-4o"),
       messages,
-      // Note: maxSteps n'est pas disponible dans cette version de ai
-      // Les tools fonctionnent pour un appel unique 
-      system: `Tu es le CFO (Directeur Financier) de l'entreprise Numera Corp.
-      Tu es précis, professionnel et direct.
-      Toutes les sommes sont en Euros (€).
-      Utilise l'outil 'getStats' si on te demande le CA, les recettes ou la trésorerie.`,
-      
+
+      // 2. INDISPENSABLE : Cela autorise l'IA à parler APRES avoir utilisé l'outil
+      // Note: Si maxSteps cause une erreur TypeScript, on peut le retirer
+      // maxSteps: 5,
+
+      // 3. Prompt système autoritaire pour forcer la réponse textuelle
+      system: `Tu es le CFO de Numera Corp.
+
+      PROTOCOL STRICT :
+
+      1. Si l'utilisateur demande des chiffres -> Appelle l'outil (getStats, etc).
+
+      2. ATTENDS le résultat de l'outil.
+
+      3. IMPORTANT : Une fois le résultat reçu, TU DOIS RÉDIGER une phrase de réponse (ex: "Votre CA est de 4000€").
+      NE T'ARRÊTE JAMAIS APRÈS L'EXÉCUTION DE L'OUTIL. PARLE À L'UTILISATEUR.
+
+      Devise : Euros (€).`,
+
       tools: {
         getStats: tool({
-          description: 'Donne le CA (income), les dépenses (expense) et le résultat net du mois en cours.',
+          description:
+            "Donne le CA (income), les dépenses (expense) et le résultat net du mois en cours.",
           inputSchema: z.object({}),
           execute: async () => {
-            console.log("🛠️ Outil 'getStats' déclenché par l'IA !");
-            
+            console.log("🛠️ Outil 'getStats' en cours...");
+
             try {
-              // 1. Récupération utilisateur
-              // Note : Si tu as une erreur ici, vérifie que le seed a bien créé cet email
+              // --- Logique Prisma ---
               const user = await prisma.user.findUnique({
-                where: { email: 'demo@numera.ai' },
-                include: { companies: true }
+                where: { email: "demo@numera.ai" },
+                include: { companies: true },
               });
 
               if (!user || !user.companies[0]) {
@@ -46,46 +58,45 @@ export async function POST(req: Request) {
               const companyId = user.companies[0].id;
               console.log(`✅ Company trouvée : ${companyId}`);
 
-              // 2. Définition des dates (Mois en cours)
               const now = new Date();
               const start = new Date(now.getFullYear(), now.getMonth(), 1);
               const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-              
-              console.log(`📅 Analyse du ${start.toLocaleDateString()} au ${end.toLocaleDateString()}`);
 
-              // 3. Requête Base de données
+              console.log(
+                `📅 Analyse du ${start.toLocaleDateString()} au ${end.toLocaleDateString()}`
+              );
+
               const transactions = await prisma.transaction.findMany({
                 where: {
                   companyId,
-                  date: { gte: start, lte: end }
-                }
+                  date: { gte: start, lte: end },
+                },
               });
 
               console.log(`📊 ${transactions.length} transactions trouvées.`);
 
-              // 4. Calculs
               const revenue = transactions
-                .filter(t => t.type === 'INCOME')
+                .filter((t) => t.type === "INCOME")
                 .reduce((acc, t) => acc + Number(t.amount), 0);
-                
+
               const expense = transactions
-                .filter(t => t.type === 'EXPENSE')
+                .filter((t) => t.type === "EXPENSE")
                 .reduce((acc, t) => acc + Number(t.amount), 0);
 
               const net = revenue - expense;
 
-              console.log(`💰 Succès : Recettes=${revenue} | Dépenses=${expense}`);
+              console.log(
+                `💰 Succès : Recettes=${revenue} | Dépenses=${expense} | Net=${net}`
+              );
 
-              return {
-                revenue,
-                expense,
-                net,
-                message: `Analyse terminée pour ${now.toLocaleString('fr-FR', { month: 'long' })}.`
-              };
-
+              // On retourne le résultat
+              return { revenue, expense, net };
             } catch (err) {
               console.error("❌ CRASH dans execute :", err);
-              console.error("Stack trace:", err instanceof Error ? err.stack : 'N/A');
+              console.error(
+                "Stack trace:",
+                err instanceof Error ? err.stack : "N/A"
+              );
               throw new Error("Erreur technique lors du calcul.");
             }
           },
@@ -96,9 +107,10 @@ export async function POST(req: Request) {
     // On renvoie le stream au format texte (standard Vercel AI)
     console.log("📤 Envoi de la réponse streamée...");
     return result.toTextStreamResponse();
-
   } catch (error) {
     console.error("❌ ERREUR GENERALE API :", error);
-    return new Response(JSON.stringify({ error: 'Erreur serveur' }), { status: 500 });
+    return new Response(JSON.stringify({ error: "Erreur serveur" }), {
+      status: 500,
+    });
   }
 }

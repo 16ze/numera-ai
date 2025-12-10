@@ -195,19 +195,40 @@ export function AIChatButton() {
                       <Bot className="h-4 w-4" />
                     )}
                   </div>
-                  <div
-                    className={`rounded-2xl px-4 py-2 text-sm max-w-[80%] ${
-                      m.role === "user"
-                        ? "bg-slate-900 text-white rounded-tr-none"
-                        : "bg-slate-100 text-slate-800 rounded-tl-none"
-                    }`}
-                  >
-                    {m.content || (
-                      <span className="italic opacity-50">
-                        Analyse des données en cours... 🔄
-                      </span>
-                    )}
-                  </div>
+                   <div
+                     className={`rounded-2xl px-4 py-2 text-sm max-w-[80%] ${
+                       m.role === "user"
+                         ? "bg-slate-900 text-white rounded-tr-none"
+                         : "bg-slate-100 text-slate-800 rounded-tl-none"
+                     }`}
+                   >
+                     {/* Cas 1 : L'IA utilise un outil (affiche un petit badge) */}
+                     {"toolInvocations" in m &&
+                       (m as { toolInvocations?: unknown }).toolInvocations && (
+                         <div className="mb-2">
+                           <Badge
+                             variant="outline"
+                             className="text-xs font-normal opacity-70"
+                           >
+                             ⚙️ Vérification des comptes...
+                           </Badge>
+                         </div>
+                       )}
+
+                     {/* Cas 2 : Le contenu textuel final */}
+                     {m.content}
+
+                     {/* Cas 3 : Sécurité si pas de contenu mais outil terminé */}
+                     {!m.content &&
+                       !(
+                         "toolInvocations" in m &&
+                         (m as { toolInvocations?: unknown }).toolInvocations
+                       ) && (
+                         <span className="italic opacity-50">
+                           Analyse en cours...
+                         </span>
+                       )}
+                   </div>
                 </div>
               ))}
 
