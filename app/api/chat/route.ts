@@ -21,7 +21,8 @@ export async function POST(req: Request) {
     - Si on te demande 'Combien j'ai gagné ?', utilise l'outil getStats.
     - Si tu ne trouves pas l'info, dis-le honnêtement.
     `,
-    maxSteps: 5, // Permet à l'IA de faire des aller-retours avec la base de données
+    // Note: maxSteps peut être ajouté via providerOptions si nécessaire
+    // pour permettre plusieurs appels d'outils en séquence
     tools: {
       getStats: tool({
         description: 'Récupère le Chiffre d\'Affaires (revenue), les Dépenses (expenses) et le Net du mois en cours.',
