@@ -149,43 +149,56 @@ const searchTransactionsTool = {
       ),
   }),
   execute: async ({ query }: { query: string }) => {
-    const company = await getDemoCompany();
+    try {
+      console.log("🔧 Tool searchTransactions appelé avec query:", query);
+      const company = await getDemoCompany();
 
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        companyId: company.id,
-        description: {
-          contains: query,
-          mode: "insensitive",
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          companyId: company.id,
+          description: {
+            contains: query,
+            mode: "insensitive",
+          },
         },
-      },
-      orderBy: {
-        date: "desc",
-      },
-      take: 20,
-    });
+        orderBy: {
+          date: "desc",
+        },
+        take: 20,
+      });
 
-    if (transactions.length === 0) {
-      return {
-        message: `Aucune transaction trouvée pour "${query}"`,
-        transactions: [],
-        total: 0,
+      console.log(`📊 ${transactions.length} transactions trouvées pour "${query}"`);
+
+      if (transactions.length === 0) {
+        const result = {
+          message: `Aucune transaction trouvée pour "${query}"`,
+          transactions: [],
+          total: 0,
+        };
+        console.log("✅ searchTransactions résultat (vide):", result);
+        return result;
+      }
+
+      const total = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
+
+      const result = {
+        message: `${transactions.length} transaction(s) trouvée(s) pour "${query}"`,
+        transactions: transactions.map((t) => ({
+          date: t.date.toLocaleDateString("fr-FR"),
+          montant: Number(t.amount),
+          description: t.description || "Sans description",
+          type: t.type === "INCOME" ? "Recette" : "Dépense",
+          categorie: t.category,
+        })),
+        total: total,
       };
+
+      console.log("✅ searchTransactions résultat:", result.transactions.length, "transactions, total:", total);
+      return result;
+    } catch (error) {
+      console.error("❌ Erreur dans searchTransactions:", error);
+      throw error;
     }
-
-    const total = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
-
-    return {
-      message: `${transactions.length} transaction(s) trouvée(s) pour "${query}"`,
-      transactions: transactions.map((t) => ({
-        date: t.date.toLocaleDateString("fr-FR"),
-        montant: Number(t.amount),
-        description: t.description || "Sans description",
-        type: t.type === "INCOME" ? "Recette" : "Dépense",
-        categorie: t.category,
-      })),
-      total: total,
-    };
   },
 };
 
