@@ -1,6 +1,6 @@
+import { AIChatButton } from "@/components/chat/AIChatButton";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserNav } from "@/components/layout/UserNav";
-import { AIChatButton } from "@/components/chat/AIChatButton";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
