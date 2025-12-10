@@ -21,12 +21,11 @@ export async function POST(req: Request) {
     - Si on te demande 'Combien j'ai gagné ?', utilise l'outil getStats.
     - Si tu ne trouves pas l'info, dis-le honnêtement.
     `,
-    // maxSteps est dans les settings, pas directement dans streamText
-    // On peut l'ajouter via providerOptions si nécessaire
+    maxSteps: 5, // Permet à l'IA de faire des aller-retours avec la base de données
     tools: {
       getStats: tool({
         description: 'Récupère le Chiffre d\'Affaires (revenue), les Dépenses (expenses) et le Net du mois en cours.',
-        parameters: z.object({}),
+        inputSchema: z.object({}),
         execute: async (): Promise<{ revenue: number; expense: number; net: number; month: string }> => {
           // Logique identique à ton dashboard
           const now = new Date();
@@ -58,8 +57,8 @@ export async function POST(req: Request) {
       }),
       getLastTransactions: tool({
         description: 'Récupère les 5 dernières transactions bancaires.',
-        parameters: z.object({}),
-        execute: async (): Promise<Array<{ date: Date; description: string | null; amount: any; type: any }>> => {
+        inputSchema: z.object({}),
+        execute: async () => {
           const user = await prisma.user.findUnique({ where: { email: 'demo@numera.ai' }, include: { companies: true }});
           if (!user?.companies[0]) throw new Error("Pas d'entreprise trouvée");
           
