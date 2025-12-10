@@ -100,10 +100,11 @@ export function AIChatButton() {
       }
 
       // Lecture du stream (format TextStream de Vercel AI SDK)
+      console.log("=== DÉBUT LECTURE STREAM ===");
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
-      let buffer = "";
+      let allChunks: string[] = [];
 
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -113,101 +114,92 @@ export function AIChatButton() {
 
       setMessages((prev) => [...prev, aiMessage]);
 
+      // Lire tous les chunks
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log("=== STREAM TERMINÉ ===");
+          break;
+        }
 
         const chunk = decoder.decode(value, { stream: true });
-        buffer += chunk;
+        allChunks.push(chunk);
+        console.log("📦 Chunk reçu (longueur:", chunk.length, "):", chunk);
+      }
 
-        // Le format TextStream utilise des lignes séparées par \n
-        const lines = buffer.split("\n");
-        // Garder la dernière ligne incomplète dans le buffer
-        buffer = lines.pop() || "";
+      // Analyser tous les chunks
+      const fullText = allChunks.join("");
+      console.log("📄 Texte complet:", fullText);
+      console.log("📊 Nombre de chunks:", allChunks.length);
 
-        for (const line of lines) {
-          if (!line.trim()) continue;
+      // Parser ligne par ligne
+      const lines = fullText.split("\n").filter((line) => line.trim());
+      console.log("📝 Nombre de lignes:", lines.length);
 
-          // Format TextStream peut être :
-          // 1. Format SSE : "data: {...}" ou "0: {...}"
-          // 2. Format direct JSON
-          // 3. Texte brut (si le format est simplifié)
-          let jsonStr = "";
-          let parsed = false;
-          
-          if (line.startsWith("data: ")) {
-            jsonStr = line.slice(6);
-          } else if (line.startsWith("0:")) {
-            jsonStr = line.slice(2);
-          } else if (line.startsWith("{")) {
-            jsonStr = line;
-          } else {
-            // Peut-être du texte brut ? Log pour voir
-            console.log("Ligne non JSON:", line);
-            // Essayer de traiter comme texte brut
-            if (line.length > 0 && !line.includes(":")) {
-              assistantContent += line;
-              parsed = true;
-            }
-          }
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        console.log(`🔍 Ligne ${i + 1}:`, line);
 
-          if (!parsed && jsonStr) {
-            try {
-              const data = JSON.parse(jsonStr);
-              
-              // Log pour déboguer
-              console.log("Chunk JSON reçu:", data);
+        // Format TextStream : "0:" suivi de JSON
+        if (line.startsWith("0:")) {
+          try {
+            const jsonStr = line.slice(2);
+            console.log("📋 JSON à parser:", jsonStr);
+            const data = JSON.parse(jsonStr);
+            console.log("✅ Données parsées:", data);
 
-              // Format TextStream : text-delta contient le texte
-              if (data.type === "text-delta") {
-                // Le texte peut être dans textDelta, delta, ou directement dans text
-                const textChunk = data.textDelta || data.delta || data.text || "";
-                if (textChunk) {
-                  assistantContent += textChunk;
-                  parsed = true;
-                }
+            if (data.type === "text-delta") {
+              const textChunk = data.textDelta || data.delta || data.text || "";
+              console.log("💬 Texte extrait:", textChunk);
+              if (textChunk) {
+                assistantContent += textChunk;
               }
-            } catch (e) {
-              // Log pour déboguer
-              console.warn("Erreur parsing JSON:", e, "Ligne:", line);
             }
+          } catch (e) {
+            console.error("❌ Erreur parsing:", e, "Ligne:", line);
           }
-
-          // Mettre à jour le message si on a du contenu
-          if (parsed && assistantContent) {
-            setMessages((prev) => {
-              const updated = [...prev];
-              const lastMsg = updated[updated.length - 1];
-              if (lastMsg && lastMsg.role === "assistant") {
-                lastMsg.content = assistantContent;
+        } else if (line.startsWith("data: ")) {
+          // Format SSE
+          try {
+            const jsonStr = line.slice(6);
+            const data = JSON.parse(jsonStr);
+            if (data.type === "text-delta") {
+              const textChunk = data.textDelta || data.delta || data.text || "";
+              if (textChunk) {
+                assistantContent += textChunk;
               }
-              return updated;
-            });
+            }
+          } catch (e) {
+            console.error("❌ Erreur parsing SSE:", e);
           }
+        } else {
+          console.log("⚠️ Ligne ignorée:", line);
         }
       }
 
-      // Traiter le dernier buffer
-      if (buffer.trim() && buffer.startsWith("0:")) {
-        try {
-          const data = JSON.parse(buffer.slice(2));
-          if (data.type === "text-delta") {
-            const textChunk = data.textDelta || data.delta || data.text || "";
-            if (textChunk) {
-              assistantContent += textChunk;
-              setMessages((prev) => {
-                const updated = [...prev];
-                const lastMsg = updated[updated.length - 1];
-                if (lastMsg && lastMsg.role === "assistant") {
-                  lastMsg.content = assistantContent;
-                }
-                return updated;
-              });
-            }
+      console.log("🎯 Contenu final extrait:", assistantContent);
+      
+      // Mettre à jour le message
+      if (assistantContent) {
+        setMessages((prev) => {
+          const updated = [...prev];
+          const lastMsg = updated[updated.length - 1];
+          if (lastMsg && lastMsg.role === "assistant") {
+            lastMsg.content = assistantContent;
           }
-        } catch (e) {
-          console.warn("Erreur parsing dernier buffer:", e);
-        }
+          return updated;
+        });
+      } else {
+        console.error("⚠️⚠️⚠️ AUCUN CONTENU EXTRAIT! ⚠️⚠️⚠️");
+        // Afficher un message d'erreur à l'utilisateur
+        setMessages((prev) => {
+          const updated = [...prev];
+          const lastMsg = updated[updated.length - 1];
+          if (lastMsg && lastMsg.role === "assistant") {
+            lastMsg.content = "Erreur: Impossible de lire la réponse. Vérifiez la console pour plus de détails.";
+          }
+          return updated;
+        });
       }
     } catch (error) {
       console.error("Erreur lors de l'envoi du message:", error);
