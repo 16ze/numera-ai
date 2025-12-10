@@ -15,18 +15,31 @@ const prisma = new PrismaClient();
  * Hardcodé pour demo@numera.ai en attendant l'authentification
  */
 async function getDemoCompany() {
-  const user = await prisma.user.findUnique({
-    where: { email: "demo@numera.ai" },
-    include: {
-      companies: true,
-    },
-  });
+  try {
+    console.log("🔍 Recherche de l'utilisateur demo@numera.ai");
+    const user = await prisma.user.findUnique({
+      where: { email: "demo@numera.ai" },
+      include: {
+        companies: true,
+      },
+    });
 
-  if (!user || !user.companies || user.companies.length === 0) {
-    throw new Error("Utilisateur ou entreprise non trouvée");
+    if (!user) {
+      console.error("❌ Utilisateur non trouvé");
+      throw new Error("Utilisateur non trouvé");
+    }
+
+    if (!user.companies || user.companies.length === 0) {
+      console.error("❌ Aucune entreprise trouvée pour l'utilisateur");
+      throw new Error("Aucune entreprise trouvée pour l'utilisateur");
+    }
+
+    console.log("✅ Utilisateur et entreprise trouvés:", user.companies[0].id);
+    return user.companies[0];
+  } catch (error) {
+    console.error("❌ Erreur dans getDemoCompany:", error);
+    throw error;
   }
-
-  return user.companies[0];
 }
 
 /**
