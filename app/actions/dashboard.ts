@@ -176,8 +176,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   } catch (error) {
     console.error("Erreur lors de la récupération des données du dashboard:", error);
     throw error;
-  } finally {
-    await prisma.$disconnect();
   }
+  // Note: On ne déconnecte pas Prisma Client en Next.js car il est réutilisé entre les requêtes
 }
 
