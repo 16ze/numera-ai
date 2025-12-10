@@ -1,315 +1,202 @@
-"use client";
+'use client'
 
-/**
- * Composant AIChatButton - Bouton flottant pour ouvrir le chatbot financier
- * Interface de chat style ChatGPT avec messages scrollables
- * Utilise useChat de ai/react pour la communication avec l'API
- */
+import { useState, useRef, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { MessageCircle, X, Send, Bot, User } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
-import { cn } from "@/lib/utils";
-import { Loader2, Send, Sparkles, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+type Message = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+}
 
-/**
- * Type pour un message de chat
- */
-type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-};
-
-/**
- * Composant AIChatButton
- */
 export function AIChatButton() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content:
-        "Bonjour Bryan, je suis ton CFO. Une dépense à ajouter ou une question sur ta tréso ?",
-    },
-  ]);
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [isOpen, setIsOpen] = useState(false)
+  const [input, setInput] = useState('')
+  const [messages, setMessages] = useState<Message[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  /**
-   * Scroll automatique vers le bas quand de nouveaux messages arrivent
-   */
   useEffect(() => {
     if (isOpen && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen])
 
-  /**
-   * Focus sur l'input quand la fenêtre s'ouvre
-   */
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!input.trim() || isLoading) return
 
-  /**
-   * Gestion de l'envoi d'un message
-   */
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: ChatMessage = {
+    const userMessage: Message = {
       id: Date.now().toString(),
-      role: "user",
+      role: 'user',
       content: input.trim(),
-    };
+    }
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
+    setMessages((prev) => [...prev, userMessage])
+    setInput('')
+    setIsLoading(true)
 
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map((msg) => ({
-            role: msg.role,
-            content: msg.content,
+          messages: [...messages, userMessage].map((m) => ({
+            role: m.role,
+            content: m.content,
           })),
         }),
-      });
+      })
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Erreur API:", response.status, errorText);
-        throw new Error(
-          `Erreur ${response.status}: ${
-            errorText || "Erreur lors de la requête"
-          }`
-        );
+        throw new Error(`Erreur ${response.status}`)
       }
 
       if (!response.body) {
-        throw new Error("Response body is null");
+        throw new Error('Response body is null')
       }
 
-      // Lecture du stream (format TextStream de Vercel AI SDK)
-      console.log("=== DÉBUT LECTURE STREAM ===");
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantContent = "";
-      const allChunks: string[] = [];
+      // Lire le stream texte
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let assistantContent = ''
 
-      const aiMessage: ChatMessage = {
+      const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "",
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
-
-      // Lire tous les chunks
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          console.log("=== STREAM TERMINÉ ===");
-          break;
-        }
-
-        const chunk = decoder.decode(value, { stream: true });
-        allChunks.push(chunk);
-        console.log("📦 Chunk reçu (longueur:", chunk.length, "):", chunk);
+        role: 'assistant',
+        content: '',
       }
 
-      // Analyser tous les chunks
-      const fullText = allChunks.join("");
-      console.log("📄 Texte complet:", fullText);
-      console.log("📊 Nombre de chunks:", allChunks.length);
+      setMessages((prev) => [...prev, assistantMessage])
 
-      // Le format TextStream retourne directement le texte brut
-      // Pas besoin de parser du JSON, on utilise directement le texte
-      assistantContent = fullText.trim();
-      console.log("✅ Texte brut utilisé directement:", assistantContent);
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
 
-      console.log("🎯 Contenu final extrait:", assistantContent);
+        const chunk = decoder.decode(value, { stream: true })
+        assistantContent += chunk
 
-      // Mettre à jour le message
-      if (assistantContent) {
         setMessages((prev) => {
-          const updated = [...prev];
-          const lastMsg = updated[updated.length - 1];
-          if (lastMsg && lastMsg.role === "assistant") {
-            lastMsg.content = assistantContent;
+          const updated = [...prev]
+          const lastMsg = updated[updated.length - 1]
+          if (lastMsg && lastMsg.role === 'assistant') {
+            lastMsg.content = assistantContent
           }
-          return updated;
-        });
-      } else {
-        console.error("⚠️⚠️⚠️ AUCUN CONTENU EXTRAIT! ⚠️⚠️⚠️");
-        // Afficher un message d'erreur à l'utilisateur
-        setMessages((prev) => {
-          const updated = [...prev];
-          const lastMsg = updated[updated.length - 1];
-          if (lastMsg && lastMsg.role === "assistant") {
-            lastMsg.content =
-              "Erreur: Impossible de lire la réponse. Vérifiez la console pour plus de détails.";
-          }
-          return updated;
-        });
+          return updated
+        })
       }
     } catch (error) {
-      console.error("Erreur lors de l'envoi du message:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Désolé, une erreur s'est produite. Veuillez réessayer.";
+      console.error('Erreur:', error)
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: `Erreur: ${errorMessage}`,
+          role: 'assistant',
+          content: `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
         },
-      ]);
+      ])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
-
-  /**
-   * Gestion de la soumission du formulaire
-   */
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    handleSend();
-  };
-
-  /**
-   * Gestion de la touche Enter pour envoyer
-   */
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey && !isLoading && input.trim()) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
+  }
 
   return (
     <>
-      {/* Bouton flottant */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className={cn(
-          "fixed bottom-8 right-8 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-all hover:scale-110 hover:shadow-xl",
-          isOpen && "hidden"
-        )}
-        aria-label="Ouvrir le chat"
-      >
-        <Sparkles className="h-6 w-6" />
-      </button>
+      {/* BOUTON FLOTTANT (En bas à droite) */}
+      {!isOpen && (
+        <Button
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 transition-all z-50"
+        >
+          <MessageCircle className="h-8 w-8 text-white" />
+        </Button>
+      )}
 
-      {/* Fenêtre de chat */}
+      {/* FENÊTRE DE CHAT */}
       {isOpen && (
-        <div className="fixed bottom-8 right-8 z-50 flex h-[600px] w-[400px] flex-col rounded-lg border bg-white shadow-2xl">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <div className="flex items-center space-x-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <Sparkles className="h-4 w-4" />
-              </div>
-              <div>
-                <h3 className="font-semibold">CFO IA</h3>
-                <p className="text-xs text-muted-foreground">En ligne</p>
-              </div>
+        <Card className="fixed bottom-8 right-8 w-[400px] h-[600px] shadow-2xl flex flex-col z-50 border-2 border-slate-200">
+          
+          {/* HEADER */}
+          <CardHeader className="flex flex-row items-center justify-between py-3 border-b bg-slate-50">
+            <div className="flex items-center gap-2">
+                <div className="bg-blue-100 p-2 rounded-full">
+                    <Bot className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                    <CardTitle className="text-base">Assistant CFO</CardTitle>
+                    <p className="text-xs text-muted-foreground">En ligne • Numera AI</p>
+                </div>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              aria-label="Fermer le chat"
-            >
+            <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-8 w-8">
               <X className="h-4 w-4" />
-            </button>
-          </div>
+            </Button>
+          </CardHeader>
 
-          {/* Zone de messages (scrollable) */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex",
-                  message.role === "user" ? "justify-end" : "justify-start"
+          {/* MESSAGES (ZONE DE SCROLL) */}
+          <CardContent className="flex-1 p-0 overflow-hidden">
+            <ScrollArea className="h-full p-4">
+                {messages.length === 0 && (
+                    <div className="text-center text-sm text-muted-foreground mt-10 space-y-2">
+                        <p>👋 Bonjour ! Je suis ton assistant financier.</p>
+                        <p>Je peux analyser tes factures et ta trésorerie.</p>
+                        <div className="flex flex-col gap-2 mt-4 px-4">
+                            <Badge variant="outline" className="cursor-pointer hover:bg-slate-100 justify-center py-2">Combien j&apos;ai gagné ce mois-ci ?</Badge>
+                            <Badge variant="outline" className="cursor-pointer hover:bg-slate-100 justify-center py-2">Mes dernières dépenses ?</Badge>
+                        </div>
+                    </div>
                 )}
-              >
-                <div
-                  className={cn(
-                    "max-w-[80%] rounded-lg px-4 py-2",
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  <p className="text-sm whitespace-pre-wrap">
-                    {message.content}
-                  </p>
-                </div>
-              </div>
-            ))}
 
-            {/* Indicateur de chargement */}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="max-w-[80%] rounded-lg bg-muted px-4 py-2">
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>L&apos;IA réfléchit...</span>
-                  </div>
-                </div>
-              </div>
-            )}
+                {messages.map((m) => (
+                    <div key={m.id} className={`flex gap-2 mb-4 ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${m.role === 'user' ? 'bg-slate-900 text-white' : 'bg-blue-100 text-blue-600'}`}>
+                            {m.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                        </div>
+                        <div className={`rounded-2xl px-4 py-2 text-sm max-w-[80%] ${
+                            m.role === 'user' 
+                                ? 'bg-slate-900 text-white rounded-tr-none' 
+                                : 'bg-slate-100 text-slate-800 rounded-tl-none'
+                        }`}>
+                            {m.content || <span className="italic opacity-50">Analyse des données en cours... 🔄</span>}
+                        </div>
+                    </div>
+                ))}
+                
+                {isLoading && (
+                    <div className="flex gap-2 mb-4">
+                         <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Bot className="h-4 w-4 text-blue-600 animate-pulse" />
+                        </div>
+                        <div className="bg-slate-50 rounded-2xl px-4 py-2 text-sm text-muted-foreground italic">
+                            En train d&apos;écrire...
+                        </div>
+                    </div>
+                )}
 
-            <div ref={messagesEndRef} />
-          </div>
+                <div ref={messagesEndRef} />
+            </ScrollArea>
+          </CardContent>
 
-          {/* Input en bas */}
-          <div className="border-t p-4">
-            <form onSubmit={onSubmit} className="flex items-center space-x-2">
-              <input
-                ref={inputRef}
-                type="text"
+          {/* INPUT */}
+          <CardFooter className="p-3 border-t bg-white">
+            <form onSubmit={handleSubmit} className="flex w-full gap-2">
+              <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Tapez votre message..."
-                disabled={isLoading}
-                className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                placeholder="Posez une question sur vos finances..."
+                className="focus-visible:ring-1 focus-visible:ring-blue-600"
               />
-              <button
-                type="submit"
-                disabled={!input.trim() || isLoading}
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-colors",
-                  input.trim() && !isLoading
-                    ? "hover:bg-primary/90"
-                    : "cursor-not-allowed opacity-50"
-                )}
-                aria-label="Envoyer le message"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </button>
+              <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="bg-blue-600 hover:bg-blue-700">
+                <Send className="h-4 w-4" />
+              </Button>
             </form>
-          </div>
-        </div>
+          </CardFooter>
+        </Card>
       )}
     </>
-  );
+  )
 }
