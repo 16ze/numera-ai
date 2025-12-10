@@ -203,8 +203,11 @@ export function AIChatButton() {
                      }`}
                    >
                      {/* Cas 1 : L'IA utilise un outil (affiche un petit badge) */}
-                     {"toolInvocations" in m &&
-                       (m as { toolInvocations?: unknown }).toolInvocations && (
+                     {(() => {
+                       const hasToolInvocations =
+                         "toolInvocations" in m &&
+                         (m as { toolInvocations?: unknown }).toolInvocations;
+                       return hasToolInvocations ? (
                          <div className="mb-2">
                            <Badge
                              variant="outline"
@@ -213,7 +216,8 @@ export function AIChatButton() {
                              ⚙️ Vérification des comptes...
                            </Badge>
                          </div>
-                       )}
+                       ) : null;
+                     })()}
 
                      {/* Cas 2 : Le contenu textuel final */}
                      {m.content}
