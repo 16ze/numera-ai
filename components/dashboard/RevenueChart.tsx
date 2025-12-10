@@ -5,17 +5,17 @@
  * Utilise Recharts qui nécessite "use client"
  */
 
+import type { ChartDataPoint } from "@/app/actions/dashboard";
 import {
-  BarChart,
   Bar,
-  XAxis,
-  YAxis,
+  BarChart,
   CartesianGrid,
-  Tooltip,
   Legend,
   ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
-import type { ChartDataPoint } from "@/app/actions/dashboard";
 
 /**
  * Formatage monétaire en EUR (format français)
@@ -85,4 +85,3 @@ export function RevenueChart({ data }: RevenueChartProps) {
     </ResponsiveContainer>
   );
 }
-

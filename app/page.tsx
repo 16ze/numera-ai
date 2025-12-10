@@ -1,9 +1,5 @@
-/**
- * Page Dashboard - Vue d'ensemble financière
- * Affiche les KPIs, graphiques et transactions récentes
- */
-
 import { getDashboardData } from "@/app/actions/dashboard";
+import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -13,207 +9,110 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
-import { RevenueChart } from "@/components/dashboard/RevenueChart";
+import { Euro, TrendingDown, Wallet } from "lucide-react";
 
-/**
- * Formatage monétaire en EUR (format français)
- */
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
-}
-
-/**
- * Formatage de date (format français)
- */
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(date));
-}
-
-/**
- * Obtention du label de catégorie en français
- */
-function getCategoryLabel(category: string): string {
-  const labels: Record<string, string> = {
-    TRANSPORT: "Transport",
-    REPAS: "Repas",
-    MATERIEL: "Matériel",
-    PRESTATION: "Prestation",
-    IMPOTS: "Impôts",
-    SALAIRES: "Salaires",
-    AUTRE: "Autre",
-  };
-  return labels[category] || category;
-}
-
-/**
- * Composant principal de la page Dashboard
- */
 export default async function DashboardPage() {
-  // Récupération des données via Server Action
   const data = await getDashboardData();
 
+  const formatMoney = (amount: number) => {
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+    }).format(amount);
+  };
+
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-        {/* En-tête */}
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
-            Vue d'ensemble de votre activité financière
-          </p>
-        </div>
+    <div className="flex-1 space-y-4 p-8">
+      <div className="flex items-center justify-between space-y-2">
+        <h2 className="text-3xl font-bold tracking-tight">Tableau de bord</h2>
+      </div>
 
-        {/* Cartes KPI */}
-        <div className="grid gap-4 md:grid-cols-3">
-          {/* Chiffre d'affaires */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Chiffre d'affaires
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(data.totalRevenue)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Ce mois
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Dépenses */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Dépenses</CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(data.totalExpenses)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Ce mois
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Résultat net */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Résultat net</CardTitle>
-              <DollarSign className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div
-                className={`text-2xl font-bold ${
-                  data.netIncome >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {formatCurrency(data.netIncome)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {data.netIncome >= 0 ? "Bénéfice" : "Déficit"} ce mois
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Graphique Recettes vs Dépenses */}
+      {/* 1. KPI CARDS */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Recettes vs Dépenses (30 derniers jours)</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Chiffre d'Affaires
+            </CardTitle>
+            <Euro className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <RevenueChart data={data.chartData} />
+            <div className="text-2xl font-bold text-green-600">
+              {formatMoney(data.totalRevenue)}
+            </div>
+            <p className="text-xs text-muted-foreground">Ce mois-ci</p>
           </CardContent>
         </Card>
 
-        {/* Tableau des transactions récentes */}
         <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Dépenses</CardTitle>
+            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {formatMoney(data.totalExpenses)}
+            </div>
+            <p className="text-xs text-muted-foreground">Ce mois-ci</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Résultat Net</CardTitle>
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div
+              className={`text-2xl font-bold ${
+                data.netIncome >= 0 ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {formatMoney(data.netIncome)}
+            </div>
+            <p className="text-xs text-muted-foreground">Bénéfice estimé</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        {/* 2. GRAPHIQUE */}
+        <div className="col-span-4">
+          <RevenueChart data={data.chartData} />
+        </div>
+
+        {/* 3. TRANSACTIONS RECENTES */}
+        <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>Transactions récentes</CardTitle>
+            <CardTitle>Transactions Récentes</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Catégorie</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Statut</TableHead>
                   <TableHead className="text-right">Montant</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.recentTransactions.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
-                      Aucune transaction
+                {data.recentTransactions.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell>
+                      <div className="font-medium">{t.description}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(t.date).toLocaleDateString("fr-FR")}
+                      </div>
+                    </TableCell>
+                    <TableCell
+                      className={`text-right font-bold ${
+                        t.type === "INCOME" ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {t.type === "INCOME" ? "+" : "-"}
+                      {formatMoney(Number(t.amount))}
                     </TableCell>
                   </TableRow>
-                ) : (
-                  data.recentTransactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell className="font-medium">
-                        {formatDate(transaction.date)}
-                      </TableCell>
-                      <TableCell>
-                        {transaction.description || "Sans description"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {getCategoryLabel(transaction.category)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            transaction.type === "INCOME"
-                              ? "default"
-                              : "destructive"
-                          }
-                        >
-                          {transaction.type === "INCOME" ? "Recette" : "Dépense"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            transaction.status === "COMPLETED"
-                              ? "default"
-                              : "secondary"
-                          }
-                        >
-                          {transaction.status === "COMPLETED"
-                            ? "Complétée"
-                            : "En attente"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell
-                        className={`text-right font-medium ${
-                          transaction.type === "INCOME"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {transaction.type === "INCOME" ? "+" : "-"}
-                        {formatCurrency(transaction.amount)}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                ))}
               </TableBody>
             </Table>
           </CardContent>
