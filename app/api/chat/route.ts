@@ -189,7 +189,11 @@ export async function POST(req: Request) {
     const formattedMessages = messages.map(
       (msg: { role: string; content: string }) => {
         // Validation du role
-        if (msg.role !== "user" && msg.role !== "assistant" && msg.role !== "system") {
+        if (
+          msg.role !== "user" &&
+          msg.role !== "assistant" &&
+          msg.role !== "system"
+        ) {
           throw new Error(`Role invalide: ${msg.role}`);
         }
         return {
@@ -212,7 +216,8 @@ export async function POST(req: Request) {
       },
     });
 
-    return result.toTextStreamResponse();
+    // Utiliser toDataStreamResponse pour un format compatible avec useChat
+    return result.toDataStreamResponse();
   } catch (error) {
     console.error("Erreur dans la route API chat:", error);
     const errorMessage =

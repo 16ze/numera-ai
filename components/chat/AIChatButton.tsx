@@ -89,7 +89,9 @@ export function AIChatButton() {
         const errorText = await response.text();
         console.error("Erreur API:", response.status, errorText);
         throw new Error(
-          `Erreur ${response.status}: ${errorText || "Erreur lors de la requête"}`
+          `Erreur ${response.status}: ${
+            errorText || "Erreur lors de la requête"
+          }`
         );
       }
 
@@ -101,6 +103,7 @@ export function AIChatButton() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
+      let buffer = "";
 
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -115,32 +118,82 @@ export function AIChatButton() {
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n").filter((line) => line.trim());
+        buffer += chunk;
+
+        // Le format TextStream utilise des lignes séparées par \n
+        const lines = buffer.split("\n");
+        // Garder la dernière ligne incomplète dans le buffer
+        buffer = lines.pop() || "";
 
         for (const line of lines) {
-          if (line.startsWith("0:")) {
-            try {
-              const data = JSON.parse(line.slice(2));
-              // Format TextStream : text-delta peut avoir textDelta ou delta
-              if (data.type === "text-delta") {
-                const textChunk = data.textDelta || data.delta || "";
-                if (textChunk) {
-                  assistantContent += textChunk;
-                  setMessages((prev) => {
-                    const updated = [...prev];
-                    const lastMsg = updated[updated.length - 1];
-                    if (lastMsg && lastMsg.role === "assistant") {
-                      lastMsg.content = assistantContent;
-                    }
-                    return updated;
-                  });
-                }
+          if (!line.trim()) continue;
+
+          // Format TextStream peut être :
+          // 1. Format SSE : "data: {...}" ou "0: {...}"
+          // 2. Format direct JSON
+          let jsonStr = "";
+          
+          if (line.startsWith("data: ")) {
+            jsonStr = line.slice(6);
+          } else if (line.startsWith("0:")) {
+            jsonStr = line.slice(2);
+          } else if (line.startsWith("{")) {
+            jsonStr = line;
+          } else {
+            // Log les lignes non reconnues
+            console.log("Ligne non parsée:", line);
+            continue;
+          }
+
+          try {
+            const data = JSON.parse(jsonStr);
+            
+            // Log pour déboguer
+            console.log("Chunk reçu:", data);
+
+            // Format TextStream : text-delta contient le texte
+            if (data.type === "text-delta") {
+              // Le texte peut être dans textDelta, delta, ou directement dans text
+              const textChunk = data.textDelta || data.delta || data.text || "";
+              if (textChunk) {
+                assistantContent += textChunk;
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const lastMsg = updated[updated.length - 1];
+                  if (lastMsg && lastMsg.role === "assistant") {
+                    lastMsg.content = assistantContent;
+                  }
+                  return updated;
+                });
               }
-            } catch (e) {
-              // Log pour déboguer
-              console.warn("Erreur parsing chunk:", e, line);
+            }
+          } catch (e) {
+            // Log pour déboguer
+            console.warn("Erreur parsing chunk:", e, line);
+          }
+        }
+      }
+
+      // Traiter le dernier buffer
+      if (buffer.trim() && buffer.startsWith("0:")) {
+        try {
+          const data = JSON.parse(buffer.slice(2));
+          if (data.type === "text-delta") {
+            const textChunk = data.textDelta || data.delta || data.text || "";
+            if (textChunk) {
+              assistantContent += textChunk;
+              setMessages((prev) => {
+                const updated = [...prev];
+                const lastMsg = updated[updated.length - 1];
+                if (lastMsg && lastMsg.role === "assistant") {
+                  lastMsg.content = assistantContent;
+                }
+                return updated;
+              });
             }
           }
+        } catch (e) {
+          console.warn("Erreur parsing dernier buffer:", e);
         }
       }
     } catch (error) {
