@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
           // On récupère la company de démo
           const user = await prisma.user.findUnique({ where: { email: 'demo@numera.ai' }, include: { companies: true }});
-          if (!user?.companies[0]) return { error: "Pas d'entreprise trouvée" };
+          if (!user?.companies[0]) throw new Error("Pas d'entreprise trouvée");
           const companyId = user.companies[0].id;
 
           const transactions = await prisma.transaction.findMany({
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
         parameters: z.object({}),
         execute: async () => {
           const user = await prisma.user.findUnique({ where: { email: 'demo@numera.ai' }, include: { companies: true }});
-          if (!user?.companies[0]) return { error: "Pas d'entreprise trouvée" };
+          if (!user?.companies[0]) throw new Error("Pas d'entreprise trouvée");
           
           return await prisma.transaction.findMany({
             where: { companyId: user.companies[0].id },
