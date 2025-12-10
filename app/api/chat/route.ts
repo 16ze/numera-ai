@@ -37,47 +37,60 @@ const getStatsTool = {
     "Récupère les statistiques financières du mois en cours : chiffre d'affaires, dépenses et résultat net.",
   inputSchema: z.object({}),
   execute: async () => {
-    const company = await getDemoCompany();
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      0,
-      23,
-      59,
-      59
-    );
+    try {
+      console.log("🔧 Tool getStats appelé");
+      const company = await getDemoCompany();
+      console.log("✅ Entreprise trouvée:", company.id);
+      
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        0,
+        23,
+        59,
+        59
+      );
 
-    const monthlyTransactions = await prisma.transaction.findMany({
-      where: {
-        companyId: company.id,
-        date: {
-          gte: startOfMonth,
-          lte: endOfMonth,
+      const monthlyTransactions = await prisma.transaction.findMany({
+        where: {
+          companyId: company.id,
+          date: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
         },
-      },
-    });
+      });
 
-    const totalRevenue = monthlyTransactions
-      .filter((t) => t.type === "INCOME")
-      .reduce((sum, t) => sum + Number(t.amount), 0);
+      console.log(`📊 ${monthlyTransactions.length} transactions trouvées`);
 
-    const totalExpenses = monthlyTransactions
-      .filter((t) => t.type === "EXPENSE")
-      .reduce((sum, t) => sum + Number(t.amount), 0);
+      const totalRevenue = monthlyTransactions
+        .filter((t) => t.type === "INCOME")
+        .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    const netIncome = totalRevenue - totalExpenses;
+      const totalExpenses = monthlyTransactions
+        .filter((t) => t.type === "EXPENSE")
+        .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    return {
-      chiffreAffaires: totalRevenue,
-      depenses: totalExpenses,
-      resultatNet: netIncome,
-      periode: `Mois de ${now.toLocaleDateString("fr-FR", {
-        month: "long",
-        year: "numeric",
-      })}`,
-    };
+      const netIncome = totalRevenue - totalExpenses;
+
+      const result = {
+        chiffreAffaires: totalRevenue,
+        depenses: totalExpenses,
+        resultatNet: netIncome,
+        periode: `Mois de ${now.toLocaleDateString("fr-FR", {
+          month: "long",
+          year: "numeric",
+        })}`,
+      };
+
+      console.log("✅ getStats résultat:", result);
+      return result;
+    } catch (error) {
+      console.error("❌ Erreur dans getStats:", error);
+      throw error;
+    }
   },
 };
 
@@ -89,27 +102,36 @@ const getLastTransactionsTool = {
     "Récupère les 5 dernières transactions (recettes et dépenses) de l'entreprise.",
   inputSchema: z.object({}),
   execute: async () => {
-    const company = await getDemoCompany();
+    try {
+      console.log("🔧 Tool getLastTransactions appelé");
+      const company = await getDemoCompany();
 
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        companyId: company.id,
-      },
-      orderBy: {
-        date: "desc",
-      },
-      take: 5,
-    });
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          companyId: company.id,
+        },
+        orderBy: {
+          date: "desc",
+        },
+        take: 5,
+      });
 
-    return transactions.map((t) => ({
-      id: t.id,
-      date: t.date.toLocaleDateString("fr-FR"),
-      montant: Number(t.amount),
-      description: t.description || "Sans description",
-      type: t.type === "INCOME" ? "Recette" : "Dépense",
-      categorie: t.category,
-      statut: t.status === "COMPLETED" ? "Complétée" : "En attente",
-    }));
+      const result = transactions.map((t) => ({
+        id: t.id,
+        date: t.date.toLocaleDateString("fr-FR"),
+        montant: Number(t.amount),
+        description: t.description || "Sans description",
+        type: t.type === "INCOME" ? "Recette" : "Dépense",
+        categorie: t.category,
+        statut: t.status === "COMPLETED" ? "Complétée" : "En attente",
+      }));
+
+      console.log("✅ getLastTransactions résultat:", result.length, "transactions");
+      return result;
+    } catch (error) {
+      console.error("❌ Erreur dans getLastTransactions:", error);
+      throw error;
+    }
   },
 };
 
@@ -203,6 +225,8 @@ export async function POST(req: Request) {
       }
     );
 
+    console.log("🚀 Début streamText avec", formattedMessages.length, "messages");
+
     // Génération de la réponse avec streamText
     const result = await streamText({
       model: openai("gpt-4o"),
@@ -214,8 +238,19 @@ export async function POST(req: Request) {
         getLastTransactions: getLastTransactionsTool,
         searchTransactions: searchTransactionsTool,
       },
+      onError: (error) => {
+        console.error("❌ Erreur dans streamText:", error);
+      },
+      onFinish: (result) => {
+        console.log("✅ streamText terminé:", {
+          finishReason: result.finishReason,
+          usage: result.usage,
+          toolCalls: result.toolCalls?.length || 0,
+        });
+      },
     });
 
+    console.log("📤 Envoi de la réponse streamée");
     // Utiliser toTextStreamResponse qui retourne un format TextStream
     return result.toTextStreamResponse();
   } catch (error) {
