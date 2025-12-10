@@ -104,7 +104,7 @@ export function AIChatButton() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
-      let allChunks: string[] = [];
+      const allChunks: string[] = [];
 
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -132,53 +132,13 @@ export function AIChatButton() {
       console.log("📄 Texte complet:", fullText);
       console.log("📊 Nombre de chunks:", allChunks.length);
 
-      // Parser ligne par ligne
-      const lines = fullText.split("\n").filter((line) => line.trim());
-      console.log("📝 Nombre de lignes:", lines.length);
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        console.log(`🔍 Ligne ${i + 1}:`, line);
-
-        // Format TextStream : "0:" suivi de JSON
-        if (line.startsWith("0:")) {
-          try {
-            const jsonStr = line.slice(2);
-            console.log("📋 JSON à parser:", jsonStr);
-            const data = JSON.parse(jsonStr);
-            console.log("✅ Données parsées:", data);
-
-            if (data.type === "text-delta") {
-              const textChunk = data.textDelta || data.delta || data.text || "";
-              console.log("💬 Texte extrait:", textChunk);
-              if (textChunk) {
-                assistantContent += textChunk;
-              }
-            }
-          } catch (e) {
-            console.error("❌ Erreur parsing:", e, "Ligne:", line);
-          }
-        } else if (line.startsWith("data: ")) {
-          // Format SSE
-          try {
-            const jsonStr = line.slice(6);
-            const data = JSON.parse(jsonStr);
-            if (data.type === "text-delta") {
-              const textChunk = data.textDelta || data.delta || data.text || "";
-              if (textChunk) {
-                assistantContent += textChunk;
-              }
-            }
-          } catch (e) {
-            console.error("❌ Erreur parsing SSE:", e);
-          }
-        } else {
-          console.log("⚠️ Ligne ignorée:", line);
-        }
-      }
+      // Le format TextStream retourne directement le texte brut
+      // Pas besoin de parser du JSON, on utilise directement le texte
+      assistantContent = fullText.trim();
+      console.log("✅ Texte brut utilisé directement:", assistantContent);
 
       console.log("🎯 Contenu final extrait:", assistantContent);
-      
+
       // Mettre à jour le message
       if (assistantContent) {
         setMessages((prev) => {
@@ -196,7 +156,8 @@ export function AIChatButton() {
           const updated = [...prev];
           const lastMsg = updated[updated.length - 1];
           if (lastMsg && lastMsg.role === "assistant") {
-            lastMsg.content = "Erreur: Impossible de lire la réponse. Vérifiez la console pour plus de détails.";
+            lastMsg.content =
+              "Erreur: Impossible de lire la réponse. Vérifiez la console pour plus de détails.";
           }
           return updated;
         });
