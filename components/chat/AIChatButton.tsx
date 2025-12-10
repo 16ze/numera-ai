@@ -6,9 +6,9 @@
  * Utilise useChat de ai/react pour la communication avec l'API
  */
 
-import { useState, useRef, useEffect } from "react";
-import { Sparkles, Send, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Loader2, Send, Sparkles, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Type pour un message de chat
@@ -29,7 +29,8 @@ export function AIChatButton() {
     {
       id: "1",
       role: "assistant",
-      content: "Bonjour Bryan, je suis ton CFO. Une dépense à ajouter ou une question sur ta tréso ?",
+      content:
+        "Bonjour Bryan, je suis ton CFO. Une dépense à ajouter ou une question sur ta tréso ?",
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -85,14 +86,18 @@ export function AIChatButton() {
       });
 
       if (!response.ok) {
-        throw new Error("Erreur lors de la requête");
+        const errorText = await response.text();
+        console.error("Erreur API:", response.status, errorText);
+        throw new Error(
+          `Erreur ${response.status}: ${errorText || "Erreur lors de la requête"}`
+        );
       }
 
       if (!response.body) {
         throw new Error("Response body is null");
       }
 
-      // Lecture du stream
+      // Lecture du stream (format TextStream de Vercel AI SDK)
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
@@ -116,6 +121,7 @@ export function AIChatButton() {
           if (line.startsWith("0:")) {
             try {
               const data = JSON.parse(line.slice(2));
+              // Format TextStream : text-delta contient le texte
               if (data.type === "text-delta" && data.textDelta) {
                 assistantContent += data.textDelta;
                 setMessages((prev) => {
@@ -135,12 +141,16 @@ export function AIChatButton() {
       }
     } catch (error) {
       console.error("Erreur lors de l'envoi du message:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Désolé, une erreur s'est produite. Veuillez réessayer.";
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content: "Désolé, une erreur s'est produite. Veuillez réessayer.",
+          content: `Erreur: ${errorMessage}`,
         },
       ]);
     } finally {
@@ -280,4 +290,3 @@ export function AIChatButton() {
     </>
   );
 }
-

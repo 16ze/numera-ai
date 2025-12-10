@@ -3,9 +3,9 @@
  * Utilise Vercel AI SDK avec streamText et des outils pour interroger la base de données
  */
 
-import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { PrismaClient } from "@prisma/client";
+import { streamText } from "ai";
 import { z } from "zod";
 
 const prisma = new PrismaClient();
@@ -35,7 +35,7 @@ async function getDemoCompany() {
 const getStatsTool = {
   description:
     "Récupère les statistiques financières du mois en cours : chiffre d'affaires, dépenses et résultat net.",
-  parameters: z.object({}),
+  inputSchema: z.object({}),
   execute: async () => {
     const company = await getDemoCompany();
     const now = new Date();
@@ -87,7 +87,7 @@ const getStatsTool = {
 const getLastTransactionsTool = {
   description:
     "Récupère les 5 dernières transactions (recettes et dépenses) de l'entreprise.",
-  parameters: z.object({}),
+  inputSchema: z.object({}),
   execute: async () => {
     const company = await getDemoCompany();
 
@@ -119,7 +119,7 @@ const getLastTransactionsTool = {
 const searchTransactionsTool = {
   description:
     "Recherche des transactions par mot-clé dans la description. Utile pour répondre à des questions comme 'combien j'ai payé en restaurant ?' ou 'quelles sont mes dépenses de transport ?'",
-  parameters: z.object({
+  inputSchema: z.object({
     query: z
       .string()
       .describe(
@@ -151,10 +151,7 @@ const searchTransactionsTool = {
       };
     }
 
-    const total = transactions.reduce(
-      (sum, t) => sum + Number(t.amount),
-      0
-    );
+    const total = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
 
     return {
       message: `${transactions.length} transaction(s) trouvée(s) pour "${query}"`,
@@ -175,13 +172,32 @@ const searchTransactionsTool = {
  */
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json();
+    const body = await req.json();
+    const { messages } = body;
+
+    if (!messages || !Array.isArray(messages)) {
+      return new Response(
+        JSON.stringify({ error: "Messages manquants ou invalides" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
 
     // Conversion des messages au format attendu par streamText
-    const formattedMessages = messages.map((msg: { role: string; content: string }) => ({
-      role: msg.role,
-      content: msg.content,
-    }));
+    const formattedMessages = messages.map(
+      (msg: { role: string; content: string }) => {
+        // Validation du role
+        if (msg.role !== "user" && msg.role !== "assistant" && msg.role !== "system") {
+          throw new Error(`Role invalide: ${msg.role}`);
+        }
+        return {
+          role: msg.role as "user" | "assistant" | "system",
+          content: msg.content,
+        };
+      }
+    );
 
     // Génération de la réponse avec streamText
     const result = await streamText({
@@ -196,11 +212,16 @@ export async function POST(req: Request) {
       },
     });
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error("Erreur dans la route API chat:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inconnue";
     return new Response(
-      JSON.stringify({ error: "Erreur lors de la génération de la réponse" }),
+      JSON.stringify({
+        error: "Erreur lors de la génération de la réponse",
+        details: errorMessage,
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
@@ -208,4 +229,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
