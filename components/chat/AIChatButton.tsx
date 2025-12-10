@@ -18,6 +18,12 @@ type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  toolInvocations?: Array<{
+    toolName: string;
+    state: "call" | "partial-call" | "result";
+    args?: unknown;
+    result?: unknown;
+  }>;
 };
 
 export function AIChatButton() {
@@ -27,6 +33,7 @@ export function AIChatButton() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Scroll automatique vers le bas quand de nouveaux messages arrivent
   useEffect(() => {
     if (isOpen && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -67,7 +74,7 @@ export function AIChatButton() {
         throw new Error("Response body is null");
       }
 
-      // Lire le stream texte
+      // Lire le stream texte (format TextStream de Vercel AI SDK)
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
@@ -76,9 +83,13 @@ export function AIChatButton() {
         id: (Date.now() + 1).toString(),
         role: "assistant",
         content: "",
+        toolInvocations: [],
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Variable pour tracker si un outil est en cours
+      let toolInProgress = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -87,17 +98,38 @@ export function AIChatButton() {
         const chunk = decoder.decode(value, { stream: true });
         assistantContent += chunk;
 
+        // Détecter si un outil est appelé (via les logs ou le contenu)
+        // Si le contenu est vide mais qu'on reçoit des chunks, c'est probablement un outil
+        if (!assistantContent.trim() && chunk.length > 0) {
+          toolInProgress = true;
+        }
+
         setMessages((prev) => {
           const updated = [...prev];
           const lastMsg = updated[updated.length - 1];
           if (lastMsg && lastMsg.role === "assistant") {
             lastMsg.content = assistantContent;
+            
+            // Mettre à jour les tool invocations
+            if (toolInProgress && !lastMsg.toolInvocations?.length) {
+              lastMsg.toolInvocations = [
+                {
+                  toolName: "getStats",
+                  state: assistantContent.trim() ? "result" : "call",
+                },
+              ];
+            } else if (lastMsg.toolInvocations && assistantContent.trim()) {
+              // Marquer l'outil comme terminé quand on a du contenu
+              lastMsg.toolInvocations[0].state = "result";
+            }
           }
-          return updated;
+          return [...updated];
         });
       }
+
+      console.log("✅ Stream terminé, contenu final:", assistantContent);
     } catch (error) {
-      console.error("Erreur:", error);
+      console.error("❌ Erreur:", error);
       setMessages((prev) => [
         ...prev,
         {
@@ -162,12 +194,14 @@ export function AIChatButton() {
                     <Badge
                       variant="outline"
                       className="cursor-pointer hover:bg-slate-100 justify-center py-2"
+                      onClick={() => setInput("Combien j'ai gagné ce mois-ci ?")}
                     >
                       Combien j&apos;ai gagné ce mois-ci ?
                     </Badge>
                     <Badge
                       variant="outline"
                       className="cursor-pointer hover:bg-slate-100 justify-center py-2"
+                      onClick={() => setInput("Mes dernières dépenses ?")}
                     >
                       Mes dernières dépenses ?
                     </Badge>
@@ -175,68 +209,88 @@ export function AIChatButton() {
                 </div>
               )}
 
-              {messages.map((m) => (
-                <div
-                  key={m.id}
-                  className={`flex gap-2 mb-4 ${
-                    m.role === "user" ? "flex-row-reverse" : "flex-row"
-                  }`}
-                >
+              {messages.map((m) => {
+                // Vérifier si le message a des tool invocations
+                const toolInvocations = m.toolInvocations || [];
+                const hasToolInvocations = toolInvocations.length > 0;
+
+                // Vérifier l'état des tool invocations
+                const hasActiveTools = toolInvocations.some(
+                  (tool) => tool.state === "call" || tool.state === "partial-call"
+                );
+                const hasCompletedTools = toolInvocations.some(
+                  (tool) => tool.state === "result"
+                );
+
+                return (
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                      m.role === "user"
-                        ? "bg-slate-900 text-white"
-                        : "bg-blue-100 text-blue-600"
+                    key={m.id}
+                    className={`flex gap-2 mb-4 ${
+                      m.role === "user" ? "flex-row-reverse" : "flex-row"
                     }`}
                   >
-                    {m.role === "user" ? (
-                      <User className="h-4 w-4" />
-                    ) : (
-                      <Bot className="h-4 w-4" />
-                    )}
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                        m.role === "user"
+                          ? "bg-slate-900 text-white"
+                          : "bg-blue-100 text-blue-600"
+                      }`}
+                    >
+                      {m.role === "user" ? (
+                        <User className="h-4 w-4" />
+                      ) : (
+                        <Bot className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div
+                      className={`rounded-2xl px-4 py-2 text-sm max-w-[80%] ${
+                        m.role === "user"
+                          ? "bg-slate-900 text-white rounded-tr-none"
+                          : "bg-slate-100 text-slate-800 rounded-tl-none"
+                      }`}
+                    >
+                      {/* Cas 1 : L'IA utilise un outil (en cours) */}
+                      {hasToolInvocations && hasActiveTools && (
+                        <div className="mb-2">
+                          <Badge
+                            variant="outline"
+                            className="text-xs font-normal opacity-70 bg-blue-50 border-blue-200"
+                          >
+                            ⚙️ Analyse en cours...
+                          </Badge>
+                        </div>
+                      )}
+
+                      {/* Cas 2 : L'outil a terminé (données récupérées) */}
+                      {hasToolInvocations && hasCompletedTools && !hasActiveTools && (
+                        <div className="mb-2">
+                          <Badge
+                            variant="outline"
+                            className="text-xs font-normal opacity-70 bg-green-50 border-green-200 text-green-700"
+                          >
+                            ✅ Données récupérées
+                          </Badge>
+                        </div>
+                      )}
+
+                      {/* Cas 3 : Le contenu textuel final */}
+                      {m.content && (
+                        <div className="whitespace-pre-wrap">{m.content}</div>
+                      )}
+
+                      {/* Cas 4 : Pas de contenu et pas d'outil actif = en attente */}
+                      {!m.content && !hasToolInvocations && (
+                        <span className="italic opacity-50">
+                          Analyse en cours...
+                        </span>
+                      )}
+                    </div>
                   </div>
-                   <div
-                     className={`rounded-2xl px-4 py-2 text-sm max-w-[80%] ${
-                       m.role === "user"
-                         ? "bg-slate-900 text-white rounded-tr-none"
-                         : "bg-slate-100 text-slate-800 rounded-tl-none"
-                     }`}
-                   >
-                     {/* Cas 1 : L'IA utilise un outil (affiche un petit badge) */}
-                     {(() => {
-                       const hasToolInvocations =
-                         "toolInvocations" in m &&
-                         (m as { toolInvocations?: unknown }).toolInvocations;
-                       return hasToolInvocations ? (
-                         <div className="mb-2">
-                           <Badge
-                             variant="outline"
-                             className="text-xs font-normal opacity-70"
-                           >
-                             ⚙️ Vérification des comptes...
-                           </Badge>
-                         </div>
-                       ) : null;
-                     })()}
+                );
+              })}
 
-                     {/* Cas 2 : Le contenu textuel final */}
-                     {m.content}
-
-                     {/* Cas 3 : Sécurité si pas de contenu mais outil terminé */}
-                     {!m.content &&
-                       !(
-                         "toolInvocations" in m &&
-                         (m as { toolInvocations?: unknown }).toolInvocations
-                       ) && (
-                         <span className="italic opacity-50">
-                           Analyse en cours...
-                         </span>
-                       )}
-                   </div>
-                </div>
-              ))}
-
-              {isLoading && (
+              {/* Indicateur de chargement global */}
+              {isLoading && messages.length > 0 && (
                 <div className="flex gap-2 mb-4">
                   <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                     <Bot className="h-4 w-4 text-blue-600 animate-pulse" />
@@ -259,6 +313,7 @@ export function AIChatButton() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Posez une question sur vos finances..."
                 className="focus-visible:ring-1 focus-visible:ring-blue-600"
+                disabled={isLoading}
               />
               <Button
                 type="submit"
@@ -266,7 +321,11 @@ export function AIChatButton() {
                 disabled={isLoading || !input.trim()}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                <Send className="h-4 w-4" />
+                {isLoading ? (
+                  <Bot className="h-4 w-4 animate-pulse" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
             </form>
           </CardFooter>
