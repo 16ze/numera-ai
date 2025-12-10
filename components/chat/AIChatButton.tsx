@@ -121,20 +121,24 @@ export function AIChatButton() {
           if (line.startsWith("0:")) {
             try {
               const data = JSON.parse(line.slice(2));
-              // Format TextStream : text-delta contient le texte
-              if (data.type === "text-delta" && data.textDelta) {
-                assistantContent += data.textDelta;
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  const lastMsg = updated[updated.length - 1];
-                  if (lastMsg && lastMsg.role === "assistant") {
-                    lastMsg.content = assistantContent;
-                  }
-                  return updated;
-                });
+              // Format TextStream : text-delta peut avoir textDelta ou delta
+              if (data.type === "text-delta") {
+                const textChunk = data.textDelta || data.delta || "";
+                if (textChunk) {
+                  assistantContent += textChunk;
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastMsg = updated[updated.length - 1];
+                    if (lastMsg && lastMsg.role === "assistant") {
+                      lastMsg.content = assistantContent;
+                    }
+                    return updated;
+                  });
+                }
               }
-            } catch {
-              // Ignore les erreurs de parsing
+            } catch (e) {
+              // Log pour déboguer
+              console.warn("Erreur parsing chunk:", e, line);
             }
           }
         }
