@@ -112,16 +112,25 @@ export async function POST(req: Request) {
         console.log("📊 Finish reason:", result.finishReason);
         console.log("🔧 Tool calls:", result.toolCalls?.length || 0);
         console.log("📝 Usage:", result.usage);
-        console.log("📄 Texte généré:", result.text?.substring(0, 200) || "Aucun texte");
+        console.log(
+          "📄 Texte généré:",
+          result.text?.substring(0, 200) || "Aucun texte"
+        );
         if (result.toolCalls && result.toolCalls.length > 0) {
-          console.log("🛠️ Outils appelés:", result.toolCalls.map(t => t.toolName));
+          console.log(
+            "🛠️ Outils appelés:",
+            result.toolCalls.map((t) => t.toolName)
+          );
         }
       },
 
       // 5. Callback onError pour logger les erreurs
       onError: (error) => {
         console.error("❌ ERREUR DANS streamText :", error);
-        console.error("Stack trace:", error instanceof Error ? error.stack : "N/A");
+        console.error(
+          "Stack trace:",
+          error instanceof Error ? error.stack : "N/A"
+        );
       },
     });
 
