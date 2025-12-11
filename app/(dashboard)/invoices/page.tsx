@@ -5,6 +5,7 @@
 
 import { getInvoices, calculateInvoiceTotalWithVat } from "../actions/invoices";
 import Link from "next/link";
+import { Eye } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,6 +15,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DeleteInvoiceButton } from "./DeleteInvoiceButton";
 
 /**
  * Fonction utilitaire pour obtenir le label du statut
@@ -96,6 +99,7 @@ export default async function InvoicesPage() {
                 <TableHead>Client</TableHead>
                 <TableHead className="text-right">Montant Total</TableHead>
                 <TableHead className="text-center">Statut</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -111,7 +115,7 @@ export default async function InvoicesPage() {
                 );
 
                 return (
-                  <TableRow key={invoice.id} className="hover:bg-slate-50 cursor-pointer">
+                  <TableRow key={invoice.id} className="hover:bg-slate-50">
                     <TableCell className="font-medium">
                       <Link
                         href={`/invoices/${invoice.id}`}
@@ -157,6 +161,25 @@ export default async function InvoicesPage() {
                       >
                         {getStatusLabel(invoice.status)}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          title={`Voir la facture ${invoice.number}`}
+                        >
+                          <Link href={`/invoices/${invoice.id}`}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <DeleteInvoiceButton
+                          invoiceId={invoice.id}
+                          invoiceNumber={invoice.number}
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
