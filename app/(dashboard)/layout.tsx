@@ -1,4 +1,4 @@
-import { AIChatButton } from "@/components/chat/AIChatButton";
+import { AIChatButtonWrapper } from "@/components/chat/AIChatButtonWrapper";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserButton } from "@clerk/nextjs";
 
@@ -35,8 +35,8 @@ export default function DashboardLayout({
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
 
-      {/* Bouton de chat flottant (accessible partout) */}
-      <AIChatButton />
+      {/* Bouton de chat flottant (accessible partout) - Chargé uniquement côté client */}
+      <AIChatButtonWrapper />
     </div>
   );
 }
