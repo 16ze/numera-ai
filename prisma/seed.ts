@@ -4,7 +4,7 @@
  */
 
 // CORRECTION ICI : On utilise l'import standard
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma, TransactionType, TransactionCategory, TransactionStatus } from '@prisma/client'
 
 const prisma = new PrismaClient();
 
@@ -36,7 +36,7 @@ async function main() {
     data: {
       email: "demo@numera.ai",
       name: "Demo User",
-      // CORRECTION ICI : "passwordHash" au lieu de "password"
+      clerkUserId: "demo_clerk_user_id_123", // ID factice pour le seed (normalement créé via Clerk)
       passwordHash: "password_fictif_123", 
       createdAt: new Date("2024-01-01"),
     },
@@ -122,21 +122,21 @@ async function main() {
     date.setDate(date.getDate() - Math.floor(Math.random() * 90));
 
     const isIncome = i < 30; // Plus de recettes pour être rentable
-    const type = isIncome ? "INCOME" : "EXPENSE";
+    const type = isIncome ? TransactionType.INCOME : TransactionType.EXPENSE;
     // Montants cohérents
     const amount = isIncome 
         ? Math.floor(Math.random() * 2000) + 500 
         : Math.floor(Math.random() * 300) + 20;
 
-    const category = categories[Math.floor(Math.random() * categories.length)];
+    const category = categories[Math.floor(Math.random() * categories.length)] as TransactionCategory;
 
     transactions.push({
       date,
       amount,
-      description: `${type === 'INCOME' ? 'Vente' : 'Achat'} - ${category}`,
+      description: `${type === TransactionType.INCOME ? 'Vente' : 'Achat'} - ${category}`,
       type,
       category,
-      status: Math.random() > 0.1 ? "COMPLETED" : "PENDING",
+      status: Math.random() > 0.1 ? TransactionStatus.COMPLETED : TransactionStatus.PENDING,
       companyId: company.id,
       createdAt: date,
     });
