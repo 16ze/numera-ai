@@ -1,6 +1,6 @@
 import { prisma } from "@/app/lib/prisma";
-import { currentUser } from "@clerk/nextjs/server";
 import { openai } from "@ai-sdk/openai";
+import { currentUser } from "@clerk/nextjs/server";
 import { streamText, tool } from "ai";
 import { z } from "zod";
 
@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   try {
     // Récupération de l'utilisateur Clerk connecté
     const clerkUser = await currentUser();
-    
+
     if (!clerkUser) {
       return new Response(JSON.stringify({ error: "Non authentifié" }), {
         status: 401,
@@ -76,7 +76,9 @@ export async function POST(req: Request) {
               });
 
               if (!user || !user.companies || user.companies.length === 0) {
-                console.warn("⚠️ Utilisateur ou company non trouvé, retour de zéros");
+                console.warn(
+                  "⚠️ Utilisateur ou company non trouvé, retour de zéros"
+                );
                 return { revenue: 0, expense: 0, net: 0 };
               }
 

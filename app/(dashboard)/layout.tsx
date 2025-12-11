@@ -1,6 +1,6 @@
 import { AIChatButtonWrapper } from "@/components/chat/AIChatButtonWrapper";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { UserButton } from "@clerk/nextjs";
+import { UserButtonWrapper } from "@/components/layout/UserButtonWrapper";
 
 /**
  * Layout pour les pages protégées (dashboard, transactions, etc.)
@@ -21,7 +21,7 @@ export default function DashboardLayout({
       <div className="flex flex-1 flex-col ml-64">
         {/* Header avec UserButton Clerk */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-end border-b bg-white px-6">
-          <UserButton
+          <UserButtonWrapper
             appearance={{
               elements: {
                 avatarBox: "h-10 w-10",

@@ -15,7 +15,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { UserButton } from "@clerk/nextjs";
+import { UserButtonWrapper } from "./UserButtonWrapper";
 
 /**
  * Configuration des liens de navigation
@@ -93,7 +93,7 @@ export function Sidebar() {
       {/* Profil utilisateur Clerk */}
       <div className="border-t p-4">
         <div className="flex items-center space-x-3">
-          <UserButton
+          <UserButtonWrapper
             appearance={{
               elements: {
                 avatarBox: "h-10 w-10",
