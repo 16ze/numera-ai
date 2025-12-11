@@ -177,6 +177,7 @@ export default function SignInPage() {
                   formHeaderSubtitle: "text-slate-600",
                 },
               }}
+              signUpUrl="/sign-up"
             />
           </div>
 
