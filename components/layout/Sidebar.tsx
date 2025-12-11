@@ -5,16 +5,16 @@
  * Fixe à gauche avec logo, liens de navigation et profil utilisateur Clerk
  */
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 import {
+  FileText,
   LayoutDashboard,
   ListOrdered,
-  FileText,
-  Users,
   Settings,
+  Users,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { UserButtonWrapper } from "./UserButtonWrapper";
 
 /**
@@ -108,5 +108,3 @@ export function Sidebar() {
     </div>
   );
 }
-
-

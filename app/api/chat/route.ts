@@ -1,8 +1,10 @@
 import { prisma } from "@/app/lib/prisma";
 import { openai } from "@ai-sdk/openai";
 import { currentUser } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
 import { streamText, tool } from "ai";
 import { z } from "zod";
+import { TransactionCategory, TransactionType } from "@prisma/client";
 
 // On laisse 30 secondes max pour éviter les timeouts
 export const maxDuration = 30;
@@ -46,12 +48,27 @@ export async function POST(req: Request) {
 
       PROTOCOL STRICT :
 
-      1. Si l'utilisateur demande des chiffres -> Appelle l'outil (getStats, etc).
+      1. Si l'utilisateur demande des chiffres -> Appelle l'outil getStats.
 
-      2. ATTENDS le résultat de l'outil.
+      2. Si l'utilisateur demande d'AJOUTER une transaction (dépense ou recette) -> Appelle l'outil addTransaction.
 
-      3. IMPORTANT : Une fois le résultat reçu, TU DOIS RÉDIGER une phrase de réponse (ex: "Votre CA est de 4000€").
+      3. ATTENDS le résultat de l'outil.
+
+      4. IMPORTANT : Une fois le résultat reçu, TU DOIS RÉDIGER une phrase de réponse (ex: "Votre CA est de 4000€" ou "Transaction ajoutée avec succès").
       NE T'ARRÊTE JAMAIS APRÈS L'EXÉCUTION DE L'OUTIL. PARLE À L'UTILISATEUR.
+
+      CRÉATION DE TRANSACTIONS :
+      - Tu PEUX créer des transactions si l'utilisateur le demande (ex: "Ajoute une dépense de 50€ pour un Uber").
+      - INFÈRE la catégorie si elle n'est pas précisée :
+        * Resto, restaurant, déjeuner, dîner, café -> REPAS
+        * Uber, taxi, transport, essence, parking -> TRANSPORT
+        * Matériel, fournitures, équipement -> MATERIEL
+        * Prestation, service, freelance -> PRESTATION
+        * Impôt, taxe, fiscal -> IMPOTS
+        * Salaire, paie -> SALAIRES
+        * Sinon -> AUTRE
+      - Le montant doit être positif (toujours en euros).
+      - La description doit être claire et concise.
 
       Devise : Euros (€).`,
 
@@ -125,6 +142,157 @@ export async function POST(req: Request) {
                 err instanceof Error ? err.stack : "N/A"
               );
               throw new Error("Erreur technique lors du calcul.");
+            }
+          },
+        }),
+
+        addTransaction: tool({
+          description:
+            "Ajoute une transaction (recette ou dépense) dans la base de données. Utilise cet outil quand l'utilisateur demande d'ajouter une transaction.",
+          inputSchema: z.object({
+            amount: z
+              .number()
+              .positive("Le montant doit être positif")
+              .describe("Montant de la transaction en euros"),
+            type: z
+              .enum(["INCOME", "EXPENSE"])
+              .describe("Type de transaction : INCOME (recette) ou EXPENSE (dépense)"),
+            description: z
+              .string()
+              .min(1, "La description est requise")
+              .describe("Description de la transaction (ex: 'Uber pour déplacement client')"),
+            category: z
+              .enum([
+                "TRANSPORT",
+                "REPAS",
+                "MATERIEL",
+                "PRESTATION",
+                "IMPOTS",
+                "SALAIRES",
+                "AUTRE",
+              ])
+              .optional()
+              .describe(
+                "Catégorie de la transaction (inférée si non précisée). Options: TRANSPORT, REPAS, MATERIEL, PRESTATION, IMPOTS, SALAIRES, AUTRE"
+              ),
+          }),
+          execute: async ({ amount, type, description, category }) => {
+            console.log("🛠️ Outil 'addTransaction' en cours...");
+            console.log(`📝 Paramètres: amount=${amount}, type=${type}, description=${description}, category=${category || "AUTO"}`);
+
+            try {
+              // Recherche de l'utilisateur Prisma via clerkUserId
+              const user = await prisma.user.findUnique({
+                where: { clerkUserId: clerkUser.id },
+                include: {
+                  companies: {
+                    orderBy: { createdAt: "asc" },
+                    take: 1,
+                  },
+                },
+              });
+
+              if (!user || !user.companies || user.companies.length === 0) {
+                console.error("❌ Utilisateur ou company non trouvé");
+                throw new Error("Utilisateur ou entreprise introuvable. Veuillez réessayer.");
+              }
+
+              const companyId = user.companies[0].id;
+              console.log(`✅ Company trouvée : ${companyId}`);
+
+              // Inférence de la catégorie si non fournie
+              let finalCategory: TransactionCategory = category || "AUTRE";
+              
+              if (!category) {
+                const descriptionLower = description.toLowerCase();
+                if (
+                  descriptionLower.includes("resto") ||
+                  descriptionLower.includes("restaurant") ||
+                  descriptionLower.includes("déjeuner") ||
+                  descriptionLower.includes("diner") ||
+                  descriptionLower.includes("dîner") ||
+                  descriptionLower.includes("café") ||
+                  descriptionLower.includes("cafe") ||
+                  descriptionLower.includes("manger") ||
+                  descriptionLower.includes("repas")
+                ) {
+                  finalCategory = "REPAS";
+                } else if (
+                  descriptionLower.includes("uber") ||
+                  descriptionLower.includes("taxi") ||
+                  descriptionLower.includes("transport") ||
+                  descriptionLower.includes("essence") ||
+                  descriptionLower.includes("parking") ||
+                  descriptionLower.includes("train") ||
+                  descriptionLower.includes("avion")
+                ) {
+                  finalCategory = "TRANSPORT";
+                } else if (
+                  descriptionLower.includes("matériel") ||
+                  descriptionLower.includes("materiel") ||
+                  descriptionLower.includes("fourniture") ||
+                  descriptionLower.includes("équipement") ||
+                  descriptionLower.includes("equipement")
+                ) {
+                  finalCategory = "MATERIEL";
+                } else if (
+                  descriptionLower.includes("prestation") ||
+                  descriptionLower.includes("service") ||
+                  descriptionLower.includes("freelance")
+                ) {
+                  finalCategory = "PRESTATION";
+                } else if (
+                  descriptionLower.includes("impôt") ||
+                  descriptionLower.includes("impot") ||
+                  descriptionLower.includes("taxe") ||
+                  descriptionLower.includes("fiscal")
+                ) {
+                  finalCategory = "IMPOTS";
+                } else if (
+                  descriptionLower.includes("salaire") ||
+                  descriptionLower.includes("paie") ||
+                  descriptionLower.includes("paye")
+                ) {
+                  finalCategory = "SALAIRES";
+                }
+
+                console.log(`🔍 Catégorie inférée : ${finalCategory}`);
+              }
+
+              // Création de la transaction
+              const transaction = await prisma.transaction.create({
+                data: {
+                  amount,
+                  type: type as TransactionType,
+                  description,
+                  category: finalCategory,
+                  status: "COMPLETED",
+                  companyId,
+                  date: new Date(), // Date actuelle par défaut
+                },
+              });
+
+              console.log(`✅ Transaction créée avec succès: ${transaction.id}`);
+
+              // IMPORTANT : Revalidation du cache pour mettre à jour le dashboard instantanément
+              revalidatePath("/");
+
+              return {
+                success: true,
+                transactionId: transaction.id,
+                message: `Transaction ${type === "INCOME" ? "de recette" : "de dépense"} de ${amount}€ ajoutée avec succès`,
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans addTransaction execute :", err);
+              console.error(
+                "Stack trace:",
+                err instanceof Error ? err.stack : "N/A"
+              );
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la création de la transaction"
+              );
             }
           },
         }),
