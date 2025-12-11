@@ -4,11 +4,11 @@
  */
 
 import { notFound } from "next/navigation";
+import { getInvoiceById } from "../../actions/invoices";
 import {
-  getInvoiceById,
   calculateInvoiceTotal,
   calculateInvoiceTotalWithVat,
-} from "../../actions/invoices";
+} from "../../utils/invoice-calculations";
 import { PrintButton } from "./PrintButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 

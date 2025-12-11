@@ -3,7 +3,8 @@
  * Affiche la liste des factures de l'utilisateur connecté
  */
 
-import { getInvoices, calculateInvoiceTotalWithVat } from "../actions/invoices";
+import { getInvoices } from "../actions/invoices";
+import { calculateInvoiceTotalWithVat } from "../utils/invoice-calculations";
 import Link from "next/link";
 import { Eye } from "lucide-react";
 import {
