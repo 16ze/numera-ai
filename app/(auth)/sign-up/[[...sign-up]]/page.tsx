@@ -1,16 +1,10 @@
 import { SignUp } from "@clerk/nextjs";
 
-/**
- * Page d'inscription Clerk
- *
- * Cette page affiche le composant SignUp de Clerk avec une interface personnalisée.
- * La redirection après inscription est gérée par Clerk via fallbackRedirectUrl.
- */
 export default function SignUpPage() {
   return (
     <div className="flex min-h-screen">
       {/* Partie gauche - Image/Illustration */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-primary/90 to-primary/80 p-12 flex-col justify-between relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 p-12 flex-col justify-between relative overflow-hidden">
         {/* Pattern de fond décoratif */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl"></div>
@@ -21,7 +15,7 @@ export default function SignUpPage() {
         <div className="relative z-10">
           {/* Logo */}
           <div className="flex items-center space-x-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-2xl font-bold text-primary">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-2xl font-bold text-blue-600">
               N
             </div>
             <span className="text-2xl font-bold text-white">Numera AI</span>
@@ -103,7 +97,7 @@ export default function SignUpPage() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M5 13l4 4L19 7"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
                   />
                 </svg>
               </div>
@@ -130,7 +124,7 @@ export default function SignUpPage() {
         <div className="w-full max-w-md">
           {/* Logo mobile */}
           <div className="lg:hidden mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-2xl font-bold text-primary-foreground">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-2xl font-bold text-white">
               N
             </div>
             <h1 className="text-2xl font-bold text-slate-900">Numera AI</h1>
@@ -146,47 +140,30 @@ export default function SignUpPage() {
             </p>
           </div>
 
-          {/* Composant Clerk SignUp */}
-          <div className="rounded-2xl bg-white p-1 shadow-2xl">
-            <SignUp
-              // C'EST ICI QUE ÇA SE JOUE : routing="path" et path="/sign-up"
-              // Sont OBLIGATOIRES pour les routes catch-all [[...sign-up]]
-              routing="path"
-              path="/sign-up"
-              appearance={{
-                elements: {
-                  rootBox: "w-full",
-                  card: "shadow-none border-0 bg-transparent",
-                  headerTitle: "hidden",
-                  headerSubtitle: "hidden",
-                  socialButtonsBlockButton:
-                    "border-2 border-slate-200 hover:border-primary hover:bg-slate-50 transition-all duration-200 font-medium",
-                  formButtonPrimary:
-                    "bg-primary hover:bg-primary/90 transition-all duration-200 font-semibold shadow-md hover:shadow-lg",
-                  footerActionLink:
-                    "text-primary hover:text-primary/80 font-medium transition-colors",
-                  formFieldInput:
-                    "border-2 border-slate-200 focus:border-primary transition-all duration-200",
-                  formFieldLabel: "font-medium text-slate-700",
-                  dividerLine: "bg-slate-200",
-                  dividerText: "text-slate-500 font-medium",
-                  identityPreviewText: "font-medium",
-                  formHeaderTitle: "text-xl font-bold text-slate-900",
-                  formHeaderSubtitle: "text-slate-600",
-                },
-              }}
-              signInUrl="/sign-in"
-              forceRedirectUrl="/"
-            />
-          </div>
-
-          {/* Footer */}
-          <div className="mt-8 text-center text-sm text-slate-500">
-            <p>
-              En créant un compte, vous acceptez nos Conditions
-              d&apos;utilisation et notre Politique de confidentialité
-            </p>
-          </div>
+          {/* Composant Clerk SignUp avec Styling + Routing correct */}
+          <SignUp
+            // 🚨 CES LIGNES SONT OBLIGATOIRES POUR QUE ÇA MARCHE
+            routing="path"
+            path="/sign-up"
+            forceRedirectUrl="/"
+            signInUrl="/sign-in"
+            // 🎨 TON DESIGN
+            appearance={{
+              elements: {
+                rootBox: "w-full",
+                card: "shadow-none border-0 bg-transparent p-0",
+                headerTitle: "hidden",
+                headerSubtitle: "hidden",
+                socialButtonsBlockButton:
+                  "border border-slate-200 hover:bg-slate-50 text-slate-600 font-medium h-10",
+                formButtonPrimary: "bg-blue-600 hover:bg-blue-700 text-sm normal-case",
+                footerActionLink: "text-blue-600 hover:text-blue-700",
+                formFieldInput:
+                  "border-slate-200 focus:border-blue-600 focus:ring-blue-600",
+                formFieldLabel: "text-slate-700 font-medium",
+              },
+            }}
+          />
         </div>
       </div>
     </div>
