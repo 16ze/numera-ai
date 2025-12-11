@@ -4,6 +4,7 @@
  */
 
 import { getInvoices, calculateInvoiceTotalWithVat } from "../actions/invoices";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -110,12 +111,38 @@ export default async function InvoicesPage() {
                 );
 
                 return (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-medium">{invoice.number}</TableCell>
-                    <TableCell>{formattedDate}</TableCell>
-                    <TableCell>{invoice.client.name}</TableCell>
+                  <TableRow key={invoice.id} className="hover:bg-slate-50 cursor-pointer">
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/invoices/${invoice.id}`}
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        {invoice.number}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/invoices/${invoice.id}`}
+                        className="text-slate-900 hover:text-blue-600"
+                      >
+                        {formattedDate}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/invoices/${invoice.id}`}
+                        className="text-slate-900 hover:text-blue-600"
+                      >
+                        {invoice.client.name}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-right font-medium">
-                      {total.toFixed(2)} €
+                      <Link
+                        href={`/invoices/${invoice.id}`}
+                        className="text-slate-900 hover:text-blue-600"
+                      >
+                        {total.toFixed(2)} €
+                      </Link>
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge
