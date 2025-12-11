@@ -149,6 +149,10 @@ export default function SignUpPage() {
           {/* Composant Clerk SignUp */}
           <div className="rounded-2xl bg-white p-1 shadow-2xl">
             <SignUp
+              // C'EST ICI QUE ÇA SE JOUE : routing="path" et path="/sign-up"
+              // Sont OBLIGATOIRES pour les routes catch-all [[...sign-up]]
+              routing="path"
+              path="/sign-up"
               appearance={{
                 elements: {
                   rootBox: "w-full",

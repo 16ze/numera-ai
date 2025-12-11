@@ -19,6 +19,7 @@ Vous avez probablement une **session Clerk corrompue** dans votre navigateur qui
 ### Option 1 : Mode Navigation Privée (LE PLUS RAPIDE)
 
 1. **Ouvrez un nouvel onglet de navigation privée** :
+
    - **Chrome/Edge** : `Ctrl+Shift+N` (Windows) ou `Cmd+Shift+N` (Mac)
    - **Firefox** : `Ctrl+Shift+P` (Windows) ou `Cmd+Shift+P` (Mac)
    - **Safari** : `Cmd+Shift+N`
@@ -61,7 +62,7 @@ Vous avez probablement une **session Clerk corrompue** dans votre navigateur qui
 Le middleware a été mis à jour avec la configuration officielle Clerk qui :
 
 ✅ **N'interfère PAS** avec les appels internes de Clerk  
-✅ **Laisse passer** les fichiers statiques (_next, images, etc.)  
+✅ **Laisse passer** les fichiers statiques (\_next, images, etc.)  
 ✅ **Laisse passer** les routes `/sign-in` et `/sign-up`  
 ✅ **Protège** toutes les autres routes avec `auth.protect()`
 
@@ -70,10 +71,7 @@ Le middleware a été mis à jour avec la configuration officielle Clerk qui :
 ```typescript
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const isPublicRoute = createRouteMatcher([
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-]);
+const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)"]);
 
 export default clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {
@@ -154,13 +152,13 @@ npm run dev
 
 ## 📊 FLOW ATTENDU APRÈS CORRECTION
 
-| Action | Résultat |
-|--------|----------|
-| **Accès à `/sign-in`** (non connecté) | Formulaire Clerk affiché |
-| **Connexion réussie** | Redirection automatique vers `/` (dashboard) |
-| **Accès à `/`** (non connecté) | Redirection vers `/sign-in` |
-| **Accès à `/sign-in`** (déjà connecté) | Redirection vers `/` |
-| **Déconnexion** | Redirection vers `/sign-in` |
+| Action                                 | Résultat                                     |
+| -------------------------------------- | -------------------------------------------- |
+| **Accès à `/sign-in`** (non connecté)  | Formulaire Clerk affiché                     |
+| **Connexion réussie**                  | Redirection automatique vers `/` (dashboard) |
+| **Accès à `/`** (non connecté)         | Redirection vers `/sign-in`                  |
+| **Accès à `/sign-in`** (déjà connecté) | Redirection vers `/`                         |
+| **Déconnexion**                        | Redirection vers `/sign-in`                  |
 
 ---
 
@@ -194,15 +192,18 @@ Après avoir suivi ces étapes, vous devriez voir :
 Si après toutes ces étapes, le problème persiste :
 
 1. **Vérifiez les logs du serveur** :
+
    - Regardez le terminal où tourne `npm run dev`
    - Cherchez des erreurs liées à Clerk
 
 2. **Vérifiez la console du navigateur** :
+
    - Appuyez sur F12
    - Onglet "Console"
    - Cherchez des erreurs en rouge
 
 3. **Vérifiez les requêtes réseau** :
+
    - F12 → Onglet "Network"
    - Rafraîchissez la page
    - Cherchez des requêtes en échec (rouge)
@@ -224,4 +225,3 @@ Si vous voyez le **dashboard avec la sidebar et votre UserButton** en haut à dr
 - ✅ Votre application est prête !
 
 **Félicitations ! 🎊**
-

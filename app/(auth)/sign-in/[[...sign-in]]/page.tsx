@@ -151,6 +151,10 @@ export default function SignInPage() {
           {/* Composant Clerk SignIn */}
           <div className="rounded-2xl bg-white p-1 shadow-2xl">
             <SignIn
+              // C'EST ICI QUE ÇA SE JOUE : routing="path" et path="/sign-in"
+              // Sont OBLIGATOIRES pour les routes catch-all [[...sign-in]]
+              routing="path"
+              path="/sign-in"
               appearance={{
                 elements: {
                   rootBox: "w-full",

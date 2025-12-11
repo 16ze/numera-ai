@@ -3,6 +3,7 @@
 ## ✅ ÉTAPE 1 : Créer le fichier .env
 
 1. **Copiez le fichier exemple** :
+
    ```bash
    cp .env.example .env
    ```
@@ -123,12 +124,12 @@ npm run dev
 
 ### Erreurs courantes
 
-| Erreur | Cause | Solution |
-|--------|-------|----------|
-| "Missing publishable key" | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` manquant | Ajoutez la clé dans `.env` |
-| "Invalid API key" | Mauvaise clé ou clé expirée | Vérifiez sur dashboard.clerk.com |
-| "Database connection failed" | `DATABASE_URL` incorrect | Vérifiez le format et les credentials |
-| Formulaire Clerk ne charge pas | Middleware trop restrictif | Utilisez le middleware.ts fourni |
+| Erreur                         | Cause                                        | Solution                              |
+| ------------------------------ | -------------------------------------------- | ------------------------------------- |
+| "Missing publishable key"      | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` manquant | Ajoutez la clé dans `.env`            |
+| "Invalid API key"              | Mauvaise clé ou clé expirée                  | Vérifiez sur dashboard.clerk.com      |
+| "Database connection failed"   | `DATABASE_URL` incorrect                     | Vérifiez le format et les credentials |
+| Formulaire Clerk ne charge pas | Middleware trop restrictif                   | Utilisez le middleware.ts fourni      |
 
 ---
 
@@ -159,4 +160,3 @@ Si vous avez toujours des problèmes :
 ## 🎉 SUCCÈS
 
 Si vous voyez le formulaire de connexion Clerk et pouvez vous connecter, **votre configuration est correcte** ! ✅
-

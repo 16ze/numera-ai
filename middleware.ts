@@ -27,7 +27,7 @@ export const config = {
   matcher: [
     /*
      * Matcher officiel Clerk - NE PAS MODIFIER
-     * 
+     *
      * Ce matcher :
      * - Exclut les fichiers statiques Next.js (_next)
      * - Exclut les images et assets (jpg, png, svg, etc.)
