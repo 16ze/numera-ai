@@ -1,4 +1,4 @@
-import { getDashboardData } from "@/app/actions/dashboard";
+import { getDashboardData } from "@/app/(dashboard)/actions/dashboard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {

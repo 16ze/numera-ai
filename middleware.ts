@@ -3,10 +3,10 @@ import { NextResponse } from "next/server";
 
 /**
  * Middleware Clerk pour Next.js
- * 
+ *
  * Ce middleware protège automatiquement toutes les routes de l'application.
  * Les routes publiques sont définies dans la configuration publicRoutes ci-dessous.
- * 
+ *
  * Routes publiques :
  * - Pages d'authentification (/sign-in, /sign-up)
  * - API publiques (webhooks)
@@ -22,7 +22,7 @@ export default clerkMiddleware(async (auth, request) => {
   // Si la route n'est pas publique, on vérifie l'authentification
   if (!isPublicRoute(request)) {
     const { userId } = await auth();
-    
+
     // Si l'utilisateur n'est pas connecté, rediriger vers /sign-in
     if (!userId) {
       const signInUrl = new URL("/sign-in", request.url);
