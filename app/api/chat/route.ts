@@ -1,10 +1,14 @@
 import { prisma } from "@/app/lib/prisma";
 import { openai } from "@ai-sdk/openai";
 import { currentUser } from "@clerk/nextjs/server";
-import { revalidatePath } from "next/cache";
+import {
+  InvoiceStatus,
+  TransactionCategory,
+  TransactionType,
+} from "@prisma/client";
 import { streamText, tool } from "ai";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { TransactionCategory, TransactionType } from "@prisma/client";
 
 // On laisse 30 secondes max pour éviter les timeouts
 export const maxDuration = 30;
@@ -52,9 +56,11 @@ export async function POST(req: Request) {
 
       2. Si l'utilisateur demande d'AJOUTER une transaction (dépense ou recette) -> Appelle l'outil addTransaction.
 
-      3. ATTENDS le résultat de l'outil.
+      3. Si l'utilisateur demande de CRÉER une FACTURE -> Appelle l'outil createInvoice.
 
-      4. IMPORTANT : Une fois le résultat reçu, TU DOIS RÉDIGER une phrase de réponse (ex: "Votre CA est de 4000€" ou "Transaction ajoutée avec succès").
+      4. ATTENDS le résultat de l'outil.
+
+      5. IMPORTANT : Une fois le résultat reçu, TU DOIS RÉDIGER une phrase de réponse (ex: "Votre CA est de 4000€" ou "Transaction ajoutée avec succès" ou "Facture créée avec succès").
       NE T'ARRÊTE JAMAIS APRÈS L'EXÉCUTION DE L'OUTIL. PARLE À L'UTILISATEUR.
 
       CRÉATION DE TRANSACTIONS :
@@ -69,6 +75,13 @@ export async function POST(req: Request) {
         * Sinon -> AUTRE
       - Le montant doit être positif (toujours en euros).
       - La description doit être claire et concise.
+
+      CRÉATION DE FACTURES :
+      - Tu PEUX créer des factures si l'utilisateur le demande (ex: "Facture Martin 500€ pour du coaching").
+      - Le client sera créé automatiquement s'il n'existe pas déjà.
+      - Si l'utilisateur donne juste un montant et une description simple, crée une facture avec une ligne.
+      - Les items peuvent être un tableau (plusieurs lignes) ou juste un montant simple (une ligne).
+      - La date d'échéance est optionnelle (par défaut J+30 jours).
 
       Devise : Euros (€).`,
 
@@ -156,11 +169,15 @@ export async function POST(req: Request) {
               .describe("Montant de la transaction en euros"),
             type: z
               .enum(["INCOME", "EXPENSE"])
-              .describe("Type de transaction : INCOME (recette) ou EXPENSE (dépense)"),
+              .describe(
+                "Type de transaction : INCOME (recette) ou EXPENSE (dépense)"
+              ),
             description: z
               .string()
               .min(1, "La description est requise")
-              .describe("Description de la transaction (ex: 'Uber pour déplacement client')"),
+              .describe(
+                "Description de la transaction (ex: 'Uber pour déplacement client')"
+              ),
             category: z
               .enum([
                 "TRANSPORT",
@@ -178,7 +195,11 @@ export async function POST(req: Request) {
           }),
           execute: async ({ amount, type, description, category }) => {
             console.log("🛠️ Outil 'addTransaction' en cours...");
-            console.log(`📝 Paramètres: amount=${amount}, type=${type}, description=${description}, category=${category || "AUTO"}`);
+            console.log(
+              `📝 Paramètres: amount=${amount}, type=${type}, description=${description}, category=${
+                category || "AUTO"
+              }`
+            );
 
             try {
               // Recherche de l'utilisateur Prisma via clerkUserId
@@ -194,7 +215,9 @@ export async function POST(req: Request) {
 
               if (!user || !user.companies || user.companies.length === 0) {
                 console.error("❌ Utilisateur ou company non trouvé");
-                throw new Error("Utilisateur ou entreprise introuvable. Veuillez réessayer.");
+                throw new Error(
+                  "Utilisateur ou entreprise introuvable. Veuillez réessayer."
+                );
               }
 
               const companyId = user.companies[0].id;
@@ -202,7 +225,7 @@ export async function POST(req: Request) {
 
               // Inférence de la catégorie si non fournie
               let finalCategory: TransactionCategory = category || "AUTRE";
-              
+
               if (!category) {
                 const descriptionLower = description.toLowerCase();
                 if (
@@ -272,7 +295,9 @@ export async function POST(req: Request) {
                 },
               });
 
-              console.log(`✅ Transaction créée avec succès: ${transaction.id}`);
+              console.log(
+                `✅ Transaction créée avec succès: ${transaction.id}`
+              );
 
               // IMPORTANT : Revalidation du cache pour mettre à jour le dashboard instantanément
               revalidatePath("/");
@@ -280,7 +305,9 @@ export async function POST(req: Request) {
               return {
                 success: true,
                 transactionId: transaction.id,
-                message: `Transaction ${type === "INCOME" ? "de recette" : "de dépense"} de ${amount}€ ajoutée avec succès`,
+                message: `Transaction ${
+                  type === "INCOME" ? "de recette" : "de dépense"
+                } de ${amount}€ ajoutée avec succès`,
               };
             } catch (err) {
               console.error("❌ ERREUR dans addTransaction execute :", err);
@@ -292,6 +319,171 @@ export async function POST(req: Request) {
                 err instanceof Error
                   ? err.message
                   : "Erreur lors de la création de la transaction"
+              );
+            }
+          },
+        }),
+
+        createInvoice: tool({
+          description:
+            "Crée une facture pour un client. Le client sera créé automatiquement s'il n'existe pas déjà. Utilise cet outil quand l'utilisateur demande de créer une facture.",
+          inputSchema: z.object({
+            clientName: z
+              .string()
+              .min(1, "Le nom du client est requis")
+              .describe("Nom du client (sera créé s'il n'existe pas)"),
+            items: z
+              .array(
+                z.object({
+                  description: z
+                    .string()
+                    .min(1, "La description est requise")
+                    .describe("Description de la prestation ou produit"),
+                  quantity: z
+                    .number()
+                    .positive("La quantité doit être positive")
+                    .default(1)
+                    .describe("Quantité (par défaut: 1)"),
+                  unitPrice: z
+                    .number()
+                    .positive("Le prix unitaire doit être positif")
+                    .describe("Prix unitaire HT en euros"),
+                })
+              )
+              .min(1, "Au moins un item est requis")
+              .describe("Lignes de la facture (items)"),
+            dueDate: z
+              .string()
+              .optional()
+              .describe(
+                "Date d'échéance au format ISO (optionnel, par défaut J+30 jours)"
+              ),
+          }),
+          execute: async ({ clientName, items, dueDate }) => {
+            console.log("🛠️ Outil 'createInvoice' en cours...");
+            console.log(
+              `📝 Paramètres: clientName=${clientName}, items=${items.length}, dueDate=${dueDate || "AUTO"}`
+            );
+
+            try {
+              // Recherche de l'utilisateur Prisma via clerkUserId
+              const user = await prisma.user.findUnique({
+                where: { clerkUserId: clerkUser.id },
+                include: {
+                  companies: {
+                    orderBy: { createdAt: "asc" },
+                    take: 1,
+                  },
+                },
+              });
+
+              if (!user || !user.companies || user.companies.length === 0) {
+                console.error("❌ Utilisateur ou company non trouvé");
+                throw new Error(
+                  "Utilisateur ou entreprise introuvable. Veuillez réessayer."
+                );
+              }
+
+              const companyId = user.companies[0].id;
+              console.log(`✅ Company trouvée : ${companyId}`);
+
+              // Recherche ou création du client
+              let client = await prisma.client.findFirst({
+                where: {
+                  companyId,
+                  name: {
+                    equals: clientName,
+                    mode: "insensitive", // Recherche insensible à la casse
+                  },
+                },
+              });
+
+              if (!client) {
+                console.log(`🆕 Création du nouveau client: ${clientName}`);
+                client = await prisma.client.create({
+                  data: {
+                    name: clientName,
+                    companyId,
+                  },
+                });
+                console.log(`✅ Client créé avec succès: ${client.id}`);
+              } else {
+                console.log(`✅ Client trouvé: ${client.id}`);
+              }
+
+              // Calcul de la date d'échéance (J+30 par défaut)
+              const now = new Date();
+              const issuedDate = now;
+              const calculatedDueDate = dueDate
+                ? new Date(dueDate)
+                : new Date(now.setDate(now.getDate() + 30));
+
+              // Récupération du dernier numéro de facture pour cette company
+              const lastInvoice = await prisma.invoice.findFirst({
+                where: { companyId },
+                orderBy: { createdAt: "desc" },
+              });
+
+              // Génération du numéro de facture (INV-001, INV-002, etc.)
+              let invoiceNumber = "INV-001";
+              if (lastInvoice) {
+                const lastNumber = parseInt(
+                  lastInvoice.number.replace("INV-", "")
+                );
+                invoiceNumber = `INV-${String(lastNumber + 1).padStart(3, "0")}`;
+              }
+
+              console.log(`📄 Numéro de facture généré: ${invoiceNumber}`);
+
+              // Création de la facture avec ses lignes en transaction
+              const invoice = await prisma.invoice.create({
+                data: {
+                  number: invoiceNumber,
+                  issuedDate,
+                  dueDate: calculatedDueDate,
+                  status: InvoiceStatus.DRAFT,
+                  companyId,
+                  clientId: client.id,
+                  rows: {
+                    create: items.map((item) => ({
+                      description: item.description,
+                      quantity: item.quantity,
+                      unitPrice: item.unitPrice,
+                      vatRate: 0.0, // TVA par défaut à 0%, peut être amélioré plus tard
+                    })),
+                  },
+                },
+                include: {
+                  rows: true,
+                },
+              });
+
+              console.log(`✅ Facture créée avec succès: ${invoice.id}`);
+
+              // Calcul du montant total
+              const total = invoice.rows.reduce((sum, row) => {
+                return sum + Number(row.quantity) * Number(row.unitPrice);
+              }, 0);
+
+              // IMPORTANT : Revalidation du cache pour mettre à jour la page des factures
+              revalidatePath("/invoices");
+
+              return {
+                success: true,
+                invoiceId: invoice.id,
+                invoiceNumber: invoice.number,
+                message: `Facture ${invoice.number} créée pour ${clientName} (Montant: ${total.toFixed(2)}€)`,
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans createInvoice execute :", err);
+              console.error(
+                "Stack trace:",
+                err instanceof Error ? err.stack : "N/A"
+              );
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la création de la facture"
               );
             }
           },
