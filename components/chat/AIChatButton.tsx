@@ -37,7 +37,7 @@ type Message = {
 
 /**
  * Composant AIChatButton
- * 
+ *
  * Affiche un bouton flottant qui ouvre une fenêtre de chat avec l'assistant CFO.
  * Gère le streaming des réponses et les appels d'outils de manière automatique.
  */
@@ -107,11 +107,8 @@ export function AIChatButton() {
 
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Lecture du DataStream
-      // Le DataStream de Vercel AI SDK envoie des événements au format:
-      // 0:"text chunk"
-      // 9:[{"toolCallId":"...","toolName":"...","args":{}}]
-      // d:{"finishReason":"stop"}
+      // Lecture du UIMessageStream (format SSE de Vercel AI SDK v5)
+      // Le format est: data: {"type":"text-delta","delta":"..."}
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -126,104 +123,79 @@ export function AIChatButton() {
         buffer = lines.pop() || ""; // Garde la dernière ligne incomplète
 
         for (const line of lines) {
-          if (!line.trim()) continue;
+          if (!line.trim() || line.trim() === "[DONE]") continue;
+          if (!line.startsWith("data: ")) continue;
 
-          // Parse des événements DataStream
-          // Format: "TYPE:DATA"
-          const colonIndex = line.indexOf(":");
-          if (colonIndex === -1) continue;
-
-          const eventType = line.slice(0, colonIndex);
-          const eventData = line.slice(colonIndex + 1);
-
+          const jsonData = line.slice(6); // Enlève "data: "
+          
           try {
-            switch (eventType) {
-              case "0": // Chunk de texte
-                {
-                  const text = JSON.parse(eventData);
-                  textContent += text;
-                  setMessages((prev) => {
-                    const updated = [...prev];
-                    const lastMsg = updated[updated.length - 1];
-                    if (lastMsg && lastMsg.role === "assistant") {
-                      lastMsg.content = textContent;
-                      // Si on reçoit du texte, les outils sont terminés
-                      if (lastMsg.toolInvocations) {
-                        for (const tool of lastMsg.toolInvocations) {
-                          if (tool.state === "call") {
-                            tool.state = "result";
-                          }
+            const event = JSON.parse(jsonData);
+
+            switch (event.type) {
+              case "text-delta": // Chunk de texte
+                textContent += event.delta;
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const lastMsg = updated[updated.length - 1];
+                  if (lastMsg && lastMsg.role === "assistant") {
+                    lastMsg.content = textContent;
+                    // Si on reçoit du texte, les outils sont terminés
+                    if (lastMsg.toolInvocations) {
+                      for (const tool of lastMsg.toolInvocations) {
+                        if (tool.state === "call") {
+                          tool.state = "result";
                         }
                       }
                     }
-                    return updated;
-                  });
-                }
+                  }
+                  return updated;
+                });
                 break;
 
-              case "9": // Tool call
-                {
-                  const toolCalls = JSON.parse(eventData);
-                  console.log("🔧 Tool calls détectés:", toolCalls);
-                  setMessages((prev) => {
-                    const updated = [...prev];
-                    const lastMsg = updated[updated.length - 1];
-                    if (lastMsg && lastMsg.role === "assistant") {
-                      if (!lastMsg.toolInvocations) {
-                        lastMsg.toolInvocations = [];
-                      }
-                      // Ajoute les nouveaux tool calls
-                      for (const toolCall of toolCalls) {
-                        if (!lastMsg.toolInvocations.find(t => t.toolName === toolCall.toolName)) {
-                          lastMsg.toolInvocations.push({
-                            toolName: toolCall.toolName,
-                            state: "call",
-                          });
-                        }
-                      }
+              case "tool-input-start": // Début d'appel d'outil
+                console.log("🔧 Tool call détecté:", event.toolName);
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const lastMsg = updated[updated.length - 1];
+                  if (lastMsg && lastMsg.role === "assistant") {
+                    if (!lastMsg.toolInvocations) {
+                      lastMsg.toolInvocations = [];
                     }
-                    return updated;
-                  });
-                }
-                break;
-
-              case "a": // Tool result
-                {
-                  const toolResults = JSON.parse(eventData);
-                  console.log("✅ Tool results reçus:", toolResults);
-                  setMessages((prev) => {
-                    const updated = [...prev];
-                    const lastMsg = updated[updated.length - 1];
-                    if (lastMsg && lastMsg.role === "assistant" && lastMsg.toolInvocations) {
-                      for (const result of toolResults) {
-                        const tool = lastMsg.toolInvocations.find(
-                          t => t.toolName === result.toolName
-                        );
-                        if (tool) {
-                          tool.result = result.result;
-                          // Garde l'état "call" jusqu'à ce qu'on reçoive du texte
-                        }
-                      }
+                    // Ajoute le tool call s'il n'existe pas déjà
+                    if (!lastMsg.toolInvocations.find((t) => t.toolName === event.toolName)) {
+                      lastMsg.toolInvocations.push({
+                        toolName: event.toolName,
+                        state: "call",
+                      });
                     }
-                    return updated;
-                  });
-                }
+                  }
+                  return updated;
+                });
                 break;
 
-              case "d": // Data/metadata (finish reason, etc.)
-                {
-                  const data = JSON.parse(eventData);
-                  console.log("📊 Métadonnées reçues:", data);
-                }
+              case "tool-output-available": // Résultat d'outil disponible
+                console.log("✅ Tool result reçu:", event.output);
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const lastMsg = updated[updated.length - 1];
+                  if (lastMsg && lastMsg.role === "assistant" && lastMsg.toolInvocations) {
+                    const tool = lastMsg.toolInvocations.find((t) => t.toolName === event.toolName);
+                    if (tool) {
+                      tool.result = event.output;
+                      // Garde l'état "call" jusqu'à ce qu'on reçoive du texte
+                    }
+                  }
+                  return updated;
+                });
                 break;
 
-              case "e": // Error
-                {
-                  const error = JSON.parse(eventData);
-                  console.error("❌ Erreur du stream:", error);
-                  throw new Error(error.message || "Erreur du stream");
-                }
+              case "finish":
+                console.log("📊 Stream terminé, raison:", event.finishReason);
                 break;
+
+              case "error":
+                console.error("❌ Erreur du stream:", event);
+                throw new Error(event.error || "Erreur du stream");
             }
           } catch (parseError) {
             console.error("Erreur de parsing:", parseError, "Line:", line);

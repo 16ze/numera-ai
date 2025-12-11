@@ -18,11 +18,17 @@ export async function POST(req: Request) {
       model: openai("gpt-4o"),
       messages,
 
-      // 2. INDISPENSABLE : maxSteps permet à l'IA de faire plusieurs aller-retours
-      // (Question -> Appel Outil -> Résultat Outil -> Réponse Texte)
-      // Note: maxSteps est supporté mais pas encore dans les types TypeScript
-      // @ts-expect-error - maxSteps est supporté par l'API mais pas encore typé
-      maxSteps: 5,
+      // 2. INDISPENSABLE : stopWhen permet de continuer jusqu'à ce qu'il n'y ait plus d'appels d'outils
+      // Par défaut, streamText s'arrête après 1 step, on doit le remplacer
+      // On continue jusqu'à 5 steps max OU jusqu'à ce qu'il n'y ait plus de tool calls
+      stopWhen: ({ steps }) => {
+        // Continue tant qu'il y a moins de 5 steps
+        // ET que le dernier step a des tool calls (donc pas encore de réponse finale)
+        if (steps.length >= 5) return true;
+        const lastStep = steps[steps.length - 1];
+        // Si le dernier step n'a pas de tool calls, on peut s'arrêter
+        return lastStep.toolCalls.length === 0 && steps.length > 1;
+      },
 
       // 3. Prompt système autoritaire pour forcer la réponse textuelle
       system: `Tu es le CFO de Numera Corp.
@@ -134,11 +140,11 @@ export async function POST(req: Request) {
       },
     });
 
-    // 6. On renvoie le stream au format DataStream (standard Vercel AI pour useChat)
-    // toDataStreamResponse() envoie les métadonnées des outils ET le texte
+    // 6. On renvoie le stream au format UIMessageStream (standard Vercel AI v5)
+    // toUIMessageStreamResponse() envoie les métadonnées des outils ET le texte
     // Cela permet au client de gérer correctement le cycle complet des outils
     console.log("📤 Envoi de la réponse streamée...");
-    return result.toDataStreamResponse();
+    return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error("❌ ERREUR GENERALE API :", error);
     console.error("Stack trace:", error instanceof Error ? error.stack : "N/A");
