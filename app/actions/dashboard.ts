@@ -1,11 +1,10 @@
 /**
  * Server Actions pour le Dashboard
- * Récupère les données financières pour l'utilisateur demo@numera.ai
+ * Récupère les données financières pour l'utilisateur connecté via Clerk
  */
 
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/app/lib/prisma";
+import { getAuthUser } from "@/app/lib/auth-helper";
 
 /**
  * Type pour les données du graphique
@@ -42,27 +41,12 @@ export type DashboardData = {
 
 /**
  * Server Action pour récupérer les données du Dashboard
- * Hardcodé pour l'utilisateur demo@numera.ai en attendant l'authentification
+ * Utilise l'utilisateur authentifié via Clerk
  */
 export async function getDashboardData(): Promise<DashboardData> {
   try {
-    // Récupération de l'utilisateur demo
-    const user = await prisma.user.findUnique({
-      where: { email: "demo@numera.ai" },
-      include: {
-        companies: {
-          include: {
-            transactions: true,
-          },
-        },
-      },
-    });
-
-    if (!user || !user.companies || user.companies.length === 0) {
-      throw new Error("Utilisateur ou entreprise non trouvée");
-    }
-
-    const company = user.companies[0]; // Première entreprise de l'utilisateur
+    // Récupération de l'utilisateur connecté via Clerk
+    const { company } = await getAuthUser();
 
     // Calcul des dates pour le mois en cours
     const now = new Date();

@@ -1,4 +1,5 @@
 import { prisma } from "@/app/lib/prisma";
+import { getAuthUser } from "@/app/lib/auth-helper";
 import { openai } from "@ai-sdk/openai";
 import { streamText, tool } from "ai";
 import { z } from "zod";
@@ -53,18 +54,9 @@ export async function POST(req: Request) {
             console.log("🛠️ Outil 'getStats' en cours...");
 
             try {
-              // --- Logique Prisma ---
-              const user = await prisma.user.findUnique({
-                where: { email: "demo@numera.ai" },
-                include: { companies: true },
-              });
-
-              if (!user || !user.companies[0]) {
-                console.error("❌ ERREUR: Utilisateur demo introuvable !");
-                throw new Error("Utilisateur introuvable.");
-              }
-
-              const companyId = user.companies[0].id;
+              // Récupération de l'utilisateur connecté via Clerk
+              const { company } = await getAuthUser();
+              const companyId = company.id;
               console.log(`✅ Company trouvée : ${companyId}`);
 
               const now = new Date();

@@ -66,6 +66,7 @@ enum TransactionStatus {
  */
 model User {
   id             String   @id @default(uuid())
+  clerkUserId    String   @unique // ID de l'utilisateur dans Clerk (pour la synchronisation)
   email          String   @unique
   name           String?
   passwordHash   String? // Nullable si authentification via provider externe
@@ -78,6 +79,7 @@ model User {
   assistantThreads AssistantThread[]
 
   @@index([email])
+  @@index([clerkUserId]) // Index pour recherche rapide par Clerk ID
   @@map("users")
 }
 
