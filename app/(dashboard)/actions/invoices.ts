@@ -6,6 +6,7 @@
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { InvoiceStatus } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 
 /**
  * Type pour une facture avec ses relations
@@ -292,6 +293,9 @@ export async function deleteInvoice(invoiceId: string): Promise<{ success: boole
     });
 
     console.log(`✅ Facture ${invoice.number} supprimée avec succès`);
+
+    // Revalidation du cache pour mettre à jour la liste des factures
+    revalidatePath("/invoices");
 
     return {
       success: true,
