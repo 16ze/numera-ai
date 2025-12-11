@@ -156,7 +156,8 @@ export default function SignUpPage() {
                 headerSubtitle: "hidden",
                 socialButtonsBlockButton:
                   "border border-slate-200 hover:bg-slate-50 text-slate-600 font-medium h-10",
-                formButtonPrimary: "bg-blue-600 hover:bg-blue-700 text-sm normal-case",
+                formButtonPrimary:
+                  "bg-blue-600 hover:bg-blue-700 text-sm normal-case",
                 footerActionLink: "text-blue-600 hover:text-blue-700",
                 formFieldInput:
                   "border-slate-200 focus:border-blue-600 focus:ring-blue-600",
