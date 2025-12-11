@@ -58,7 +58,10 @@ export default async function InvoicePage({
       </div>
 
       {/* Conteneur facture format A4 */}
-      <div className="mx-auto w-full max-w-[210mm] bg-white shadow-lg print:shadow-none">
+      <div
+        id="invoice-print-area"
+        className="mx-auto w-full max-w-[210mm] bg-white shadow-lg print:shadow-none"
+      >
         <div className="p-12 print:p-8">
           {/* En-tête : Logo/Entreprise (gauche) vs Client/Infos (droite) */}
           <div className="mb-12 grid grid-cols-2 gap-8">

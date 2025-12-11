@@ -65,61 +65,32 @@
   }
 }
 
-/* Styles pour l'impression */
+/* Styles pour l'impression - Configuration Pro */
 @media print {
-  @page {
-    size: A4;
+  /* Cache tout ce qui n'est pas la facture */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Affiche uniquement la zone d'impression qu'on définira */
+  #invoice-print-area,
+  #invoice-print-area * {
+    visibility: visible;
+  }
+
+  #invoice-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
     margin: 0;
+    padding: 0;
+    box-shadow: none;
   }
 
-  /* Cacher la sidebar */
-  aside,
-  [data-sidebar] {
-    display: none !important;
-  }
-
-  /* Cacher le header */
-  header {
-    display: none !important;
-  }
-
-  /* Cacher les éléments avec la classe print:hidden */
-  .print\:hidden {
-    display: none !important;
-  }
-
-  /* Cacher le bouton de chat flottant */
-  [data-chat-button],
-  button[aria-label*="chat"],
-  button[aria-label*="Chat"] {
-    display: none !important;
-  }
-
-  /* Fond blanc pour l'impression */
-  body {
-    background: white !important;
-  }
-
-  /* Pas de fond gris sur le conteneur principal */
-  .bg-slate-100 {
-    background: white !important;
-    padding: 0 !important;
-  }
-
-  /* Pas d'ombre sur la facture */
-  .shadow-lg {
-    box-shadow: none !important;
-  }
-
-  /* Format A4 pour le conteneur facture */
-  .mx-auto {
-    margin: 0 !important;
-    max-width: 100% !important;
-    page-break-inside: avoid;
-  }
-
-  /* Padding pour la facture en impression */
-  [class*="p-"] {
-    padding: 1cm !important;
+  /* Cache les en-têtes/pieds de page du navigateur si possible */
+  @page {
+    margin: 0;
+    size: auto;
   }
 }
