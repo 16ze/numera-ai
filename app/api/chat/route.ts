@@ -362,7 +362,9 @@ export async function POST(req: Request) {
           execute: async ({ clientName, items, dueDate }) => {
             console.log("🛠️ Outil 'createInvoice' en cours...");
             console.log(
-              `📝 Paramètres: clientName=${clientName}, items=${items.length}, dueDate=${dueDate || "AUTO"}`
+              `📝 Paramètres: clientName=${clientName}, items=${
+                items.length
+              }, dueDate=${dueDate || "AUTO"}`
             );
 
             try {
@@ -430,7 +432,10 @@ export async function POST(req: Request) {
                 const lastNumber = parseInt(
                   lastInvoice.number.replace("INV-", "")
                 );
-                invoiceNumber = `INV-${String(lastNumber + 1).padStart(3, "0")}`;
+                invoiceNumber = `INV-${String(lastNumber + 1).padStart(
+                  3,
+                  "0"
+                )}`;
               }
 
               console.log(`📄 Numéro de facture généré: ${invoiceNumber}`);
@@ -472,7 +477,9 @@ export async function POST(req: Request) {
                 success: true,
                 invoiceId: invoice.id,
                 invoiceNumber: invoice.number,
-                message: `Facture ${invoice.number} créée pour ${clientName} (Montant: ${total.toFixed(2)}€)`,
+                message: `Facture ${
+                  invoice.number
+                } créée pour ${clientName} (Montant: ${total.toFixed(2)}€)`,
               };
             } catch (err) {
               console.error("❌ ERREUR dans createInvoice execute :", err);
