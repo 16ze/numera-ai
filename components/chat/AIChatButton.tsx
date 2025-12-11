@@ -21,6 +21,9 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+/**
+ * Type représentant un message dans le chat
+ */
 type Message = {
   id: string;
   role: "user" | "assistant";
@@ -28,9 +31,16 @@ type Message = {
   toolInvocations?: Array<{
     toolName: string;
     state: "call" | "result";
+    result?: unknown;
   }>;
 };
 
+/**
+ * Composant AIChatButton
+ * 
+ * Affiche un bouton flottant qui ouvre une fenêtre de chat avec l'assistant CFO.
+ * Gère le streaming des réponses et les appels d'outils de manière automatique.
+ */
 export function AIChatButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -38,17 +48,24 @@ export function AIChatButton() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Scroll automatique
+  /**
+   * Scroll automatique vers le bas lors de l'ajout de nouveaux messages
+   */
   useEffect(() => {
     if (isOpen && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isOpen]);
 
+  /**
+   * Gestion de l'envoi d'un message
+   * Envoie le message à l'API et traite le stream de réponse
+   */
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
+    // Création du message utilisateur
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -60,6 +77,7 @@ export function AIChatButton() {
     setIsLoading(true);
 
     try {
+      // Envoi de la requête à l'API
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,11 +97,7 @@ export function AIChatButton() {
         throw new Error("Response body is null");
       }
 
-      // Lire le stream texte
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantContent = "";
-
+      // Création du message assistant (vide au départ)
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -93,79 +107,144 @@ export function AIChatButton() {
 
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Variables pour détecter les phases
-      let hasReceivedText = false;
-      let toolCallDetected = false;
-      let lastChunkTime = Date.now();
+      // Lecture du DataStream
+      // Le DataStream de Vercel AI SDK envoie des événements au format:
+      // 0:"text chunk"
+      // 9:[{"toolCallId":"...","toolName":"...","args":{}}]
+      // d:{"finishReason":"stop"}
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let textContent = "";
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {
-          console.log("✅ Stream terminé. Contenu final:", assistantContent);
-          break;
-        }
+        if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const currentTime = Date.now();
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || ""; // Garde la dernière ligne incomplète
 
-        // Si on reçoit un chunk mais pas encore de texte, c'est probablement un appel d'outil
-        if (!hasReceivedText && chunk.length > 0) {
-          const timeSinceLastChunk = currentTime - lastChunkTime;
-          // Si on attend longtemps sans texte, c'est probablement un outil
-          if (timeSinceLastChunk > 100 || !assistantContent.trim()) {
-            toolCallDetected = true;
-            console.log("🔧 Détection d'un appel d'outil");
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          // Parse des événements DataStream
+          // Format: "TYPE:DATA"
+          const colonIndex = line.indexOf(":");
+          if (colonIndex === -1) continue;
+
+          const eventType = line.slice(0, colonIndex);
+          const eventData = line.slice(colonIndex + 1);
+
+          try {
+            switch (eventType) {
+              case "0": // Chunk de texte
+                {
+                  const text = JSON.parse(eventData);
+                  textContent += text;
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastMsg = updated[updated.length - 1];
+                    if (lastMsg && lastMsg.role === "assistant") {
+                      lastMsg.content = textContent;
+                      // Si on reçoit du texte, les outils sont terminés
+                      if (lastMsg.toolInvocations) {
+                        for (const tool of lastMsg.toolInvocations) {
+                          if (tool.state === "call") {
+                            tool.state = "result";
+                          }
+                        }
+                      }
+                    }
+                    return updated;
+                  });
+                }
+                break;
+
+              case "9": // Tool call
+                {
+                  const toolCalls = JSON.parse(eventData);
+                  console.log("🔧 Tool calls détectés:", toolCalls);
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastMsg = updated[updated.length - 1];
+                    if (lastMsg && lastMsg.role === "assistant") {
+                      if (!lastMsg.toolInvocations) {
+                        lastMsg.toolInvocations = [];
+                      }
+                      // Ajoute les nouveaux tool calls
+                      for (const toolCall of toolCalls) {
+                        if (!lastMsg.toolInvocations.find(t => t.toolName === toolCall.toolName)) {
+                          lastMsg.toolInvocations.push({
+                            toolName: toolCall.toolName,
+                            state: "call",
+                          });
+                        }
+                      }
+                    }
+                    return updated;
+                  });
+                }
+                break;
+
+              case "a": // Tool result
+                {
+                  const toolResults = JSON.parse(eventData);
+                  console.log("✅ Tool results reçus:", toolResults);
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    const lastMsg = updated[updated.length - 1];
+                    if (lastMsg && lastMsg.role === "assistant" && lastMsg.toolInvocations) {
+                      for (const result of toolResults) {
+                        const tool = lastMsg.toolInvocations.find(
+                          t => t.toolName === result.toolName
+                        );
+                        if (tool) {
+                          tool.result = result.result;
+                          // Garde l'état "call" jusqu'à ce qu'on reçoive du texte
+                        }
+                      }
+                    }
+                    return updated;
+                  });
+                }
+                break;
+
+              case "d": // Data/metadata (finish reason, etc.)
+                {
+                  const data = JSON.parse(eventData);
+                  console.log("📊 Métadonnées reçues:", data);
+                }
+                break;
+
+              case "e": // Error
+                {
+                  const error = JSON.parse(eventData);
+                  console.error("❌ Erreur du stream:", error);
+                  throw new Error(error.message || "Erreur du stream");
+                }
+                break;
+            }
+          } catch (parseError) {
+            console.error("Erreur de parsing:", parseError, "Line:", line);
           }
         }
-
-        assistantContent += chunk;
-        if (chunk.trim().length > 0) {
-          hasReceivedText = true;
-        }
-
-        lastChunkTime = currentTime;
-
-        setMessages((prev) => {
-          const updated = [...prev];
-          const lastMsg = updated[updated.length - 1];
-          if (lastMsg && lastMsg.role === "assistant") {
-            lastMsg.content = assistantContent;
-
-            // Gérer les tool invocations
-            if (!lastMsg.toolInvocations) {
-              lastMsg.toolInvocations = [];
-            }
-
-            // Si on détecte un appel d'outil (pas encore de contenu)
-            if (toolCallDetected && !assistantContent.trim()) {
-              if (!lastMsg.toolInvocations.length) {
-                lastMsg.toolInvocations.push({
-                  toolName: "getStats",
-                  state: "call",
-                });
-              }
-            }
-            // Si on a du contenu, l'outil est terminé
-            else if (assistantContent.trim() && lastMsg.toolInvocations.length) {
-              lastMsg.toolInvocations[0].state = "result";
-            }
-          }
-          return [...updated];
-        });
       }
 
-      // Si on n'a pas reçu de contenu à la fin, c'est un problème
-      if (!hasReceivedText || !assistantContent.trim()) {
-        console.warn("⚠️ Aucun contenu reçu du stream");
+      // Vérification finale : si pas de texte généré
+      if (!textContent.trim()) {
+        console.warn("⚠️ Aucun texte généré par l'IA");
         setMessages((prev) => {
           const updated = [...prev];
           const lastMsg = updated[updated.length - 1];
           if (lastMsg && lastMsg.role === "assistant") {
             lastMsg.content =
-              "Désolé, je n'ai pas pu générer de réponse. Veuillez réessayer.";
+              "Désolé, je n'ai pas pu générer de réponse. Les données ont été récupérées mais la réponse textuelle n'a pas été générée. Veuillez réessayer.";
           }
           return updated;
         });
+      } else {
+        console.log("✅ Texte final généré:", textContent);
       }
     } catch (error) {
       console.error("❌ Erreur:", error);
@@ -186,7 +265,7 @@ export function AIChatButton() {
 
   return (
     <>
-      {/* BOUTON FLOTTANT */}
+      {/* BOUTON FLOTTANT - Affiche/masque la fenêtre de chat */}
       {!isOpen && (
         <Button
           onClick={() => setIsOpen(true)}
@@ -199,6 +278,7 @@ export function AIChatButton() {
       {/* FENÊTRE DE CHAT */}
       {isOpen && (
         <Card className="fixed bottom-8 right-8 w-[400px] h-[600px] shadow-2xl flex flex-col z-50 border-2 border-slate-200">
+          {/* HEADER - Affiche le titre et le bouton de fermeture */}
           <CardHeader className="flex flex-row items-center justify-between py-3 border-b bg-slate-50">
             <div className="flex items-center gap-2">
               <div className="bg-blue-100 p-2 rounded-full">
@@ -219,15 +299,19 @@ export function AIChatButton() {
             </Button>
           </CardHeader>
 
+          {/* CONTENU - Liste des messages */}
           <CardContent className="flex-1 p-0 overflow-hidden">
             <ScrollArea className="h-full p-4">
+              {/* Message de bienvenue si aucun message */}
               {messages.length === 0 && (
                 <div className="text-center text-sm text-muted-foreground mt-10">
                   <p>👋 Bonjour ! Je peux analyser tes finances.</p>
                 </div>
               )}
 
+              {/* Affichage de chaque message */}
               {messages.map((m) => {
+                // Détection des appels d'outils dans le message
                 const toolInvocations = m.toolInvocations || [];
                 const hasActiveTools = toolInvocations.some(
                   (t) => t.state === "call"
@@ -243,6 +327,7 @@ export function AIChatButton() {
                       m.role === "user" ? "flex-row-reverse" : "flex-row"
                     }`}
                   >
+                    {/* AVATAR - Utilisateur ou Assistant */}
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                         m.role === "user"
@@ -258,26 +343,27 @@ export function AIChatButton() {
                     </div>
 
                     <div className="flex flex-col gap-1 max-w-[80%]">
-                      {/* AFFICHAGE DES OUTILS */}
+                      {/* INDICATEUR D'OUTIL EN COURS */}
                       {hasActiveTools && (
                         <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs mb-1">
                           <div className="flex items-center gap-2 font-medium text-slate-600">
                             <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
-                            ⚙️ Analyse en cours...
+                            Analyse en cours...
                           </div>
                         </div>
                       )}
 
+                      {/* INDICATEUR D'OUTIL TERMINÉ */}
                       {hasCompletedTools && !hasActiveTools && (
                         <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-xs mb-1">
                           <div className="flex items-center gap-2 font-medium text-green-700">
                             <CheckCircle2 className="h-3 w-3 text-green-500" />
-                            ✅ Données récupérées
+                            Données récupérées
                           </div>
                         </div>
                       )}
 
-                      {/* LE MESSAGE TEXTE FINAL */}
+                      {/* MESSAGE TEXTE */}
                       {m.content && (
                         <div
                           className={`rounded-2xl px-4 py-2 text-sm ${
@@ -290,7 +376,7 @@ export function AIChatButton() {
                         </div>
                       )}
 
-                      {/* Si pas de contenu et pas d'outil = en attente */}
+                      {/* INDICATEUR DE CHARGEMENT (si pas de contenu et pas d'outils) */}
                       {!m.content && !toolInvocations.length && (
                         <div className="bg-slate-50 rounded-2xl px-4 py-2 text-sm text-muted-foreground italic">
                           Analyse en cours...
@@ -301,7 +387,7 @@ export function AIChatButton() {
                 );
               })}
 
-              {/* Indicateur de chargement */}
+              {/* INDICATEUR DE CHARGEMENT GLOBAL */}
               {isLoading && (
                 <div className="flex gap-2 mb-4">
                   <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
@@ -313,10 +399,12 @@ export function AIChatButton() {
                 </div>
               )}
 
+              {/* Élément pour le scroll automatique */}
               <div ref={messagesEndRef} />
             </ScrollArea>
           </CardContent>
 
+          {/* FOOTER - Formulaire d'envoi de message */}
           <CardFooter className="p-3 border-t bg-white">
             <form onSubmit={handleSubmit} className="flex w-full gap-2">
               <Input

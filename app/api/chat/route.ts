@@ -135,10 +135,10 @@ export async function POST(req: Request) {
     });
 
     // 6. On renvoie le stream au format DataStream (standard Vercel AI pour useChat)
-    // Note: toDataStreamResponse() n'existe pas, on utilise toTextStreamResponse()
-    // mais le format est compatible avec le parsing côté client
+    // toDataStreamResponse() envoie les métadonnées des outils ET le texte
+    // Cela permet au client de gérer correctement le cycle complet des outils
     console.log("📤 Envoi de la réponse streamée...");
-    return result.toTextStreamResponse();
+    return result.toDataStreamResponse();
   } catch (error) {
     console.error("❌ ERREUR GENERALE API :", error);
     console.error("Stack trace:", error instanceof Error ? error.stack : "N/A");
