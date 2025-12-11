@@ -55,10 +55,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside
-      data-sidebar
-      className="fixed left-0 top-0 h-screen w-64 border-r bg-white flex flex-col print:hidden"
-    >
+    <aside data-sidebar className="fixed left-0 top-0 h-screen w-64 border-r bg-white flex flex-col print:hidden">
       {/* Logo */}
       <div className="flex h-16 items-center border-b px-6">
         <Link href="/" className="flex items-center space-x-2">

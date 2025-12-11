@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { deleteInvoice } from "../actions/delete-invoice-action";
+import { deleteInvoice } from "../actions/invoices";
 
 /**
  * Composant client pour le bouton de suppression de facture

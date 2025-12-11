@@ -12,6 +12,7 @@ npx prisma migrate dev --name add_clerk_user_id
 ```
 
 Cette commande va :
+
 - ✅ Créer un fichier de migration dans `prisma/migrations/`
 - ✅ Appliquer la migration à votre base de données Supabase
 - ✅ Régénérer le Prisma Client avec le nouveau champ
@@ -60,6 +61,7 @@ DELETE FROM "users" WHERE email = 'demo@numera.ai';
 ```
 
 Avantages :
+
 - ✅ Base de données propre
 - ✅ Pas de données orphelines
 - ✅ Tous les nouveaux utilisateurs viendront de Clerk
@@ -69,6 +71,7 @@ Avantages :
 Si vous devez conserver les données existantes :
 
 1. Modifiez `schema.prisma` :
+
 ```prisma
 model User {
   clerkUserId String? @unique // Rendre optionnel avec ?
@@ -77,6 +80,7 @@ model User {
 ```
 
 2. Créez une nouvelle migration :
+
 ```bash
 npx prisma migrate dev --name make_clerk_id_optional
 ```
@@ -92,8 +96,8 @@ Si vous voulez garder `demo@numera.ai` et créer un compte Clerk pour lui :
 3. Mettez à jour la base :
 
 ```sql
-UPDATE "users" 
-SET "clerkUserId" = 'user_XXXXXXXXXXXXX' 
+UPDATE "users"
+SET "clerkUserId" = 'user_XXXXXXXXXXXXX'
 WHERE email = 'demo@numera.ai';
 ```
 
@@ -153,6 +157,7 @@ npm run dev
 ### Erreur : "Migration failed"
 
 ➡️ Vérifiez votre connexion Supabase dans `.env` :
+
 ```
 DATABASE_URL="postgresql://..."
 DIRECT_URL="postgresql://..."
@@ -161,6 +166,7 @@ DIRECT_URL="postgresql://..."
 ### Erreur : "Prisma Client out of sync"
 
 ➡️ Régénérez le client :
+
 ```bash
 npx prisma generate
 ```
@@ -177,4 +183,3 @@ Une fois la migration terminée :
 4. ✅ `getAuthUser()` peut créer de nouveaux utilisateurs automatiquement
 
 **🎉 Vous êtes prêt à synchroniser Clerk avec Prisma !**
-

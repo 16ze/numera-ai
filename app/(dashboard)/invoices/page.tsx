@@ -164,16 +164,17 @@ export default async function InvoicesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Link href={`/invoices/${invoice.id}`}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            title={`Voir la facture ${invoice.number}`}
-                          >
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          title={`Voir la facture ${invoice.number}`}
+                        >
+                          <Link href={`/invoices/${invoice.id}`}>
                             <Eye className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                          </Link>
+                        </Button>
                         <DeleteInvoiceButton
                           invoiceId={invoice.id}
                           invoiceNumber={invoice.number}
