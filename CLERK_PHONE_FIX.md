@@ -5,8 +5,9 @@
 Clerk affiche l'option "Utiliser téléphone" mais les numéros français ne sont pas supportés en mode développement.
 
 Message d'erreur :
+
 ```
-Phone numbers from this country (France) are currently not supported. 
+Phone numbers from this country (France) are currently not supported.
 For more information, please contact support.
 ```
 
@@ -36,6 +37,7 @@ Si vous voulez garder l'authentification par téléphone, vous devez :
 ## 🎯 Résultat après désactivation
 
 Le formulaire de connexion/inscription affichera seulement :
+
 - ✅ **Email + Mot de passe**
 - ✅ **Continuer avec Google** (OAuth)
 - ❌ Plus de lien "Utiliser téléphone"
@@ -45,4 +47,3 @@ Le formulaire de connexion/inscription affichera seulement :
 Ce n'est **PAS une erreur de votre code**, c'est une limitation des clés de développement Clerk.
 
 En utilisant uniquement l'email, votre application fonctionnera parfaitement !
-
