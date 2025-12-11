@@ -4,7 +4,7 @@ import { UserNav } from "@/components/layout/UserNav";
 
 /**
  * Layout pour les pages protégées (dashboard, transactions, etc.)
- * 
+ *
  * Ce layout inclut la sidebar et le header avec UserNav.
  */
 export default function DashboardLayout({
@@ -33,4 +33,3 @@ export default function DashboardLayout({
     </div>
   );
 }
-
