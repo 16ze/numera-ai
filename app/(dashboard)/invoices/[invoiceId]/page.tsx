@@ -9,12 +9,6 @@ import {
   calculateInvoiceTotal,
   calculateInvoiceTotalWithVat,
 } from "../../actions/invoices";
-import { notFound } from "next/navigation";
-import {
-  getInvoiceById,
-  calculateInvoiceTotal,
-  calculateInvoiceTotalWithVat,
-} from "../../actions/invoices";
 import { PrintButton } from "./PrintButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
