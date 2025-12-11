@@ -33,7 +33,7 @@ const navigationItems = [
   },
   {
     name: "Factures",
-    href: "/factures",
+    href: "/invoices",
     icon: FileText,
   },
   {
