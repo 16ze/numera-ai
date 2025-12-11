@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
 /**
  * Middleware Clerk pour Next.js
@@ -17,7 +18,19 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
 ]);
 
-export default clerkMiddleware();
+export default clerkMiddleware(async (auth, request) => {
+  // Si la route n'est pas publique, on vérifie l'authentification
+  if (!isPublicRoute(request)) {
+    const { userId } = await auth();
+    
+    // Si l'utilisateur n'est pas connecté, rediriger vers /sign-in
+    if (!userId) {
+      const signInUrl = new URL("/sign-in", request.url);
+      signInUrl.searchParams.set("redirect_url", request.url);
+      return NextResponse.redirect(signInUrl);
+    }
+  }
+});
 
 export const config = {
   matcher: [
@@ -27,4 +40,3 @@ export const config = {
     "/(api|trpc)(.*)",
   ],
 };
-
