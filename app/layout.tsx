@@ -3,6 +3,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { UserNav } from "@/components/layout/UserNav";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
+import { frFR } from "@clerk/localizations";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,29 +28,31 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50`}
-      >
-        <div className="flex h-screen">
-          {/* Sidebar fixe à gauche */}
-          <Sidebar />
+    <ClerkProvider localization={frFR}>
+      <html lang="fr">
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50`}
+        >
+          <div className="flex h-screen">
+            {/* Sidebar fixe à gauche */}
+            <Sidebar />
 
-          {/* Contenu principal */}
-          <div className="flex flex-1 flex-col ml-64">
-            {/* Header avec UserNav */}
-            <header className="sticky top-0 z-10 flex h-16 items-center justify-end border-b bg-white px-6">
-              <UserNav />
-            </header>
+            {/* Contenu principal */}
+            <div className="flex flex-1 flex-col ml-64">
+              {/* Header avec UserNav */}
+              <header className="sticky top-0 z-10 flex h-16 items-center justify-end border-b bg-white px-6">
+                <UserNav />
+              </header>
 
-            {/* Contenu de la page */}
-            <main className="flex-1 overflow-y-auto">{children}</main>
+              {/* Contenu de la page */}
+              <main className="flex-1 overflow-y-auto">{children}</main>
+            </div>
+
+            {/* Bouton de chat flottant (accessible partout) */}
+            <AIChatButton />
           </div>
-
-          {/* Bouton de chat flottant (accessible partout) */}
-          <AIChatButton />
-        </div>
-      </body>
-    </html>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

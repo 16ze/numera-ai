@@ -10,14 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Bot,
-  Loader2,
-  MessageCircle,
-  Send,
-  User,
-  X,
-} from "lucide-react";
+import { Bot, Loader2, MessageCircle, Send, User, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 /**

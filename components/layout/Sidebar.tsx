@@ -2,7 +2,7 @@
 
 /**
  * Composant Sidebar - Navigation principale de l'application
- * Fixe à gauche avec logo et liens de navigation
+ * Fixe à gauche avec logo, liens de navigation et profil utilisateur Clerk
  */
 
 import Link from "next/link";
@@ -15,6 +15,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { UserButton } from "@clerk/nextjs";
 
 /**
  * Configuration des liens de navigation
@@ -54,7 +55,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="fixed left-0 top-0 h-screen w-64 border-r bg-white">
+    <div className="fixed left-0 top-0 h-screen w-64 border-r bg-white flex flex-col">
       {/* Logo */}
       <div className="flex h-16 items-center border-b px-6">
         <Link href="/" className="flex items-center space-x-2">
@@ -66,7 +67,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-col space-y-1 p-4">
+      <nav className="flex flex-col space-y-1 p-4 flex-1">
         {navigationItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -88,7 +89,24 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Profil utilisateur Clerk */}
+      <div className="border-t p-4">
+        <div className="flex items-center space-x-3">
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: "h-10 w-10",
+                userButtonTrigger: "focus:shadow-none",
+              },
+            }}
+            afterSignOutUrl="/sign-in"
+            showName
+          />
+        </div>
+      </div>
     </div>
   );
 }
+
 
