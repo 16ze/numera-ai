@@ -2,7 +2,7 @@ import { SignIn } from "@clerk/nextjs";
 
 /**
  * Page de connexion Clerk
- * 
+ *
  * Cette page affiche le composant SignIn de Clerk avec une interface personnalisée.
  * Elle est accessible via /sign-in et gère automatiquement :
  * - Connexion par email/mot de passe
@@ -183,10 +183,7 @@ export default function SignInPage() {
           {/* Footer */}
           <div className="mt-8 text-center text-sm text-slate-500">
             <p>
-              En vous connectant, vous acceptez nos{" "}
-              <a href="#" className="text-primary hover:underline">
-                Conditions d&apos;utilisation
-              </a>
+              En vous connectant, vous acceptez nos Conditions d&apos;utilisation
             </p>
           </div>
         </div>

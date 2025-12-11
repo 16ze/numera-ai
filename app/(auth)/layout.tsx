@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 /**
  * Layout pour les pages d'authentification (sign-in, sign-up)
- * 
+ *
  * Ce layout n'inclut PAS la sidebar ni le header principal,
  * pour une expérience d'authentification épurée.
  */

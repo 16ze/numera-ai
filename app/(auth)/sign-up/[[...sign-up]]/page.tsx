@@ -2,7 +2,7 @@ import { SignUp } from "@clerk/nextjs";
 
 /**
  * Page d'inscription Clerk
- * 
+ *
  * Cette page affiche le composant SignUp de Clerk avec une interface personnalisée.
  * Elle est accessible via /sign-up et gère automatiquement :
  * - Création de compte par email/mot de passe
@@ -65,9 +65,7 @@ export default function SignUpPage() {
                 <h3 className="font-semibold text-white text-lg">
                   Gratuit pour commencer
                 </h3>
-                <p className="text-white/80">
-                  Aucune carte bancaire requise
-                </p>
+                <p className="text-white/80">Aucune carte bancaire requise</p>
               </div>
             </div>
 
@@ -183,14 +181,7 @@ export default function SignUpPage() {
           {/* Footer */}
           <div className="mt-8 text-center text-sm text-slate-500">
             <p>
-              En créant un compte, vous acceptez nos{" "}
-              <a href="#" className="text-primary hover:underline">
-                Conditions d&apos;utilisation
-              </a>{" "}
-              et notre{" "}
-              <a href="#" className="text-primary hover:underline">
-                Politique de confidentialité
-              </a>
+              En créant un compte, vous acceptez nos Conditions d&apos;utilisation et notre Politique de confidentialité
             </p>
           </div>
         </div>
