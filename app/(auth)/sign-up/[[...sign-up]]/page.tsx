@@ -181,7 +181,8 @@ export default function SignUpPage() {
           {/* Footer */}
           <div className="mt-8 text-center text-sm text-slate-500">
             <p>
-              En créant un compte, vous acceptez nos Conditions d&apos;utilisation et notre Politique de confidentialité
+              En créant un compte, vous acceptez nos Conditions
+              d&apos;utilisation et notre Politique de confidentialité
             </p>
           </div>
         </div>

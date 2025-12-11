@@ -183,7 +183,8 @@ export default function SignInPage() {
           {/* Footer */}
           <div className="mt-8 text-center text-sm text-slate-500">
             <p>
-              En vous connectant, vous acceptez nos Conditions d&apos;utilisation
+              En vous connectant, vous acceptez nos Conditions
+              d&apos;utilisation
             </p>
           </div>
         </div>

@@ -1,11 +1,11 @@
 import { AIChatButton } from "@/components/chat/AIChatButton";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { UserNav } from "@/components/layout/UserNav";
+import { UserButton } from "@clerk/nextjs";
 
 /**
  * Layout pour les pages protégées (dashboard, transactions, etc.)
  *
- * Ce layout inclut la sidebar et le header avec UserNav.
+ * Ce layout inclut la sidebar et le header avec le bouton utilisateur Clerk.
  */
 export default function DashboardLayout({
   children,
@@ -19,9 +19,16 @@ export default function DashboardLayout({
 
       {/* Contenu principal */}
       <div className="flex flex-1 flex-col ml-64">
-        {/* Header avec UserNav */}
+        {/* Header avec UserButton Clerk */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-end border-b bg-white px-6">
-          <UserNav />
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: "h-10 w-10",
+              },
+            }}
+            afterSignOutUrl="/sign-in"
+          />
         </header>
 
         {/* Contenu de la page */}
