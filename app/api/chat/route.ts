@@ -1,5 +1,5 @@
 import { prisma } from "@/app/lib/prisma";
-import { getAuthUser } from "@/app/lib/auth-helper";
+import { currentUser } from "@clerk/nextjs/server";
 import { openai } from "@ai-sdk/openai";
 import { streamText, tool } from "ai";
 import { z } from "zod";
@@ -9,6 +9,16 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   try {
+    // Récupération de l'utilisateur Clerk connecté
+    const clerkUser = await currentUser();
+    
+    if (!clerkUser) {
+      return new Response(JSON.stringify({ error: "Non authentifié" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const { messages } = await req.json();
 
     console.log("📩 Message reçu, début du traitement...");
@@ -54,9 +64,23 @@ export async function POST(req: Request) {
             console.log("🛠️ Outil 'getStats' en cours...");
 
             try {
-              // Récupération de l'utilisateur connecté via Clerk
-              const { company } = await getAuthUser();
-              const companyId = company.id;
+              // Recherche de l'utilisateur Prisma via clerkUserId
+              const user = await prisma.user.findUnique({
+                where: { clerkUserId: clerkUser.id },
+                include: {
+                  companies: {
+                    orderBy: { createdAt: "asc" },
+                    take: 1,
+                  },
+                },
+              });
+
+              if (!user || !user.companies || user.companies.length === 0) {
+                console.warn("⚠️ Utilisateur ou company non trouvé, retour de zéros");
+                return { revenue: 0, expense: 0, net: 0 };
+              }
+
+              const companyId = user.companies[0].id;
               console.log(`✅ Company trouvée : ${companyId}`);
 
               const now = new Date();

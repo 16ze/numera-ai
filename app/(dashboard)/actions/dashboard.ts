@@ -4,7 +4,7 @@
  */
 
 import { prisma } from "@/app/lib/prisma";
-import { getAuthUser } from "@/app/lib/auth-helper";
+import { getCurrentUser } from "@/app/lib/auth-helper";
 
 /**
  * Type pour les données du graphique
@@ -45,8 +45,24 @@ export type DashboardData = {
  */
 export async function getDashboardData(): Promise<DashboardData> {
   try {
-    // Récupération de l'utilisateur connecté via Clerk
-    const { company } = await getAuthUser();
+    // Récupération de l'utilisateur connecté via Clerk (redirige vers /sign-in si non connecté)
+    const user = await getCurrentUser();
+    
+    // Récupération de la première company de l'utilisateur
+    // Si l'utilisateur vient d'être créé, il aura déjà une company "Ma Société"
+    const company = user.companies[0];
+    
+    // Protection : si pas de company (cas rare), on retourne des zéros
+    if (!company) {
+      console.warn(`⚠️ Utilisateur ${user.id} sans company, retour de données vides`);
+      return {
+        totalRevenue: 0,
+        totalExpenses: 0,
+        netIncome: 0,
+        recentTransactions: [],
+        chartData: [],
+      };
+    }
 
     // Calcul des dates pour le mois en cours
     const now = new Date();
