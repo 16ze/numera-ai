@@ -1,21 +1,23 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 /**
- * Middleware Clerk pour Next.js
+ * Middleware Clerk pour Next.js - Configuration Officielle
  *
- * Ce middleware protège automatiquement toutes les routes de l'application.
- * Les routes publiques sont définies dans la configuration publicRoutes ci-dessous.
+ * Ce middleware protège automatiquement toutes les routes de l'application
+ * SAUF les routes publiques définies ci-dessous.
  *
- * Routes publiques :
- * - Pages d'authentification (/sign-in, /sign-up)
- * - API publiques (webhooks)
+ * IMPORTANT : Le matcher est configuré pour NE PAS bloquer les appels internes de Clerk
  */
 
-// On définit les routes publiques (Login, Register)
-const isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)']);
+// Routes publiques (accessibles sans authentification)
+const isPublicRoute = createRouteMatcher([
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/webhooks(.*)", // Pour les webhooks Clerk si vous en avez
+]);
 
 export default clerkMiddleware(async (auth, request) => {
-  // Si la route n'est pas publique, on protège
+  // Protection automatique des routes privées
   if (!isPublicRoute(request)) {
     await auth.protect();
   }
@@ -23,9 +25,17 @@ export default clerkMiddleware(async (auth, request) => {
 
 export const config = {
   matcher: [
-    // Ignore les fichiers statiques (_next, images, etc.)
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    // Protège toujours l'API et la racine
-    '/(api|trpc)(.*)',
+    /*
+     * Matcher officiel Clerk - NE PAS MODIFIER
+     * 
+     * Ce matcher :
+     * - Exclut les fichiers statiques Next.js (_next)
+     * - Exclut les images et assets (jpg, png, svg, etc.)
+     * - Exclut les fichiers système (favicon, robots.txt, etc.)
+     * - INCLUT toutes les routes API
+     * - N'INTERFÈRE PAS avec les appels internes de Clerk
+     */
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
   ],
 };
