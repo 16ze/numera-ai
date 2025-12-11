@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Bot,
-  CheckCircle2,
   Loader2,
   MessageCircle,
   Send,
@@ -127,10 +126,10 @@ export function AIChatButton() {
           if (!line.startsWith("data: ")) continue;
 
           const jsonData = line.slice(6); // Enlève "data: "
-          
+
           // Ignore le marqueur de fin de stream
           if (jsonData.trim() === "[DONE]") continue;
-          
+
           try {
             const event = JSON.parse(jsonData);
 
@@ -296,13 +295,10 @@ export function AIChatButton() {
 
               {/* Affichage de chaque message */}
               {messages.map((m) => {
-                // Détection des appels d'outils dans le message
+                // Détection des appels d'outils en cours
                 const toolInvocations = m.toolInvocations || [];
                 const hasActiveTools = toolInvocations.some(
                   (t) => t.state === "call"
-                );
-                const hasCompletedTools = toolInvocations.some(
-                  (t) => t.state === "result"
                 );
 
                 return (
@@ -334,16 +330,6 @@ export function AIChatButton() {
                           <div className="flex items-center gap-2 font-medium text-slate-600">
                             <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
                             Analyse en cours...
-                          </div>
-                        </div>
-                      )}
-
-                      {/* INDICATEUR D'OUTIL TERMINÉ */}
-                      {hasCompletedTools && !hasActiveTools && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-xs mb-1">
-                          <div className="flex items-center gap-2 font-medium text-green-700">
-                            <CheckCircle2 className="h-3 w-3 text-green-500" />
-                            Données récupérées
                           </div>
                         </div>
                       )}
