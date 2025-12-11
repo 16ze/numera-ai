@@ -123,10 +123,13 @@ export function AIChatButton() {
         buffer = lines.pop() || ""; // Garde la dernière ligne incomplète
 
         for (const line of lines) {
-          if (!line.trim() || line.trim() === "[DONE]") continue;
+          if (!line.trim()) continue;
           if (!line.startsWith("data: ")) continue;
 
           const jsonData = line.slice(6); // Enlève "data: "
+          
+          // Ignore le marqueur de fin de stream
+          if (jsonData.trim() === "[DONE]") continue;
           
           try {
             const event = JSON.parse(jsonData);
@@ -162,7 +165,11 @@ export function AIChatButton() {
                       lastMsg.toolInvocations = [];
                     }
                     // Ajoute le tool call s'il n'existe pas déjà
-                    if (!lastMsg.toolInvocations.find((t) => t.toolName === event.toolName)) {
+                    if (
+                      !lastMsg.toolInvocations.find(
+                        (t) => t.toolName === event.toolName
+                      )
+                    ) {
                       lastMsg.toolInvocations.push({
                         toolName: event.toolName,
                         state: "call",
@@ -178,8 +185,14 @@ export function AIChatButton() {
                 setMessages((prev) => {
                   const updated = [...prev];
                   const lastMsg = updated[updated.length - 1];
-                  if (lastMsg && lastMsg.role === "assistant" && lastMsg.toolInvocations) {
-                    const tool = lastMsg.toolInvocations.find((t) => t.toolName === event.toolName);
+                  if (
+                    lastMsg &&
+                    lastMsg.role === "assistant" &&
+                    lastMsg.toolInvocations
+                  ) {
+                    const tool = lastMsg.toolInvocations.find(
+                      (t) => t.toolName === event.toolName
+                    );
                     if (tool) {
                       tool.result = event.output;
                       // Garde l'état "call" jusqu'à ce qu'on reçoive du texte
