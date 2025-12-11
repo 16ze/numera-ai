@@ -145,6 +145,11 @@ export type InvoiceDetail = {
  * @throws {Error} Si la facture n'existe pas ou n'appartient pas à l'utilisateur
  */
 export async function getInvoiceById(invoiceId: string): Promise<InvoiceDetail> {
+  // Validation de l'ID
+  if (!invoiceId || typeof invoiceId !== 'string') {
+    throw new Error("ID de facture invalide");
+  }
+
   try {
     // Récupération de l'utilisateur connecté (redirige vers /sign-in si non connecté)
     const user = await getCurrentUser();

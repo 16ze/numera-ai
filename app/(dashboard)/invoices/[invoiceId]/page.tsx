@@ -18,13 +18,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 export default async function InvoicePage({
   params,
 }: {
-  params: { invoiceId: string };
+  params: Promise<{ invoiceId: string }> | { invoiceId: string };
 }) {
+  // Gérer les params synchrones et asynchrones (Next.js 15+)
+  const resolvedParams = typeof params === 'object' && 'then' in params 
+    ? await params 
+    : params;
+  
+  const invoiceId = resolvedParams.invoiceId;
+
+  if (!invoiceId) {
+    notFound();
+  }
+
   let invoice;
   
   try {
     // Récupération de la facture (avec vérification de sécurité intégrée)
-    invoice = await getInvoiceById(params.invoiceId);
+    invoice = await getInvoiceById(invoiceId);
   } catch (error) {
     // Si la facture n'existe pas ou n'appartient pas à l'utilisateur -> 404
     notFound();

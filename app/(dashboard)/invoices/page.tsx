@@ -165,17 +165,13 @@ export default async function InvoicesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
+                        <Link
+                          href={`/invoices/${invoice.id}`}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none"
                           title={`Voir la facture ${invoice.number}`}
                         >
-                          <Link href={`/invoices/${invoice.id}`}>
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button>
+                          <Eye className="h-4 w-4" />
+                        </Link>
                         <DeleteInvoiceButton
                           invoiceId={invoice.id}
                           invoiceNumber={invoice.number}
