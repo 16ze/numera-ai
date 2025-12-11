@@ -174,8 +174,7 @@ export default function SignInPage() {
                 },
               }}
               signUpUrl="/sign-up"
-              fallbackRedirectUrl="/"
-              signInFallbackRedirectUrl="/"
+              forceRedirectUrl="/"
             />
           </div>
 

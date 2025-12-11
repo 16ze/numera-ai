@@ -1,5 +1,4 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
 
 /**
  * Middleware Clerk pour Next.js
@@ -12,30 +11,21 @@ import { NextResponse } from "next/server";
  * - API publiques (webhooks)
  */
 
-const isPublicRoute = createRouteMatcher([
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/api/webhooks(.*)",
-]);
+// On définit les routes publiques (Login, Register)
+const isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)']);
 
 export default clerkMiddleware(async (auth, request) => {
-  // Si la route n'est pas publique, on vérifie l'authentification
+  // Si la route n'est pas publique, on protège
   if (!isPublicRoute(request)) {
-    const { userId } = await auth();
-
-    // Si l'utilisateur n'est pas connecté, rediriger vers /sign-in
-    if (!userId) {
-      const signInUrl = new URL("/sign-in", request.url);
-      return NextResponse.redirect(signInUrl);
-    }
+    await auth.protect();
   }
 });
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes
-    "/(api|trpc)(.*)",
+    // Ignore les fichiers statiques (_next, images, etc.)
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Protège toujours l'API et la racine
+    '/(api|trpc)(.*)',
   ],
 };
