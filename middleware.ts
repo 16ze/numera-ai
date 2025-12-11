@@ -19,19 +19,13 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
-  const { userId } = await auth();
-  
-  // Si l'utilisateur est connecté et tente d'accéder aux pages auth, rediriger vers /
-  if (userId && (request.nextUrl.pathname.startsWith("/sign-in") || request.nextUrl.pathname.startsWith("/sign-up"))) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-  
   // Si la route n'est pas publique, on vérifie l'authentification
   if (!isPublicRoute(request)) {
+    const { userId } = await auth();
+
     // Si l'utilisateur n'est pas connecté, rediriger vers /sign-in
     if (!userId) {
       const signInUrl = new URL("/sign-in", request.url);
-      signInUrl.searchParams.set("redirect_url", request.url);
       return NextResponse.redirect(signInUrl);
     }
   }

@@ -4,11 +4,7 @@ import { SignUp } from "@clerk/nextjs";
  * Page d'inscription Clerk
  *
  * Cette page affiche le composant SignUp de Clerk avec une interface personnalisée.
- * Elle est accessible via /sign-up et gère automatiquement :
- * - Création de compte par email/mot de passe
- * - OAuth (Google, GitHub, etc.)
- * - Vérification d'email
- * - Validation du mot de passe
+ * La redirection après inscription est gérée par Clerk via fallbackRedirectUrl.
  */
 export default function SignUpPage() {
   return (
@@ -175,10 +171,9 @@ export default function SignUpPage() {
                   formHeaderSubtitle: "text-slate-600",
                 },
               }}
-              routing="path"
-              path="/sign-up"
               signInUrl="/sign-in"
-              forceRedirectUrl="/"
+              fallbackRedirectUrl="/"
+              signUpFallbackRedirectUrl="/"
             />
           </div>
 
