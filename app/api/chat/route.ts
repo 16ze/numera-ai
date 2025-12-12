@@ -52,16 +52,29 @@ export async function POST(req: Request) {
 
       PROTOCOL STRICT :
 
-      1. Si l'utilisateur demande des chiffres -> Appelle l'outil getStats.
+      1. Si l'utilisateur demande des chiffres du mois EN COURS -> Appelle l'outil getStats.
 
-      2. Si l'utilisateur demande d'AJOUTER une transaction (dépense ou recette) -> Appelle l'outil addTransaction.
+      2. Si l'utilisateur demande des informations sur une PÉRIODE SPÉCIFIQUE (un mois particulier, une date, une période) :
+         - CALCULE toi-même les dates de début et de fin (ex: "Août 2025" = "2025-08-01" à "2025-08-31")
+         - UTILISE l'outil getTransactionsByPeriod avec les dates calculées
+         - L'outil retourne la liste des transactions, TU DOIS ensuite calculer les totaux et présenter les résultats
 
-      3. Si l'utilisateur demande de CRÉER une FACTURE -> Appelle l'outil createInvoice.
+      3. Si l'utilisateur demande d'AJOUTER une transaction (dépense ou recette) -> Appelle l'outil addTransaction.
 
-      4. ATTENDS le résultat de l'outil.
+      4. Si l'utilisateur demande de CRÉER une FACTURE -> Appelle l'outil createInvoice.
 
-      5. IMPORTANT : Une fois le résultat reçu, TU DOIS RÉDIGER une phrase de réponse (ex: "Votre CA est de 4000€" ou "Transaction ajoutée avec succès" ou "Facture créée avec succès").
+      5. ATTENDS le résultat de l'outil.
+
+      6. IMPORTANT : Une fois le résultat reçu, TU DOIS RÉDIGER une phrase de réponse (ex: "Votre CA est de 4000€" ou "Vos dépenses d'août sont de 11.40€" ou "Transaction ajoutée avec succès").
       NE T'ARRÊTE JAMAIS APRÈS L'EXÉCUTION DE L'OUTIL. PARLE À L'UTILISATEUR.
+
+      CALCUL DES DATES POUR LES PÉRIODES :
+      - Si l'utilisateur mentionne un mois (ex: "Août", "août 2025", "août dernier") :
+        * Détermine l'année (par défaut année actuelle ou année mentionnée)
+        * Calcule : startDate = "YYYY-08-01", endDate = "YYYY-08-31" (exemple pour août)
+      - Si l'utilisateur mentionne une période (ex: "du 1er au 15 août") :
+        * Utilise les dates exactes mentionnées
+      - Format des dates : TOUJOURS "YYYY-MM-DD" (ex: "2025-08-01")
 
       CRÉATION DE TRANSACTIONS :
       - Tu PEUX créer des transactions si l'utilisateur le demande (ex: "Ajoute une dépense de 50€ pour un Uber").
@@ -155,6 +168,133 @@ export async function POST(req: Request) {
                 err instanceof Error ? err.stack : "N/A"
               );
               throw new Error("Erreur technique lors du calcul.");
+            }
+          },
+        }),
+
+        getTransactionsByPeriod: tool({
+          description:
+            "Récupère toutes les transactions d'une période spécifique (dates de début et de fin). Utilise cet outil quand l'utilisateur demande des informations sur un mois ou une période spécifique (ex: 'Août', 'octobre 2024'). L'IA doit calculer elle-même les dates de début et de fin du mois demandé.",
+          inputSchema: z.object({
+            startDate: z
+              .string()
+              .regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)")
+              .describe(
+                "Date de début au format YYYY-MM-DD (ex: '2025-08-01' pour le 1er août 2025)"
+              ),
+            endDate: z
+              .string()
+              .regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)")
+              .describe(
+                "Date de fin au format YYYY-MM-DD (ex: '2025-08-31' pour le 31 août 2025)"
+              ),
+          }),
+          execute: async ({ startDate, endDate }) => {
+            console.log("🛠️ Outil 'getTransactionsByPeriod' en cours...");
+            console.log(
+              `📅 Période demandée: du ${startDate} au ${endDate}`
+            );
+
+            try {
+              // Recherche de l'utilisateur Prisma via clerkUserId
+              const user = await prisma.user.findUnique({
+                where: { clerkUserId: clerkUser.id },
+                include: {
+                  companies: {
+                    orderBy: { createdAt: "asc" },
+                    take: 1,
+                  },
+                },
+              });
+
+              if (!user || !user.companies || user.companies.length === 0) {
+                console.warn(
+                  "⚠️ Utilisateur ou company non trouvé, retour vide"
+                );
+                return { transactions: [] };
+              }
+
+              const companyId = user.companies[0].id;
+              console.log(`✅ Company trouvée : ${companyId}`);
+
+              // Conversion des dates string en Date objects
+              // On utilise minuit pour startDate et 23:59:59 pour endDate pour couvrir toute la journée
+              const start = new Date(startDate + "T00:00:00.000Z");
+              const end = new Date(endDate + "T23:59:59.999Z");
+
+              // Validation des dates
+              if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+                throw new Error("Dates invalides");
+              }
+
+              if (start > end) {
+                throw new Error("La date de début doit être antérieure à la date de fin");
+              }
+
+              console.log(
+                `📅 Recherche des transactions du ${start.toISOString()} au ${end.toISOString()}`
+              );
+
+              // Récupération des transactions dans la période
+              const transactions = await prisma.transaction.findMany({
+                where: {
+                  companyId,
+                  date: {
+                    gte: start,
+                    lte: end,
+                  },
+                },
+                orderBy: {
+                  date: "desc", // Plus récentes en premier
+                },
+              });
+
+              console.log(`📊 ${transactions.length} transactions trouvées pour la période.`);
+
+              // Formatage des transactions pour la réponse
+              const formattedTransactions = transactions.map((t) => ({
+                date: t.date.toISOString().split("T")[0], // Format YYYY-MM-DD
+                description: t.description || "Sans description",
+                amount: Number(t.amount),
+                type: t.type,
+                category: t.category,
+              }));
+
+              // Calcul des totaux pour faciliter l'analyse
+              const totalIncome = formattedTransactions
+                .filter((t) => t.type === "INCOME")
+                .reduce((sum, t) => sum + t.amount, 0);
+
+              const totalExpense = formattedTransactions
+                .filter((t) => t.type === "EXPENSE")
+                .reduce((sum, t) => sum + t.amount, 0);
+
+              const net = totalIncome - totalExpense;
+
+              console.log(
+                `💰 Totaux pour la période : Recettes=${totalIncome}€ | Dépenses=${totalExpense}€ | Net=${net}€`
+              );
+
+              return {
+                transactions: formattedTransactions,
+                summary: {
+                  totalIncome,
+                  totalExpense,
+                  net,
+                  count: formattedTransactions.length,
+                },
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans getTransactionsByPeriod execute :", err);
+              console.error(
+                "Stack trace:",
+                err instanceof Error ? err.stack : "N/A"
+              );
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la récupération des transactions"
+              );
             }
           },
         }),
