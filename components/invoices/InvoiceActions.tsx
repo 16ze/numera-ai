@@ -66,6 +66,38 @@ export function InvoiceActions({
   };
 
   /**
+   * Envoie la facture par email au client
+   * Et passe automatiquement le statut à SENT (Envoyée)
+   */
+  const handleSendEmail = async () => {
+    setIsSendingEmail(true);
+
+    try {
+      // 1. Envoi de l'email
+      await sendInvoiceEmail(invoiceId);
+      
+      // 2. Changement automatique du statut à SENT si la facture est en DRAFT
+      if (currentStatus === "DRAFT") {
+        await updateInvoiceStatus(invoiceId, "SENT");
+      }
+
+      toast.success("Email envoyé avec succès !");
+
+      // Rafraîchir la page pour afficher le nouveau statut
+      router.refresh();
+    } catch (error) {
+      console.error("Erreur lors de l'envoi de l'email:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de l'envoi de l'email"
+      );
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  /**
    * Retourne la configuration du badge selon le statut
    */
   const getStatusBadge = (status: InvoiceStatus) => {
@@ -117,11 +149,27 @@ export function InvoiceActions({
         {getStatusBadge(currentStatus)}
       </div>
 
+      {/* Bouton Envoyer par email (toujours disponible) */}
+      <Button
+        onClick={handleSendEmail}
+        disabled={isSendingEmail || isLoading}
+        variant="outline"
+        size="sm"
+        className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+      >
+        {isSendingEmail ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Mail className="h-4 w-4" />
+        )}
+        Envoyer par email
+      </Button>
+
       {/* Boutons d'action selon le statut */}
       {currentStatus === "DRAFT" && (
         <Button
           onClick={() => handleStatusChange("SENT")}
-          disabled={isLoading}
+          disabled={isLoading || isSendingEmail}
           size="sm"
           className="gap-2"
         >
@@ -137,7 +185,7 @@ export function InvoiceActions({
       {currentStatus === "SENT" && (
         <Button
           onClick={() => handleStatusChange("PAID")}
-          disabled={isLoading}
+          disabled={isLoading || isSendingEmail}
           size="sm"
           className="gap-2 bg-green-600 hover:bg-green-700"
         >
@@ -153,7 +201,7 @@ export function InvoiceActions({
       {currentStatus === "PAID" && (
         <Button
           onClick={() => handleStatusChange("SENT")}
-          disabled={isLoading}
+          disabled={isLoading || isSendingEmail}
           variant="outline"
           size="sm"
           className="gap-2"
