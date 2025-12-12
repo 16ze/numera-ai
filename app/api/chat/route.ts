@@ -103,9 +103,14 @@ export async function POST(req: Request) {
 
       4. Si l'utilisateur demande de CRÉER une FACTURE -> Appelle l'outil createInvoice.
 
-      5. ATTENDS le résultat de l'outil.
+      5. Si l'utilisateur demande des informations sur une FACTURE EXISTANTE ou un CLIENT (ex: "Qu'est-ce que j'ai facturé à Martin ?", "Montre-moi la facture INV-001") -> Appelle l'outil searchInvoices.
+         - Utilise cet outil pour rechercher par nom de client ou numéro de facture
+         - L'outil retourne les détails complets : numéro, date, nom client, produits/services, montant total, statut
+         - Présente les résultats de manière claire et organisée
 
-      6. IMPORTANT : Une fois le résultat reçu, TU DOIS RÉDIGER une phrase de réponse PRÉCISE.
+      6. ATTENDS le résultat de l'outil.
+
+      7. IMPORTANT : Une fois le résultat reçu, TU DOIS RÉDIGER une phrase de réponse PRÉCISE.
          - MENTIONNE TOUJOURS la période analysée (dates de début et de fin)
          - MENTIONNE les dates spécifiques des transactions si pertinent
          - Exemples de réponses avec dates :
@@ -147,6 +152,17 @@ export async function POST(req: Request) {
       - Si l'utilisateur donne juste un montant et une description simple, crée une facture avec une ligne.
       - Les items peuvent être un tableau (plusieurs lignes) ou juste un montant simple (une ligne).
       - La date d'échéance est optionnelle (par défaut J+30 jours).
+
+      RECHERCHE DE FACTURES :
+      - Tu as accès aux factures existantes via l'outil searchInvoices.
+      - Si on te demande des infos sur une facture précise ou un client (ex: "Qu'est-ce que j'ai facturé à Martin ?"), utilise searchInvoices pour donner les détails complets :
+        * Numéro de facture
+        * Date d'émission
+        * Nom du client
+        * Liste des produits/services facturés
+        * Montant total TTC
+        * Statut de la facture
+      - Présente les résultats de manière claire, en listant chaque facture trouvée avec ses détails.
 
       Devise : Euros (€).`,
 
@@ -346,6 +362,152 @@ export async function POST(req: Request) {
                 err instanceof Error
                   ? err.message
                   : "Erreur lors de la récupération des transactions"
+              );
+            }
+          },
+        }),
+
+        searchInvoices: tool({
+          description:
+            "Recherche les factures existantes par numéro de facture ou par nom de client. Utilise cet outil quand l'utilisateur demande des informations sur une facture précise ou sur ce qui a été facturé à un client spécifique (ex: 'Qu'est-ce que j'ai facturé à Martin ?', 'Montre-moi la facture INV-001').",
+          inputSchema: z.object({
+            query: z
+              .string()
+              .min(1, "La recherche ne peut pas être vide")
+              .describe(
+                "Le nom du client ou le numéro de facture à rechercher (ex: 'Martin', 'INV-001')"
+              ),
+          }),
+          execute: async ({ query }) => {
+            console.log("🛠️ Outil 'searchInvoices' en cours...");
+            console.log(`🔍 Recherche: "${query}"`);
+
+            try {
+              // Recherche de l'utilisateur Prisma via clerkUserId
+              const user = await prisma.user.findUnique({
+                where: { clerkUserId: clerkUser.id },
+                include: {
+                  companies: {
+                    orderBy: { createdAt: "asc" },
+                    take: 1,
+                  },
+                },
+              });
+
+              if (!user || !user.companies || user.companies.length === 0) {
+                console.warn(
+                  "⚠️ Utilisateur ou company non trouvé, retour vide"
+                );
+                return { invoices: [] };
+              }
+
+              const companyId = user.companies[0].id;
+              console.log(`✅ Company trouvée : ${companyId}`);
+
+              // Recherche des factures par numéro OU par nom de client
+              // Recherche insensible à la casse
+              const searchQuery = query.trim();
+
+              const invoices = await prisma.invoice.findMany({
+                where: {
+                  companyId,
+                  OR: [
+                    // Recherche par numéro de facture (contient la query)
+                    {
+                      number: {
+                        contains: searchQuery,
+                        mode: "insensitive",
+                      },
+                    },
+                    // Recherche par nom de client (contient la query, insensible à la casse)
+                    {
+                      client: {
+                        name: {
+                          contains: searchQuery,
+                          mode: "insensitive",
+                        },
+                      },
+                    },
+                  ],
+                },
+                include: {
+                  client: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
+                  },
+                  rows: {
+                    orderBy: {
+                      createdAt: "asc",
+                    },
+                  },
+                },
+                orderBy: {
+                  issuedDate: "desc", // Plus récentes en premier
+                },
+              });
+
+              console.log(`📄 ${invoices.length} facture(s) trouvée(s).`);
+
+              // Formatage des factures pour la réponse
+              const formattedInvoices = invoices.map((invoice) => {
+                // Calcul du montant total TTC
+                const totalHT = invoice.rows.reduce(
+                  (sum, row) =>
+                    sum +
+                    Number(row.quantity) * Number(row.unitPrice),
+                  0
+                );
+
+                const totalVAT = invoice.rows.reduce(
+                  (sum, row) =>
+                    sum +
+                    Number(row.quantity) *
+                      Number(row.unitPrice) *
+                      (Number(row.vatRate) / 100),
+                  0
+                );
+
+                const totalTTC = totalHT + totalVAT;
+
+                return {
+                  numero: invoice.number,
+                  date: invoice.issuedDate.toISOString().split("T")[0], // Format YYYY-MM-DD
+                  client: invoice.client.name,
+                  clientEmail: invoice.client.email || null,
+                  statut: invoice.status,
+                  produits: invoice.rows.map((row) => ({
+                    description: row.description,
+                    quantity: Number(row.quantity),
+                    prixUnitaireHT: Number(row.unitPrice),
+                    tauxTVA: Number(row.vatRate),
+                    montantHT: Number(row.quantity) * Number(row.unitPrice),
+                  })),
+                  totalHT: Math.round(totalHT * 100) / 100,
+                  totalTVA: Math.round(totalVAT * 100) / 100,
+                  totalTTC: Math.round(totalTTC * 100) / 100,
+                  dateEcheance: invoice.dueDate
+                    ? invoice.dueDate.toISOString().split("T")[0]
+                    : null,
+                };
+              });
+
+              return {
+                invoices: formattedInvoices,
+                count: formattedInvoices.length,
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans searchInvoices execute :", err);
+              console.error(
+                "Stack trace:",
+                err instanceof Error ? err.stack : "N/A"
+              );
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la recherche de factures"
               );
             }
           },
