@@ -3,7 +3,7 @@
 /**
  * Composant bouton de suppression de client
  *
- * Affiche un bouton dans un DropdownMenuItem pour supprimer un client.
+ * Retourne un DropdownMenuItem pour supprimer un client.
  * Gère la confirmation et l'affichage des erreurs.
  */
 
@@ -30,6 +30,7 @@ interface DeleteClientButtonProps {
 
 /**
  * Composant bouton de suppression de client
+ * Retourne les éléments du menu (séparateur + item) à intégrer dans un DropdownMenu
  */
 export function DeleteClientButton({
   clientId,
