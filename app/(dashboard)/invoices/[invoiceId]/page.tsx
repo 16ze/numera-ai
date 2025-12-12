@@ -1,23 +1,24 @@
 /**
  * Page de visualisation d'une facture
- * Design professionnel type Stripe/Qonto pour impression
+ * Design professionnel A4 imprimable type Stripe/Qonto
  */
 
-import { notFound } from "next/navigation";
-import { getInvoiceById } from "../../actions/invoices";
-import {
-  calculateInvoiceTotal,
-  calculateInvoiceTotalWithVat,
-} from "../../utils/invoice-calculations";
-import { PrintButton } from "./PrintButton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { notFound, redirect } from "next/navigation";
+import { prisma } from "@/app/lib/prisma";
+import { getCurrentUser } from "@/app/lib/auth-helper";
+import { PrintButton } from "@/components/invoices/PrintButton";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 /**
  * Page de visualisation d'une facture
+ * Format A4 professionnel pour impression/PDF
  */
-export default async function InvoicePage({
-  params,
-}: {
+export default async function InvoicePage({ 
+  params 
+}: { 
   params: Promise<{ invoiceId: string }> | { invoiceId: string };
 }) {
   // Gérer les params synchrones et asynchrones (Next.js 15+)
@@ -31,212 +32,199 @@ export default async function InvoicePage({
     notFound();
   }
 
-  let invoice;
-  
-  try {
-    // Récupération de la facture (avec vérification de sécurité intégrée)
-    invoice = await getInvoiceById(invoiceId);
-  } catch (error) {
-    // Si la facture n'existe pas ou n'appartient pas à l'utilisateur -> 404
-    notFound();
-  }
+  const user = await getCurrentUser();
+  if (!user) redirect("/sign-in");
 
-  // Calculs des totaux
-  const totalHT = calculateInvoiceTotal(invoice.rows);
-  const totalTTC = calculateInvoiceTotalWithVat(invoice.rows);
-  const totalTVA = totalTTC - totalHT;
-
-  // Formatage des dates
-  const issuedDate = new Date(invoice.issuedDate).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
+  // 1. Récupérer la facture avec toutes les infos (Client, Lignes, Entreprise)
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: {
+      client: true,
+      rows: true,
+      company: {
+        include: {
+          user: true, // Pour vérifier la sécurité
+        },
+      },
+    },
   });
 
-  const dueDate = invoice.dueDate
-    ? new Date(invoice.dueDate).toLocaleDateString("fr-FR", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-      })
-    : null;
+  // 2. Sécurité : Vérifier que la facture appartient bien à l'utilisateur connecté
+  // (On vérifie via l'entreprise liée)
+  if (!invoice || invoice.company.userId !== user.id) {
+    return notFound();
+  }
+
+  // 3. Calculs des totaux
+  const totalHT = invoice.rows.reduce(
+    (acc, row) => acc + (Number(row.quantity) * Number(row.unitPrice)),
+    0
+  );
+  const totalVAT = invoice.rows.reduce(
+    (acc, row) => acc + (Number(row.quantity) * Number(row.unitPrice) * (Number(row.vatRate) / 100)),
+    0
+  );
+  const totalTTC = totalHT + totalVAT;
+
+  /**
+   * Formate un montant en euros
+   */
+  const formatPrice = (amount: number) => 
+    new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
 
   return (
-    <div className="min-h-screen bg-slate-100 p-8 print:p-0 print:bg-white">
-      {/* Bouton d'impression (caché lors de l'impression) */}
-      <div className="mb-6 flex justify-end print:hidden">
+    <div className="flex flex-col items-center gap-8 py-8 bg-slate-50 min-h-screen">
+      {/* Barre d'actions (Cachée à l'impression) */}
+      <div className="w-full max-w-[210mm] flex justify-between items-center print:hidden px-4 md:px-0">
+        <Link 
+          href="/invoices" 
+          className="flex items-center text-sm text-slate-500 hover:text-slate-900"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Retour aux factures
+        </Link>
         <PrintButton />
       </div>
 
-      {/* Conteneur facture format A4 */}
-      <div
-        id="invoice-print-area"
-        className="mx-auto w-full max-w-[210mm] bg-white shadow-lg print:shadow-none"
+      {/* --- LA FEUILLE A4 (C'est ça qui s'imprime) --- */}
+      {/* L'ID "invoice-print-area" est crucial pour le CSS global */}
+      <div 
+        id="invoice-print-area" 
+        className="bg-white w-full max-w-[210mm] min-h-[297mm] p-[15mm] shadow-lg text-slate-900 print:shadow-none print:w-full"
       >
-        <div className="p-12 print:p-8">
-          {/* En-tête : Logo/Entreprise (gauche) vs Client/Infos (droite) */}
-          <div className="mb-12 grid grid-cols-2 gap-8">
-            {/* Colonne gauche : Entreprise */}
-            <div>
-              {invoice.company.logoUrl ? (
-                <img
-                  src={invoice.company.logoUrl}
-                  alt={invoice.company.name}
-                  className="mb-4 h-16 w-auto"
-                />
-              ) : (
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-primary text-2xl font-bold text-primary-foreground">
-                  {invoice.company.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <h1 className="text-2xl font-bold text-slate-900">
-                {invoice.company.name}
-              </h1>
-              {invoice.company.address && (
-                <p className="mt-2 text-sm text-slate-600">
-                  {invoice.company.address}
-                </p>
-              )}
-              {invoice.company.siret && (
-                <p className="mt-1 text-xs text-slate-500">
-                  SIRET : {invoice.company.siret}
-                </p>
-              )}
-              {invoice.company.vatNumber && (
-                <p className="text-xs text-slate-500">
-                  TVA : {invoice.company.vatNumber}
-                </p>
-              )}
-            </div>
-
-            {/* Colonne droite : Client + Infos facture */}
-            <div className="text-right">
-              <div className="mb-6">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                  Facture pour
-                </h2>
-                <p className="mt-2 text-lg font-semibold text-slate-900">
-                  {invoice.client.name}
-                </p>
-                {invoice.client.address && (
-                  <p className="mt-1 text-sm text-slate-600">
-                    {invoice.client.address}
-                  </p>
-                )}
-                {invoice.client.email && (
-                  <p className="mt-1 text-sm text-slate-600">
-                    {invoice.client.email}
-                  </p>
-                )}
-                {invoice.client.siret && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    SIRET : {invoice.client.siret}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="font-medium text-slate-500">Facture N°</span>
-                  <span className="font-semibold text-slate-900">
-                    {invoice.number}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium text-slate-500">Date</span>
-                  <span className="text-slate-900">{issuedDate}</span>
-                </div>
-                {dueDate && (
-                  <div className="flex justify-between">
-                    <span className="font-medium text-slate-500">
-                      Échéance
-                    </span>
-                    <span className="text-slate-900">{dueDate}</span>
-                  </div>
-                )}
-              </div>
+        {/* EN-TÊTE */}
+        <div className="flex justify-between items-start mb-16">
+          {/* Vendeur (Toi) */}
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 mb-2">
+              {invoice.company.name}
+            </h1>
+            <div className="text-sm text-slate-500 space-y-1">
+              {invoice.company.address && <p>{invoice.company.address}</p>}
+              {invoice.company.siret && <p>SIRET : {invoice.company.siret}</p>}
+              {invoice.company.vatNumber && <p>TVA : {invoice.company.vatNumber}</p>}
             </div>
           </div>
 
-          {/* Tableau des lignes */}
-          <div className="mb-8 overflow-hidden rounded-lg border border-slate-200">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50">
-                  <TableHead className="w-[50%]">Description</TableHead>
-                  <TableHead className="text-center">Qté</TableHead>
-                  <TableHead className="text-right">Prix unitaire</TableHead>
-                  <TableHead className="text-right">TVA</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoice.rows.map((row) => {
-                  const lineTotal = row.quantity * row.unitPrice;
-
-                  return (
-                    <TableRow key={row.id}>
-                      <TableCell className="font-medium">
-                        {row.description}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {row.quantity}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {row.unitPrice.toFixed(2)} €
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {row.vatRate > 0 ? `${row.vatRate}%` : "Exonéré"}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {lineTotal.toFixed(2)} €
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Totaux alignés à droite */}
-          <div className="ml-auto w-full max-w-md space-y-2">
-            <div className="flex justify-between border-t border-slate-200 pt-4 text-sm">
-              <span className="font-medium text-slate-600">Sous-total HT</span>
-              <span className="text-slate-900">{totalHT.toFixed(2)} €</span>
+          {/* Infos Facture */}
+          <div className="text-right">
+            <h2 className="text-4xl font-light text-slate-200 mb-4">FACTURE</h2>
+            <div className="space-y-1 text-sm">
+              <p>
+                <span className="font-semibold text-slate-700">Numéro :</span>{" "}
+                {invoice.number}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-700">Date :</span>{" "}
+                {format(new Date(invoice.issuedDate), 'dd MMMM yyyy', { locale: fr })}
+              </p>
+              {invoice.dueDate && (
+                <p>
+                  <span className="font-semibold text-slate-700">Échéance :</span>{" "}
+                  {format(new Date(invoice.dueDate), 'dd MMMM yyyy', { locale: fr })}
+                </p>
+              )}
             </div>
-            {totalTVA > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="font-medium text-slate-600">TVA</span>
-                <span className="text-slate-900">{totalTVA.toFixed(2)} €</span>
+          </div>
+        </div>
+
+        {/* CLIENT */}
+        <div className="mb-16 flex justify-end">
+          <div className="w-1/3 text-right">
+            <p className="text-xs font-bold text-slate-400 uppercase mb-2">
+              Facturé à
+            </p>
+            <p className="font-bold text-lg">{invoice.client.name}</p>
+            {invoice.client.address && (
+              <p className="text-slate-600 text-sm whitespace-pre-line">
+                {invoice.client.address}
+              </p>
+            )}
+            {invoice.client.email && (
+              <p className="text-slate-600 text-sm">{invoice.client.email}</p>
+            )}
+          </div>
+        </div>
+
+        {/* TABLEAU DES LIGNES */}
+        <table className="w-full mb-12">
+          <thead>
+            <tr className="border-b-2 border-slate-100">
+              <th className="text-left py-3 text-sm font-semibold text-slate-600">
+                Description
+              </th>
+              <th className="text-right py-3 text-sm font-semibold text-slate-600 w-24">
+                Qté
+              </th>
+              <th className="text-right py-3 text-sm font-semibold text-slate-600 w-32">
+                Prix U.
+              </th>
+              <th className="text-right py-3 text-sm font-semibold text-slate-600 w-24">
+                TVA
+              </th>
+              <th className="text-right py-3 text-sm font-semibold text-slate-600 w-32">
+                Total HT
+              </th>
+            </tr>
+          </thead>
+          <tbody className="text-sm">
+            {invoice.rows.map((row) => (
+              <tr key={row.id} className="border-b border-slate-50">
+                <td className="py-4 text-slate-800">{row.description}</td>
+                <td className="py-4 text-right text-slate-500">
+                  {Number(row.quantity)}
+                </td>
+                <td className="py-4 text-right text-slate-500">
+                  {formatPrice(Number(row.unitPrice))}
+                </td>
+                <td className="py-4 text-right text-slate-500">
+                  {Number(row.vatRate)}%
+                </td>
+                <td className="py-4 text-right font-medium text-slate-800">
+                  {formatPrice(Number(row.quantity) * Number(row.unitPrice))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* TOTAUX */}
+        <div className="flex justify-end mb-20">
+          <div className="w-1/2 space-y-3">
+            <div className="flex justify-between text-slate-500 text-sm">
+              <span>Total HT</span>
+              <span>{formatPrice(totalHT)}</span>
+            </div>
+            {totalVAT > 0 && (
+              <div className="flex justify-between text-slate-500 text-sm">
+                <span>TVA ({invoice.rows[0]?.vatRate || 20}%)</span>
+                <span>{formatPrice(totalVAT)}</span>
               </div>
             )}
-            <div className="flex justify-between border-t-2 border-slate-900 pt-4 text-lg font-bold">
-              <span className="text-slate-900">Total TTC</span>
-              <span className="text-slate-900">{totalTTC.toFixed(2)} €</span>
+            <div className="flex justify-between items-center border-t-2 border-slate-100 pt-3">
+              <span className="font-bold text-lg text-slate-900">Total TTC</span>
+              <span className="font-bold text-2xl text-blue-600">
+                {formatPrice(totalTTC)}
+              </span>
             </div>
           </div>
+        </div>
 
-          {/* Pied de page */}
-          <div className="mt-16 border-t border-slate-200 pt-8 text-xs text-slate-500">
-            <p className="mb-2 font-semibold text-slate-700">
-              Merci de votre confiance !
-            </p>
-            <p className="mb-1">
-              Facture établie par {invoice.company.name}
-              {invoice.company.siret && ` - SIRET : ${invoice.company.siret}`}
-            </p>
-            <p>
-              En cas de retard de paiement, des pénalités de retard de 3 fois le
-              taux d&apos;intérêt légal en vigueur seront appliquées.
-            </p>
+        {/* PIED DE PAGE */}
+        <div className="border-t border-slate-100 pt-8 text-center text-xs text-slate-400">
+          <p className="mb-2">Merci de votre confiance.</p>
+          <p>
+            En cas de retard de paiement, une pénalité de 3 fois le taux
+            d&apos;intérêt légal sera appliquée.
+          </p>
+          {invoice.company.siret && (
             <p className="mt-2">
-              Une indemnité forfaitaire pour frais de recouvrement de 40€ sera
-              due en cas de retard de paiement.
+              SAS {invoice.company.name} au capital de 1000€ - SIRET{" "}
+              {invoice.company.siret}
             </p>
-          </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-
