@@ -146,22 +146,71 @@ export default function SignInPage() {
             path="/sign-in"
             forceRedirectUrl="/"
             signUpUrl="/sign-up"
-            // 🎨 TON DESIGN
+            // 🎨 DESIGN AMÉLIORÉ
             appearance={{
               elements: {
+                // Container principal
                 rootBox: "w-full",
                 card: "shadow-none border-0 bg-transparent p-0",
+                
+                // En-tête (caché car on a notre propre titre)
                 headerTitle: "hidden",
                 headerSubtitle: "hidden",
+                
+                // Bouton social (Google)
                 socialButtonsBlockButton:
-                  "border border-slate-200 hover:bg-slate-50 hover:border-blue-600 text-slate-600 font-medium h-10 transition-all duration-200",
-                formButtonPrimary:
-                  "bg-blue-600 hover:bg-blue-700 text-sm normal-case shadow-md hover:shadow-lg transition-all duration-200",
-                footerActionLink:
-                  "text-blue-600 hover:text-blue-700 font-medium transition-colors",
+                  "w-full border-2 border-slate-300 hover:border-blue-500 hover:bg-blue-50/50 text-slate-700 font-semibold h-12 rounded-lg transition-all duration-300 ease-in-out shadow-sm hover:shadow-md active:scale-[0.98] flex items-center justify-center gap-3",
+                
+                // Séparateur "ou"
+                dividerLine: "bg-slate-200",
+                dividerText: "text-slate-500 text-sm font-medium",
+                
+                // Champs de formulaire
                 formFieldInput:
-                  "border-slate-200 focus:border-blue-600 focus:ring-blue-600 transition-all duration-200",
-                formFieldLabel: "text-slate-700 font-medium",
+                  "w-full h-12 px-4 border-2 border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all duration-200 shadow-sm hover:border-slate-300",
+                
+                // Labels
+                formFieldLabel:
+                  "text-slate-700 font-semibold text-sm mb-2 block",
+                
+                // Bouton principal (Connexion)
+                formButtonPrimary:
+                  "w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 normal-case text-base",
+                
+                // Bouton secondaire (Mot de passe oublié, etc.)
+                formButtonSecondary:
+                  "text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200",
+                
+                // Lien footer (S'inscrire)
+                footerActionLink:
+                  "text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200 underline decoration-2 underline-offset-2 hover:decoration-blue-700",
+                
+                // Footer
+                footer: "mt-6 text-center text-sm text-slate-500",
+                
+                // Messages d'erreur
+                formFieldErrorText: "text-red-600 text-sm font-medium mt-1",
+                alertText: "text-red-600 text-sm font-medium",
+                
+                // Clue (Dernière utilisation, etc.)
+                formFieldHintText: "text-slate-500 text-xs mt-1",
+                identityPreviewText: "text-slate-600 font-medium",
+                identityPreviewEditButton: "text-blue-600 hover:text-blue-700",
+                
+                // Checkbox (Se souvenir de moi)
+                formFieldCheckbox: "border-slate-300 text-blue-600 focus:ring-blue-500 rounded",
+                
+                // Divider
+                dividerRow: "my-6",
+              },
+              variables: {
+                colorPrimary: "#2563eb",
+                colorText: "#1e293b",
+                colorTextSecondary: "#64748b",
+                colorInputBackground: "#ffffff",
+                colorInputText: "#1e293b",
+                borderRadius: "0.5rem",
+                fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
               },
             }}
           />
