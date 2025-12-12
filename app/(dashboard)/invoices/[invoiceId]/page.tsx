@@ -120,24 +120,28 @@ export default async function InvoicePage({
           <div className="flex justify-between items-start mb-12">
             <div className="w-1/2">
               {/* Logo ou nom de l'entreprise */}
-              <div className="flex items-start gap-4 mb-2">
-                {invoice.company.logoUrl ? (
-                  <img
-                    src={invoice.company.logoUrl}
-                    alt={`Logo ${invoice.company.name}`}
-                    className="max-w-32 max-h-32 object-contain"
-                    style={{ maxWidth: "128px", maxHeight: "128px" }}
-                  />
-                ) : (
-                  <h1 className="text-xl font-bold uppercase tracking-normal">
+              {invoice.company.logoUrl ? (
+                <>
+                  {/* Si logo présent : afficher le logo avec le nom en dessous */}
+                  <div className="mb-2">
+                    <img
+                      src={invoice.company.logoUrl}
+                      alt={`Logo ${invoice.company.name}`}
+                      className="max-w-32 max-h-32 object-contain mb-2"
+                      style={{ maxWidth: "128px", maxHeight: "128px" }}
+                    />
+                    <h1 className="text-xl font-bold uppercase tracking-normal">
+                      {invoice.company.name}
+                    </h1>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Si pas de logo : afficher le nom comme avant (par défaut) */}
+                  <h1 className="text-xl font-bold uppercase tracking-normal mb-2">
                     {invoice.company.name}
                   </h1>
-                )}
-              </div>
-              {invoice.company.logoUrl && (
-                <h2 className="text-lg font-semibold text-slate-700 mt-2">
-                  {invoice.company.name}
-                </h2>
+                </>
               )}
               <div className="text-sm text-slate-600 space-y-1">
                 {invoice.company.address && (
