@@ -19,18 +19,13 @@ export default async function DashboardLayout({
   // Récupération de l'utilisateur connecté (redirige vers /sign-in si non connecté)
   const user = await getCurrentUser();
 
-  // Récupération de l'URL actuelle
-  const headersList = await headers();
-  const pathname = headersList.get("x-pathname") || "";
-
   // Vérification : si l'utilisateur est connecté mais n'a pas de SIRET configuré
   const company = user.companies[0];
   
   if (company && (!company.siret || company.siret.trim() === "")) {
-    // Si on n'est pas déjà sur la page d'onboarding, rediriger
-    if (!pathname.startsWith("/onboarding")) {
-      redirect("/onboarding");
-    }
+    // Rediriger vers l'onboarding si l'entreprise n'a pas de SIRET
+    // La page /onboarding n'est pas dans ce layout, donc elle sera accessible
+    redirect("/onboarding");
   }
 
   return (
