@@ -110,10 +110,11 @@ export async function analyzeReceipt(
       );
     }
 
-    // Validation de la taille (max 10 MB pour éviter les timeouts)
-    const maxSize = 10 * 1024 * 1024; // 10 MB
+    // Validation de la taille (max 20 MB pour permettre les photos de téléphone)
+    // Les photos de téléphone modernes peuvent faire 5-15 MB
+    const maxSize = 20 * 1024 * 1024; // 20 MB
     if (file.size > maxSize) {
-      throw new Error("Le fichier est trop volumineux (maximum 10 MB)");
+      throw new Error("Le fichier est trop volumineux (maximum 20 MB)");
     }
 
     console.log(`📸 Analyse du reçu: ${file.name} (${file.size} bytes, ${file.type})`);
