@@ -76,107 +76,143 @@
 }
 
 /* --- STYLES PERSONNALISÉS CLERK (AUTHENTIFICATION) --- */
-.cl-rootBox {
+/* Utilisation de sélecteurs plus spécifiques pour forcer l'application des styles */
+
+/* Container principal */
+.cl-rootBox,
+div[data-clerk-component="SignIn"] .cl-rootBox,
+div[data-clerk-component="SignUp"] .cl-rootBox {
   width: 100% !important;
 }
 
-.cl-card {
+.cl-card,
+.cl-rootBox .cl-card {
   box-shadow: none !important;
   border: 0 !important;
   background: transparent !important;
   padding: 0 !important;
 }
 
-/* Bouton Google/Social */
-.cl-socialButtonsBlockButton {
+/* Bouton Google/Social - Sélecteurs multiples pour garantir l'application */
+.cl-socialButtonsBlockButton,
+button.cl-socialButtonsBlockButton,
+button[class*="socialButtonsBlockButton"],
+.cl-button.cl-socialButtonsBlockButton {
   width: 100% !important;
   height: 3rem !important;
-  border: 2px solid rgb(203 213 225) !important;
+  min-height: 3rem !important;
+  border: 2px solid rgb(203, 213, 225) !important;
   border-radius: 0.5rem !important;
   font-weight: 600 !important;
-  color: rgb(51 65 85) !important;
+  color: rgb(51, 65, 85) !important;
   transition: all 0.3s ease-in-out !important;
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 0.75rem !important;
+  padding: 0.5rem 1rem !important;
 }
 
-.cl-socialButtonsBlockButton:hover {
-  border-color: rgb(59 130 246) !important;
-  background-color: rgba(59 130 246 / 0.05) !important;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+.cl-socialButtonsBlockButton:hover,
+button.cl-socialButtonsBlockButton:hover,
+button[class*="socialButtonsBlockButton"]:hover {
+  border-color: rgb(59, 130, 246) !important;
+  background-color: rgba(59, 130, 246, 0.05) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
 }
 
-.cl-socialButtonsBlockButton:active {
+.cl-socialButtonsBlockButton:active,
+button.cl-socialButtonsBlockButton:active {
   transform: scale(0.98) !important;
 }
 
-/* Champs de formulaire */
-.cl-formFieldInput {
+/* Champs de formulaire - Sélecteurs multiples */
+.cl-formFieldInput,
+input.cl-formFieldInput,
+input[class*="formFieldInput"],
+.cl-input {
   width: 100% !important;
   height: 3rem !important;
+  min-height: 3rem !important;
   padding: 0 1rem !important;
-  border: 2px solid rgb(226 232 240) !important;
+  border: 2px solid rgb(226, 232, 240) !important;
   border-radius: 0.5rem !important;
   background: white !important;
-  color: rgb(15 23 42) !important;
+  color: rgb(15, 23, 42) !important;
   transition: all 0.2s ease-in-out !important;
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+  font-size: 1rem !important;
 }
 
-.cl-formFieldInput::placeholder {
-  color: rgb(148 163 184) !important;
+.cl-formFieldInput::placeholder,
+input.cl-formFieldInput::placeholder {
+  color: rgb(148, 163, 184) !important;
 }
 
-.cl-formFieldInput:hover {
-  border-color: rgb(203 213 225) !important;
+.cl-formFieldInput:hover,
+input.cl-formFieldInput:hover {
+  border-color: rgb(203, 213, 225) !important;
 }
 
-.cl-formFieldInput:focus {
-  border-color: rgb(59 130 246) !important;
+.cl-formFieldInput:focus,
+input.cl-formFieldInput:focus,
+.cl-input:focus {
+  border-color: rgb(59, 130, 246) !important;
   outline: none !important;
-  box-shadow: 0 0 0 3px rgba(59 130 246 / 0.1) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
 }
 
 /* Labels */
-.cl-formFieldLabel {
-  color: rgb(51 65 85) !important;
+.cl-formFieldLabel,
+label.cl-formFieldLabel,
+label[class*="formFieldLabel"] {
+  color: rgb(51, 65, 85) !important;
   font-weight: 600 !important;
   font-size: 0.875rem !important;
   margin-bottom: 0.5rem !important;
   display: block !important;
 }
 
-/* Bouton principal */
-.cl-formButtonPrimary {
+/* Bouton principal - Sélecteurs multiples */
+.cl-formButtonPrimary,
+button.cl-formButtonPrimary,
+button[class*="formButtonPrimary"],
+.cl-button[class*="formButtonPrimary"] {
   width: 100% !important;
   height: 3rem !important;
-  background: linear-gradient(to right, rgb(37 99 235), rgb(29 78 216)) !important;
+  min-height: 3rem !important;
+  background: linear-gradient(to right, rgb(37, 99, 235), rgb(29, 78, 216)) !important;
+  background-color: rgb(37, 99, 235) !important;
   color: white !important;
   font-weight: 600 !important;
   font-size: 1rem !important;
   border-radius: 0.5rem !important;
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
   text-transform: none !important;
   transition: all 0.2s ease-in-out !important;
   border: none !important;
+  padding: 0.5rem 1rem !important;
 }
 
-.cl-formButtonPrimary:hover {
-  background: linear-gradient(to right, rgb(29 78 216), rgb(30 64 175)) !important;
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1) !important;
+.cl-formButtonPrimary:hover,
+button.cl-formButtonPrimary:hover {
+  background: linear-gradient(to right, rgb(29, 78, 216), rgb(30, 64, 175)) !important;
+  background-color: rgb(29, 78, 216) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
   transform: scale(1.02) !important;
 }
 
-.cl-formButtonPrimary:active {
+.cl-formButtonPrimary:active,
+button.cl-formButtonPrimary:active {
   transform: scale(0.98) !important;
 }
 
 /* Liens footer */
-.cl-footerActionLink {
-  color: rgb(37 99 235) !important;
+.cl-footerActionLink,
+a.cl-footerActionLink,
+a[class*="footerActionLink"] {
+  color: rgb(37, 99, 235) !important;
   font-weight: 600 !important;
   text-decoration: underline !important;
   text-decoration-thickness: 2px !important;
@@ -184,44 +220,58 @@
   transition: color 0.2s ease-in-out !important;
 }
 
-.cl-footerActionLink:hover {
-  color: rgb(29 78 216) !important;
-  text-decoration-color: rgb(29 78 216) !important;
+.cl-footerActionLink:hover,
+a.cl-footerActionLink:hover {
+  color: rgb(29, 78, 216) !important;
+  text-decoration-color: rgb(29, 78, 216) !important;
 }
 
 /* Messages d'erreur */
 .cl-formFieldErrorText,
-.cl-alertText {
-  color: rgb(220 38 38) !important;
+.cl-alertText,
+p[class*="formFieldErrorText"],
+p[class*="alertText"] {
+  color: rgb(220, 38, 38) !important;
   font-size: 0.875rem !important;
   font-weight: 500 !important;
   margin-top: 0.25rem !important;
 }
 
 /* Séparateur */
-.cl-dividerLine {
-  background-color: rgb(226 232 240) !important;
+.cl-dividerLine,
+hr.cl-dividerLine,
+hr[class*="dividerLine"] {
+  background-color: rgb(226, 232, 240) !important;
+  border-color: rgb(226, 232, 240) !important;
 }
 
-.cl-dividerText {
-  color: rgb(100 116 139) !important;
+.cl-dividerText,
+span.cl-dividerText,
+span[class*="dividerText"] {
+  color: rgb(100, 116, 139) !important;
   font-size: 0.875rem !important;
   font-weight: 500 !important;
 }
 
-.cl-dividerRow {
+.cl-dividerRow,
+div[class*="dividerRow"] {
   margin: 1.5rem 0 !important;
 }
 
 /* Checkbox */
-.cl-formFieldCheckbox {
-  border-color: rgb(203 213 225) !important;
+.cl-formFieldCheckbox,
+input[type="checkbox"].cl-formFieldCheckbox,
+input[type="checkbox"][class*="formFieldCheckbox"] {
+  border-color: rgb(203, 213, 225) !important;
   border-radius: 0.25rem !important;
+  width: 1rem !important;
+  height: 1rem !important;
 }
 
-.cl-formFieldCheckbox:checked {
-  background-color: rgb(37 99 235) !important;
-  border-color: rgb(37 99 235) !important;
+.cl-formFieldCheckbox:checked,
+input[type="checkbox"].cl-formFieldCheckbox:checked {
+  background-color: rgb(37, 99, 235) !important;
+  border-color: rgb(37, 99, 235) !important;
 }
 
 /* --- STYLES D'IMPRESSION (FACTURE) --- */
