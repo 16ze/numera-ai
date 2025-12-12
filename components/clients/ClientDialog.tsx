@@ -149,13 +149,22 @@ export function ClientDialog({
       }
 
       // Préparation des données à envoyer
-      // Si c'est un particulier, on ne garde pas SIRET/TVA
+      // Si c'est un particulier, on force undefined pour SIRET/TVA (sera transformé en null dans la DB)
+      // Cela permet de convertir une entreprise en particulier en vidant ces champs
       const dataToSubmit: ClientData = {
         name: formData.name.trim(),
         email: formData.email?.trim() || undefined,
         address: formData.address?.trim() || undefined,
-        siret: clientType === "entreprise" ? formData.siret?.trim() || undefined : undefined,
-        vatIntra: clientType === "entreprise" ? formData.vatIntra?.trim() || undefined : undefined,
+        // Pour les entreprises : on envoie la valeur (ou undefined si vide)
+        // Pour les particuliers : on force undefined pour s'assurer que les champs sont vidés en DB
+        siret:
+          clientType === "entreprise"
+            ? formData.siret?.trim() || undefined
+            : undefined,
+        vatIntra:
+          clientType === "entreprise"
+            ? formData.vatIntra?.trim() || undefined
+            : undefined,
       };
 
       // Appel de la Server Action

@@ -212,12 +212,24 @@ export function ClientsPageClient({
                           {getInitials(client.name)}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <div className="font-medium text-slate-900">
-                          {client.name}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-slate-900">
+                            {client.name}
+                          </span>
+                          {/* Badge Entreprise/Particulier */}
+                          {client.siret ? (
+                            <Badge className="bg-blue-600 hover:bg-blue-700 text-white">
+                              Entreprise
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">
+                              Particulier
+                            </Badge>
+                          )}
                         </div>
                         {client.siret && (
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground mt-1">
                             SIRET: {client.siret}
                           </div>
                         )}
