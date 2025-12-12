@@ -1,6 +1,6 @@
 /**
  * Page de visualisation d'une facture
- * Design professionnel A4 imprimable type Stripe/Qonto
+ * Design professionnel A4 imprimable conforme à la législation française
  */
 
 import { notFound, redirect } from "next/navigation";
@@ -14,7 +14,7 @@ import { ArrowLeft } from "lucide-react";
 
 /**
  * Page de visualisation d'une facture
- * Format A4 professionnel pour impression/PDF
+ * Format A4 professionnel conforme à la législation française
  */
 export default async function InvoicePage({ 
   params 
@@ -35,12 +35,11 @@ export default async function InvoicePage({
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
 
-  // 1. Récupérer la facture avec toutes les infos (Client, Lignes, Entreprise)
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
-    include: {
-      client: true,
-      rows: true,
+    include: { 
+      client: true, 
+      rows: true, 
       company: {
         include: {
           user: true, // Pour vérifier la sécurité
@@ -49,88 +48,115 @@ export default async function InvoicePage({
     },
   });
 
-  // 2. Sécurité : Vérifier que la facture appartient bien à l'utilisateur connecté
-  // (On vérifie via l'entreprise liée)
-  if (!invoice || invoice.company.userId !== user.id) {
-    return notFound();
-  }
+  if (!invoice || invoice.company.userId !== user.id) return notFound();
 
-  // 3. Calculs des totaux
+  // --- LOGIQUE LEGALE ---
+  const isAutoEntrepreneur = invoice.company.isAutoEntrepreneur;
+  const showVAT = !isAutoEntrepreneur;
+
+  // Calculs
   const totalHT = invoice.rows.reduce(
     (acc, row) => acc + (Number(row.quantity) * Number(row.unitPrice)),
     0
   );
-  const totalVAT = invoice.rows.reduce(
-    (acc, row) => acc + (Number(row.quantity) * Number(row.unitPrice) * (Number(row.vatRate) / 100)),
-    0
-  );
+
+  // Si auto-entrepreneur, la TVA est de 0
+  const totalVAT = showVAT
+    ? invoice.rows.reduce(
+        (acc, row) =>
+          acc +
+          Number(row.quantity) *
+            Number(row.unitPrice) *
+            (Number(row.vatRate) / 100),
+        0
+      )
+    : 0;
+
   const totalTTC = totalHT + totalVAT;
 
   /**
    * Formate un montant en euros
    */
-  const formatPrice = (amount: number) => 
-    new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
+  const formatPrice = (amount: number) =>
+    new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+    }).format(amount);
 
   return (
     <div className="flex flex-col items-center gap-8 py-8 bg-slate-50 min-h-screen">
-      {/* Barre d'actions (Cachée à l'impression) */}
+      {/* Barre d'actions */}
       <div className="w-full max-w-[210mm] flex justify-between items-center print:hidden px-4 md:px-0">
-        <Link 
-          href="/invoices" 
+        <Link
+          href="/invoices"
           className="flex items-center text-sm text-slate-500 hover:text-slate-900"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
-          Retour aux factures
+          Retour
         </Link>
         <PrintButton />
       </div>
 
-      {/* --- LA FEUILLE A4 (C'est ça qui s'imprime) --- */}
-      {/* L'ID "invoice-print-area" est crucial pour le CSS global */}
-      <div 
-        id="invoice-print-area" 
-        className="bg-white w-full max-w-[210mm] min-h-[297mm] p-[15mm] shadow-lg text-slate-900 print:shadow-none print:w-full"
+      {/* --- FACTURE A4 --- */}
+      <div
+        id="invoice-print-area"
+        className="bg-white w-full max-w-[210mm] min-h-[297mm] p-[15mm] shadow-lg text-slate-900 relative print:shadow-none print:w-full"
       >
-        {/* EN-TÊTE */}
-        <div className="flex justify-between items-start mb-16">
-          {/* Vendeur (Toi) */}
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">
+        {/* 1. EN-TÊTE & VENDEUR */}
+        <div className="flex justify-between items-start mb-12">
+          <div className="w-1/2">
+            <h1 className="text-xl font-bold uppercase tracking-wide mb-2">
               {invoice.company.name}
             </h1>
-            <div className="text-sm text-slate-500 space-y-1">
+            <div className="text-sm text-slate-600 space-y-1">
               {invoice.company.address && <p>{invoice.company.address}</p>}
-              {invoice.company.siret && <p>SIRET : {invoice.company.siret}</p>}
-              {invoice.company.vatNumber && <p>TVA : {invoice.company.vatNumber}</p>}
+              <div className="mt-2 text-xs text-slate-500">
+                {invoice.company.siret && (
+                  <p>SIRET : {invoice.company.siret}</p>
+                )}
+                {invoice.company.apeCode && (
+                  <p>Code APE : {invoice.company.apeCode}</p>
+                )}
+                {invoice.company.vatNumber && (
+                  <p>TVA Intra : {invoice.company.vatNumber}</p>
+                )}
+                {invoice.company.legalForm && (
+                  <p>Forme : {invoice.company.legalForm}</p>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Infos Facture */}
           <div className="text-right">
-            <h2 className="text-4xl font-light text-slate-200 mb-4">FACTURE</h2>
-            <div className="space-y-1 text-sm">
-              <p>
-                <span className="font-semibold text-slate-700">Numéro :</span>{" "}
-                {invoice.number}
-              </p>
-              <p>
-                <span className="font-semibold text-slate-700">Date :</span>{" "}
-                {format(new Date(invoice.issuedDate), 'dd MMMM yyyy', { locale: fr })}
-              </p>
-              {invoice.dueDate && (
-                <p>
-                  <span className="font-semibold text-slate-700">Échéance :</span>{" "}
-                  {format(new Date(invoice.dueDate), 'dd MMMM yyyy', { locale: fr })}
-                </p>
-              )}
-            </div>
+            <h2 className="text-3xl font-light text-slate-300">FACTURE</h2>
+            <p className="font-bold text-slate-700 mt-1">N° {invoice.number}</p>
           </div>
         </div>
 
-        {/* CLIENT */}
-        <div className="mb-16 flex justify-end">
-          <div className="w-1/3 text-right">
+        {/* 2. DATES & CLIENT */}
+        <div className="flex justify-between mb-16 border-t border-b border-slate-100 py-6">
+          <div className="space-y-1 text-sm">
+            <p>
+              <span className="font-semibold text-slate-700">
+                Date d&apos;émission :
+              </span>{" "}
+              {format(new Date(invoice.issuedDate), "dd/MM/yyyy")}
+            </p>
+            {invoice.dueDate && (
+              <p>
+                <span className="font-semibold text-slate-700">
+                  Date d&apos;échéance :
+                </span>{" "}
+                {format(new Date(invoice.dueDate), "dd/MM/yyyy")}
+              </p>
+            )}
+            <p>
+              <span className="font-semibold text-slate-700">Conditions :</span>{" "}
+              {invoice.paymentTerms || "Paiement à 30 jours"}
+            </p>
+          </div>
+
+          <div className="text-right w-1/3">
             <p className="text-xs font-bold text-slate-400 uppercase mb-2">
               Facturé à
             </p>
@@ -140,47 +166,53 @@ export default async function InvoicePage({
                 {invoice.client.address}
               </p>
             )}
-            {invoice.client.email && (
-              <p className="text-slate-600 text-sm">{invoice.client.email}</p>
+            {invoice.client.vatIntra && (
+              <p className="text-xs text-slate-500 mt-1">
+                TVA: {invoice.client.vatIntra}
+              </p>
             )}
           </div>
         </div>
 
-        {/* TABLEAU DES LIGNES */}
-        <table className="w-full mb-12">
+        {/* 3. LIGNES DE FACTURE */}
+        <table className="w-full mb-8">
           <thead>
-            <tr className="border-b-2 border-slate-100">
-              <th className="text-left py-3 text-sm font-semibold text-slate-600">
-                Description
+            <tr className="border-b-2 border-slate-800">
+              <th className="text-left py-2 text-sm font-bold uppercase">
+                Désignation
               </th>
-              <th className="text-right py-3 text-sm font-semibold text-slate-600 w-24">
+              <th className="text-right py-2 text-sm font-bold uppercase w-16">
                 Qté
               </th>
-              <th className="text-right py-3 text-sm font-semibold text-slate-600 w-32">
-                Prix U.
+              <th className="text-right py-2 text-sm font-bold uppercase w-28">
+                Prix U. HT
               </th>
-              <th className="text-right py-3 text-sm font-semibold text-slate-600 w-24">
-                TVA
-              </th>
-              <th className="text-right py-3 text-sm font-semibold text-slate-600 w-32">
+              {showVAT && (
+                <th className="text-right py-2 text-sm font-bold uppercase w-20">
+                  TVA
+                </th>
+              )}
+              <th className="text-right py-2 text-sm font-bold uppercase w-28">
                 Total HT
               </th>
             </tr>
           </thead>
           <tbody className="text-sm">
             {invoice.rows.map((row) => (
-              <tr key={row.id} className="border-b border-slate-50">
-                <td className="py-4 text-slate-800">{row.description}</td>
-                <td className="py-4 text-right text-slate-500">
+              <tr key={row.id} className="border-b border-slate-100">
+                <td className="py-3 text-slate-700">{row.description}</td>
+                <td className="py-3 text-right text-slate-500">
                   {Number(row.quantity)}
                 </td>
-                <td className="py-4 text-right text-slate-500">
+                <td className="py-3 text-right text-slate-500">
                   {formatPrice(Number(row.unitPrice))}
                 </td>
-                <td className="py-4 text-right text-slate-500">
-                  {Number(row.vatRate)}%
-                </td>
-                <td className="py-4 text-right font-medium text-slate-800">
+                {showVAT && (
+                  <td className="py-3 text-right text-slate-500">
+                    {Number(row.vatRate)}%
+                  </td>
+                )}
+                <td className="py-3 text-right font-medium text-slate-900">
                   {formatPrice(Number(row.quantity) * Number(row.unitPrice))}
                 </td>
               </tr>
@@ -188,21 +220,29 @@ export default async function InvoicePage({
           </tbody>
         </table>
 
-        {/* TOTAUX */}
-        <div className="flex justify-end mb-20">
-          <div className="w-1/2 space-y-3">
-            <div className="flex justify-between text-slate-500 text-sm">
+        {/* 4. TOTAUX */}
+        <div className="flex justify-end mb-24">
+          <div className="w-1/2 bg-slate-50 p-4 rounded-lg">
+            <div className="flex justify-between text-slate-600 text-sm mb-2">
               <span>Total HT</span>
-              <span>{formatPrice(totalHT)}</span>
+              <span className="font-semibold">{formatPrice(totalHT)}</span>
             </div>
-            {totalVAT > 0 && (
-              <div className="flex justify-between text-slate-500 text-sm">
-                <span>TVA ({invoice.rows[0]?.vatRate || 20}%)</span>
+
+            {showVAT ? (
+              <div className="flex justify-between text-slate-600 text-sm mb-2">
+                <span>Total TVA</span>
                 <span>{formatPrice(totalVAT)}</span>
               </div>
+            ) : (
+              <div className="text-xs text-slate-400 text-right mb-2 italic">
+                TVA non applicable, art. 293 B du CGI
+              </div>
             )}
-            <div className="flex justify-between items-center border-t-2 border-slate-100 pt-3">
-              <span className="font-bold text-lg text-slate-900">Total TTC</span>
+
+            <div className="flex justify-between items-center border-t border-slate-200 pt-3 mt-2">
+              <span className="font-bold text-lg text-slate-900">
+                Net à payer
+              </span>
               <span className="font-bold text-2xl text-blue-600">
                 {formatPrice(totalTTC)}
               </span>
@@ -210,19 +250,38 @@ export default async function InvoicePage({
           </div>
         </div>
 
-        {/* PIED DE PAGE */}
-        <div className="border-t border-slate-100 pt-8 text-center text-xs text-slate-400">
-          <p className="mb-2">Merci de votre confiance.</p>
-          <p>
-            En cas de retard de paiement, une pénalité de 3 fois le taux
-            d&apos;intérêt légal sera appliquée.
-          </p>
-          {invoice.company.siret && (
-            <p className="mt-2">
-              SAS {invoice.company.name} au capital de 1000€ - SIRET{" "}
-              {invoice.company.siret}
+        {/* 5. MENTIONS LÉGALES OBLIGATOIRES (Footer) */}
+        <div className="absolute bottom-[15mm] left-[15mm] right-[15mm] text-center">
+          <div className="text-[10px] text-slate-400 border-t border-slate-100 pt-4 leading-relaxed">
+            <p>
+              En cas de retard de paiement, application d&apos;une pénalité
+              égale à 3 fois le taux d&apos;intérêt légal.
             </p>
-          )}
+            <p>
+              Une indemnité forfaitaire de 40 € est due pour frais de
+              recouvrement (Articles L441-6 et D441-5 du Code de commerce).
+            </p>
+            <p>Pas d&apos;escompte pour paiement anticipé.</p>
+            <p className="mt-2 font-medium text-slate-500">
+              {invoice.company.name} —{" "}
+              {invoice.company.legalForm || "Entreprise"} au capital de{" "}
+              {invoice.company.capital || "0"} € — SIRET :{" "}
+              {invoice.company.siret}
+              {invoice.company.apeCode && (
+                <> — APE : {invoice.company.apeCode}</>
+              )}
+            </p>
+            {/* Mention spécifique Auto-entrepreneur */}
+            {isAutoEntrepreneur && (
+              <p className="mt-1 font-bold">
+                TVA non applicable, art. 293 B du CGI
+              </p>
+            )}
+            {/* Mentions légales personnalisées */}
+            {invoice.legalMentions && (
+              <p className="mt-2 text-slate-500">{invoice.legalMentions}</p>
+            )}
+          </div>
         </div>
       </div>
     </div>

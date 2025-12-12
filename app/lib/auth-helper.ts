@@ -243,6 +243,8 @@ export async function getCurrentUser(): Promise<
           data: {
             name: "Ma Société",
             currency: "EUR",
+            legalForm: "EI",
+            isAutoEntrepreneur: true,
             userId: user.id,
           },
         });
@@ -265,6 +267,8 @@ export async function getCurrentUser(): Promise<
           create: {
             name: "Ma Société", // Nom par défaut
             currency: "EUR",
+            legalForm: "EI", // Entreprise Individuelle par défaut
+            isAutoEntrepreneur: true, // Auto-entrepreneur par défaut
           },
         },
       },

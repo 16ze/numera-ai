@@ -7,11 +7,13 @@
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")  // <--- CETTE LIGNE EST INDISPENSABLE
+  directUrl = env("DIRECT_URL") // <--- CETTE LIGNE EST INDISPENSABLE
 }
+
 // ============================================
 // ENUMS
 // ============================================
@@ -88,16 +90,20 @@ model User {
  * Entité centrale : toutes les factures et transactions sont liées à une Company
  */
 model Company {
-  id        String   @id @default(uuid())
-  name      String
-  siret     String?  @unique // Numéro SIRET (unique par entreprise)
-  vatNumber String? // Numéro de TVA intracommunautaire
-  address   String?
-  logoUrl   String?
-  currency  String   @default("EUR") // Devise par défaut
-  userId    String // Propriétaire de l'entreprise
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  name               String
+  siret              String?  @unique // Numéro SIRET (unique par entreprise)
+  vatNumber          String? // Numéro de TVA intracommunautaire
+  address            String?
+  logoUrl            String?
+  currency           String   @default("EUR") // Devise par défaut
+  legalForm          String? // Forme juridique (ex: "SARL", "Auto-entrepreneur", "EI")
+  apeCode            String? // Code APE/NAF (ex: "6201Z")
+  capital            String? // Capital social (ex: "1000")
+  isAutoEntrepreneur Boolean  @default(false) // Si true, TVA non applicable (art. 293 B du CGI)
+  userId             String // Propriétaire de l'entreprise
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   // Relations
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -139,15 +145,17 @@ model Client {
  * Contient plusieurs lignes (InvoiceRow) détaillant les prestations
  */
 model Invoice {
-  id         String        @id @default(uuid())
-  number     String // Numéro de facture (ex: INV-001)
-  issuedDate DateTime // Date d'émission
-  dueDate    DateTime? // Date d'échéance (optionnelle)
-  status     InvoiceStatus @default(DRAFT)
-  companyId  String // Entreprise émettrice
-  clientId   String // Client destinataire
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  id            String        @id @default(uuid())
+  number        String // Numéro de facture (ex: INV-001)
+  issuedDate    DateTime // Date d'émission
+  dueDate       DateTime? // Date d'échéance (optionnelle)
+  status        InvoiceStatus @default(DRAFT)
+  paymentTerms  String        @default("30 jours") // Conditions de paiement (ex: "30 jours")
+  legalMentions String? // Mentions légales spécifiques (optionnel)
+  companyId     String // Entreprise émettrice
+  clientId      String // Client destinataire
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   // Relations
   company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
