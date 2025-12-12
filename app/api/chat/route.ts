@@ -9,6 +9,8 @@ import {
 import { streamText, tool } from "ai";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { sendInvoiceEmail } from "@/app/actions/send-invoice-email";
+import { updateInvoiceStatus } from "@/app/(dashboard)/actions/invoices";
 
 // On laisse 30 secondes max pour éviter les timeouts
 export const maxDuration = 30;
