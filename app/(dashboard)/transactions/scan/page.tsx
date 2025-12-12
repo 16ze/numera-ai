@@ -249,8 +249,8 @@ export default function ScanReceiptPage() {
                 className={cn(
                   "relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-12 transition-colors cursor-pointer",
                   isDragging
-                    ? "border-primary bg-primary/5"
-                    : "border-muted-foreground/25 hover:border-primary/50 hover:bg-accent/5"
+                    ? cn("border-primary", "bg-primary/5")
+                    : cn("border-muted-foreground/25", "hover:border-primary/50", "hover:bg-accent/5")
                 )}
               >
                 <input
