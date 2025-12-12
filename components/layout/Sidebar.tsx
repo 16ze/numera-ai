@@ -99,13 +99,13 @@ export function Sidebar() {
 
       {/* Profil utilisateur Clerk */}
       <div className="border-t p-4">
-        <div className="flex items-center w-full">
+        <div className="flex items-center w-full gap-3">
           <UserButtonWrapper
             appearance={{
               elements: {
                 avatarBox: "h-10 w-10",
-                userButtonTrigger: "focus:shadow-none w-full",
-                userButtonBox: "w-full",
+                userButtonTrigger: "focus:shadow-none w-full gap-3",
+                userButtonBox: "w-full flex items-center gap-3",
               },
             }}
             afterSignOutUrl="/sign-in"
