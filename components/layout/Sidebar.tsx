@@ -56,13 +56,20 @@ export function Sidebar() {
 
   return (
     <aside data-sidebar className="fixed left-0 top-0 h-screen w-64 border-r bg-white flex flex-col print:hidden">
-      {/* Logo */}
-      <div className="flex h-16 items-center border-b px-6">
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
+      {/* Logo - Design amélioré */}
+      <div className="flex h-16 items-center border-b px-6 bg-gradient-to-r from-blue-50 to-white">
+        <Link href="/" className="flex items-center space-x-3 group">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 text-white font-bold text-lg shadow-md group-hover:shadow-lg transition-all duration-200 group-hover:scale-105">
             N
           </div>
-          <span className="text-xl font-bold tracking-tight">Numera AI</span>
+          <div className="flex flex-col">
+            <span className="text-xl font-bold tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
+              Numera AI
+            </span>
+            <span className="text-xs text-slate-500 font-medium">
+              CFO Virtuel
+            </span>
+          </div>
         </Link>
       </div>
 
