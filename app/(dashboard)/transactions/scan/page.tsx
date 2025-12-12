@@ -269,7 +269,7 @@ export default function ScanReceiptPage() {
                   ou cliquez pour sélectionner
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Formats acceptés : JPEG, PNG, WebP (max 10 MB)
+                  Formats acceptés : JPEG, PNG, WebP (max 20 MB)
                 </p>
               </div>
             )}
