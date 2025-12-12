@@ -71,13 +71,10 @@ export function CompanyForm({
 
       // Redirection si spécifiée
       if (redirectTo) {
-        // Forcer la revalidation avant la redirection pour que le layout dashboard
-        // voit les nouvelles données (notamment le SIRET)
-        router.refresh();
-        // Petit délai pour laisser le temps à la revalidation de se terminer
-        setTimeout(() => {
-          router.push(redirectTo);
-        }, 100);
+        // Utiliser window.location pour forcer un rechargement complet de la page
+        // Cela garantit que le layout dashboard verra les nouvelles données (SIRET)
+        // après la mise à jour, évitant ainsi les boucles de redirection
+        window.location.href = redirectTo;
       } else {
         router.refresh();
       }
