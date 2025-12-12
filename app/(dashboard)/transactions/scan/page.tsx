@@ -410,10 +410,12 @@ export default function ScanReceiptPage() {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      {/* Fin du div container */}
     </div>
   );
 }
+
 
