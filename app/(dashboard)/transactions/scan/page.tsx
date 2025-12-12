@@ -223,22 +223,22 @@ export default function ScanReceiptPage() {
 
   return (
     <div className="container mx-auto max-w-4xl px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Scanner un reçu</h1>
-          <p className="mt-2 text-muted-foreground">
-            Téléchargez une photo de votre ticket de caisse pour extraire automatiquement les informations.
-          </p>
-        </div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight">Scanner un reçu</h1>
+        <p className="mt-2 text-muted-foreground">
+          Téléchargez une photo de votre ticket de caisse pour extraire automatiquement les informations.
+        </p>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Analyse de reçu par IA</CardTitle>
-            <CardDescription>
-              L'IA va extraire automatiquement le montant, la date, le commerçant et la catégorie.
-            </CardDescription>
-          </CardHeader>
+      <Card>
+        <CardHeader>
+          <CardTitle>Analyse de reçu par IA</CardTitle>
+          <CardDescription>
+            L'IA va extraire automatiquement le montant, la date, le commerçant et la catégorie.
+          </CardDescription>
+        </CardHeader>
 
-          <CardContent>
+        <CardContent>
             {/* État 1 : Zone d'upload */}
             {pageState === "upload" && (
               <div
@@ -410,9 +410,8 @@ export default function ScanReceiptPage() {
                 </div>
               </div>
             )}
-            </CardContent>
-          </Card>
-        </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
