@@ -105,13 +105,21 @@ export default function ScanReceiptPage() {
    * Valide et traite un fichier sélectionné
    */
   const handleFileSelect = (file: File) => {
+    // Vérification spécifique pour les formats HEIC/HEIF non supportés
+    const heicExtensions = [".heic", ".heif", ".heifs"];
+    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+    if (heicExtensions.includes(fileExtension) || file.type === "image/heic" || file.type === "image/heif") {
+      toast.error(
+        "Le format HEIC n'est pas supporté. Veuillez convertir votre photo en JPEG ou PNG avant de l'uploader. Vous pouvez utiliser votre application Photos pour exporter en JPEG."
+      );
+      return;
+    }
+
     // Validation du type de fichier
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       toast.error(
-        `Type de fichier non supporté. Types autorisés : ${allowedTypes.join(
-          ", "
-        )}`
+        `Type de fichier non supporté. Types autorisés : JPEG, PNG, WebP. Format détecté : ${file.type || "inconnu"}. Si votre photo est en HEIC, convertissez-la en JPEG depuis votre application Photos.`
       );
       return;
     }

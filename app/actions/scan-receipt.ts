@@ -124,11 +124,20 @@ export async function analyzeReceipt(
       throw new Error("Aucun fichier image fourni");
     }
 
+    // Vérification spécifique pour les formats HEIC/HEIF non supportés
+    const heicExtensions = [".heic", ".heif", ".heifs"];
+    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+    if (heicExtensions.includes(fileExtension) || file.type === "image/heic" || file.type === "image/heif") {
+      throw new Error(
+        "Le format HEIC n'est pas supporté par l'API OpenAI Vision. Veuillez convertir votre photo en JPEG ou PNG. Utilisez l'application Photos de votre appareil pour exporter en JPEG."
+      );
+    }
+
     // Validation du type de fichier
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       throw new Error(
-        `Type de fichier non supporté. Types autorisés : ${allowedTypes.join(", ")}`
+        `Type de fichier non supporté. Types autorisés : JPEG, PNG, WebP. Format détecté : ${file.type || "inconnu"}. Si votre photo est en HEIC, convertissez-la en JPEG depuis votre application Photos.`
       );
     }
 
