@@ -296,9 +296,12 @@ export default function ScanReceiptPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 ou cliquez pour sélectionner
               </p>
-              <p className="text-xs text-muted-foreground">
-                Formats acceptés : JPEG, PNG, WebP (max 20 MB)
-              </p>
+               <p className="text-xs text-muted-foreground">
+                 Formats acceptés : JPEG, PNG, WebP (max 20 MB)
+               </p>
+               <p className="text-xs text-orange-600 font-medium mt-2">
+                 ⚠️ Les photos HEIC doivent être converties en JPEG avant upload
+               </p>
             </div>
           )}
 
