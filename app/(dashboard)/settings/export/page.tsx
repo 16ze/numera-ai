@@ -15,13 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Download, FileText, Calendar, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -126,21 +120,18 @@ export default function ExportPage() {
               Année à exporter
             </Label>
             <Select
+              id="year"
               value={selectedYear.toString()}
-              onValueChange={(value) => setSelectedYear(parseInt(value, 10))}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
               disabled={isLoading}
+              className="w-full"
             >
-              <SelectTrigger id="year" className="w-full">
-                <SelectValue placeholder="Sélectionner une année" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((year) => (
-                  <SelectItem key={year} value={year.toString()}>
-                    {year}
-                    {year === currentYear && " (année en cours)"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              {years.map((year) => (
+                <option key={year} value={year.toString()}>
+                  {year}
+                  {year === currentYear && " (année en cours)"}
+                </option>
+              ))}
             </Select>
             <p className="text-xs text-muted-foreground">
               Sélectionnez l'année pour laquelle vous souhaitez exporter les données comptables
