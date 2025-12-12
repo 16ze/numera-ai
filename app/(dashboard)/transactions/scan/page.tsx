@@ -413,7 +413,6 @@ export default function ScanReceiptPage() {
             </CardContent>
           </Card>
         </div>
-      {/* Fin du div container */}
     </div>
   );
 }
