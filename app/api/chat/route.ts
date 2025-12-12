@@ -30,6 +30,21 @@ export async function POST(req: Request) {
     console.log("📩 Message reçu, début du traitement...");
     console.log("📝 Nombre de messages:", messages?.length || 0);
 
+    // Récupération de la date actuelle pour l'injecter dans le prompt
+    const now = new Date();
+    const currentDate = now.toISOString().split("T")[0]; // Format YYYY-MM-DD
+    const currentDateFormatted = now.toLocaleDateString("fr-FR", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }); // Format lisible : "vendredi 12 décembre 2025"
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentDay = now.getDate();
+
+    console.log(`📅 Date actuelle: ${currentDateFormatted} (${currentDate})`);
+
     const result = streamText({
       // 1. Force l'utilisation du modèle gpt-4o (pas le mini) pour assurer la fiabilité
       model: openai("gpt-4o"),
@@ -49,6 +64,16 @@ export async function POST(req: Request) {
 
       // 3. Prompt système autoritaire pour forcer la réponse textuelle
       system: `Tu es le CFO de Numera Corp.
+
+      📅 DATE ACTUELLE : ${currentDateFormatted}
+      Date ISO : ${currentDate}
+      Année actuelle : ${currentYear}
+      Mois actuel : ${currentMonth}
+      Jour actuel : ${currentDay}
+      
+      IMPORTANT : Utilise cette date actuelle pour tous tes calculs et références temporelles.
+      Quand on te demande "quelle est la date aujourd'hui" ou "quel jour on est", réponds : "${currentDateFormatted}".
+      Pour les références de mois, utilise l'année ${currentYear} sauf indication contraire.
 
       ⚠️ ATTENTION CRITIQUE AUX DATES ⚠️
       LES DATES SONT PRIMORDIALES DANS TOUTES LES TRANSACTIONS ET REQUÊTES.
