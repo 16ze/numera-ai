@@ -1,17 +1,38 @@
 import { AIChatButtonWrapper } from "@/components/chat/AIChatButtonWrapper";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { UserButtonWrapper } from "@/components/layout/UserButtonWrapper";
+import { getCurrentUser } from "@/app/lib/auth-helper";
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 /**
  * Layout pour les pages protégées (dashboard, transactions, etc.)
  *
  * Ce layout inclut la sidebar et le header avec le bouton utilisateur Clerk.
+ * Force les utilisateurs sans SIRET à compléter l'onboarding.
  */
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Récupération de l'utilisateur connecté (redirige vers /sign-in si non connecté)
+  const user = await getCurrentUser();
+
+  // Récupération de l'URL actuelle
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") || "";
+
+  // Vérification : si l'utilisateur est connecté mais n'a pas de SIRET configuré
+  const company = user.companies[0];
+  
+  if (company && (!company.siret || company.siret.trim() === "")) {
+    // Si on n'est pas déjà sur la page d'onboarding, rediriger
+    if (!pathname.startsWith("/onboarding")) {
+      redirect("/onboarding");
+    }
+  }
+
   return (
     <div className="flex h-screen">
       {/* Sidebar fixe à gauche */}
