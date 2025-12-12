@@ -35,15 +35,21 @@ export default async function DashboardLayout({
       {/* Contenu principal */}
       <div className="flex flex-1 flex-col ml-64">
         {/* Header avec UserButton Clerk */}
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-end border-b bg-white px-6 print:hidden">
-          <UserButtonWrapper
-            appearance={{
-              elements: {
-                avatarBox: "h-10 w-10",
-              },
-            }}
-            afterSignOutUrl="/sign-in"
-          />
+        <header className="sticky top-0 z-10 flex h-16 items-center border-b bg-white px-6 print:hidden">
+          {/* Spacer pour pousser l'avatar à droite */}
+          <div className="flex-1"></div>
+          
+          {/* Avatar utilisateur aligné à droite */}
+          <div className="flex items-center">
+            <UserButtonWrapper
+              appearance={{
+                elements: {
+                  avatarBox: "h-10 w-10",
+                },
+              }}
+              afterSignOutUrl="/sign-in"
+            />
+          </div>
         </header>
 
         {/* Contenu de la page */}
