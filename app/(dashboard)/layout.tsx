@@ -3,7 +3,6 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { UserButtonWrapper } from "@/components/layout/UserButtonWrapper";
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 
 /**
  * Layout pour les pages protégées (dashboard, transactions, etc.)

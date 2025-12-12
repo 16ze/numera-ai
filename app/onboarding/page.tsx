@@ -15,9 +15,9 @@ export default async function OnboardingPage() {
   // Vérifier si l'utilisateur est connecté (redirige vers /sign-in si non)
   const user = await getCurrentUser();
 
-  // Si l'utilisateur a déjà une entreprise configurée, rediriger vers le dashboard
+  // Si l'utilisateur a déjà une entreprise avec SIRET configuré, rediriger vers le dashboard
   const company = user.companies[0];
-  if (company && company.name !== "Ma Société") {
+  if (company && company.siret && company.siret.trim() !== "") {
     redirect("/");
   }
 
