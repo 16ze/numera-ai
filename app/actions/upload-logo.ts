@@ -87,11 +87,13 @@ export async function uploadCompanyLogo(
     // 9. Suppression de l'ancien logo si il existe (optionnel, pour économiser l'espace)
     if (company.logoUrl) {
       try {
-        // Extraire le nom de fichier de l'ancienne URL
-        const oldUrlParts = company.logoUrl.split("/");
-        const oldFileName = oldUrlParts[oldUrlParts.length - 1];
-        if (oldFileName) {
-          await supabase.storage.from("logos").remove([`logos/${oldFileName}`]);
+        // Extraire le nom de fichier de l'ancienne URL (après /logos/)
+        const oldUrlParts = company.logoUrl.split("/logos/");
+        if (oldUrlParts.length > 1) {
+          const oldFileName = oldUrlParts[1].split("?")[0]; // Retirer les query params
+          if (oldFileName) {
+            await supabase.storage.from("logos").remove([oldFileName]);
+          }
         }
       } catch (error) {
         // Ne pas bloquer si la suppression de l'ancien logo échoue
