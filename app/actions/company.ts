@@ -74,10 +74,11 @@ export async function updateCompanyDetails(
     console.log(`✅ Entreprise ${company.id} mise à jour avec succès`);
 
     // Revalidation des caches pour mettre à jour les pages concernées
+    // IMPORTANT: Revalider /onboarding en premier pour éviter les boucles de redirection
+    revalidatePath("/onboarding");
     revalidatePath("/");
     revalidatePath("/settings");
     revalidatePath("/invoices");
-    revalidatePath("/onboarding");
 
     return {
       success: true,

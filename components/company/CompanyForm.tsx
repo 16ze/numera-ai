@@ -71,7 +71,13 @@ export function CompanyForm({
 
       // Redirection si spécifiée
       if (redirectTo) {
-        router.push(redirectTo);
+        // Forcer la revalidation avant la redirection pour que le layout dashboard
+        // voit les nouvelles données (notamment le SIRET)
+        router.refresh();
+        // Petit délai pour laisser le temps à la revalidation de se terminer
+        setTimeout(() => {
+          router.push(redirectTo);
+        }, 100);
       } else {
         router.refresh();
       }
