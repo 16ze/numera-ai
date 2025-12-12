@@ -43,7 +43,7 @@ const navigationItems = [
   },
   {
     name: "Paramètres",
-    href: "/parametres",
+    href: "/settings",
     icon: Settings,
   },
 ];
