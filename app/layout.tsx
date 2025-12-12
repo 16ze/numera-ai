@@ -37,25 +37,18 @@ async function OnboardingGuard({ children }: { children: React.ReactNode }) {
   let pathname = "";
   try {
     const headersList = await headers();
-    // Accéder au header x-pathname
-    if (headersList && typeof headersList === "object") {
-      if ("get" in headersList && typeof (headersList as any).get === "function") {
-        pathname = (headersList as any).get("x-pathname") || "";
-      } else if ("x-pathname" in headersList) {
-        pathname = (headersList as any)["x-pathname"] || "";
-      }
-    }
+    // Accéder au header x-pathname - headers() retourne un Headers object en Next.js 16
+    pathname = headersList.get("x-pathname") || "";
   } catch (error) {
     // Si les headers ne sont pas disponibles, continuer sans vérification du pathname
     // Le middleware et les layouts spécifiques géreront la protection
-    console.warn("Impossible de récupérer le pathname depuis les headers:", error);
   }
 
   // Routes publiques qui ne nécessitent pas de vérification d'onboarding
   const publicRoutes = ["/sign-in", "/sign-up", "/onboarding"];
-  const isPublicRoute = pathname && publicRoutes.some((route) =>
+  const isPublicRoute = pathname ? publicRoutes.some((route) =>
     pathname.startsWith(route)
-  );
+  ) : false;
 
   // Si on est sur une route publique, on laisse passer sans vérifier l'utilisateur
   if (isPublicRoute) {
