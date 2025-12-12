@@ -7,10 +7,11 @@
 
 import { useState } from "react";
 import { updateInvoiceStatus } from "@/app/(dashboard)/actions/invoices";
+import { sendInvoiceEmail } from "@/app/actions/send-invoice-email";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { InvoiceStatus } from "@prisma/client";
-import { CheckCircle2, DollarSign, RotateCcw, Loader2 } from "lucide-react";
+import { CheckCircle2, DollarSign, RotateCcw, Loader2, Mail } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
@@ -33,6 +34,7 @@ export function InvoiceActions({
 }: InvoiceActionsProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   /**
    * Gère le changement de statut de la facture

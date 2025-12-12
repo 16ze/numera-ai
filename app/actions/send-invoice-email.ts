@@ -112,17 +112,12 @@ export async function sendInvoiceEmail(
       })
     );
 
-    // 9. Détermination de l'expéditeur
-    // Pour les tests, utiliser onboarding@resend.dev
-    // Pour la production, utiliser votre domaine vérifié dans Resend
-    const fromEmail =
-      process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
-
-    // 10. Envoi de l'email via Resend
+    // 9. Envoi de l'email via Resend
+    // Utilisation de l'adresse de test Resend pour le développement
     const { data, error } = await resend.emails.send({
-      from: `${invoice.company.name} <${fromEmail}>`,
+      from: "Numera AI <onboarding@resend.dev>",
       to: invoice.client.email,
-      subject: `Facture ${invoice.number} - ${invoice.company.name}`,
+      subject: `Votre facture ${invoice.number} est disponible`,
       html: emailHtml,
     });
 
