@@ -33,12 +33,12 @@ export const metadata: Metadata = {
  */
 async function OnboardingGuard({ children }: { children: React.ReactNode }) {
   // Essayer de récupérer le pathname depuis les headers (ajouté par le middleware)
+  // Dans Next.js 16, headers() retourne une Promise et doit être utilisé avec await
   let pathname = "";
   try {
-    const headersList = headers();
-    // Dans Next.js 16, headers() peut retourner différents types
+    const headersList = await headers();
+    // Accéder au header x-pathname
     if (headersList && typeof headersList === "object") {
-      // Essayer différentes méthodes pour accéder au pathname
       if ("get" in headersList && typeof (headersList as any).get === "function") {
         pathname = (headersList as any).get("x-pathname") || "";
       } else if ("x-pathname" in headersList) {
@@ -48,6 +48,7 @@ async function OnboardingGuard({ children }: { children: React.ReactNode }) {
   } catch (error) {
     // Si les headers ne sont pas disponibles, continuer sans vérification du pathname
     // Le middleware et les layouts spécifiques géreront la protection
+    console.warn("Impossible de récupérer le pathname depuis les headers:", error);
   }
 
   // Routes publiques qui ne nécessitent pas de vérification d'onboarding
