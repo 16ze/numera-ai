@@ -10,8 +10,21 @@ import { prisma } from "@/app/lib/prisma";
 import { InvoiceEmail } from "@/components/emails/InvoiceEmail";
 import { render } from "@react-email/render";
 
-// Initialisation du client Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
+/**
+ * Initialise le client Resend de manière lazy
+ * Cela garantit que la variable d'environnement est chargée
+ */
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error(
+      "RESEND_API_KEY manquante. Configurez cette variable d'environnement dans .env.local"
+    );
+  }
+  
+  return new Resend(apiKey);
+}
 
 /**
  * Envoie une facture par email au client
@@ -24,12 +37,8 @@ export async function sendInvoiceEmail(
   invoiceId: string
 ): Promise<{ success: true; messageId: string }> {
   try {
-    // 1. Vérification de la clé API Resend
-    if (!process.env.RESEND_API_KEY) {
-      throw new Error(
-        "RESEND_API_KEY manquante. Configurez cette variable d'environnement pour envoyer des emails."
-      );
-    }
+    // 1. Initialisation du client Resend avec la clé API
+    const resend = getResendClient();
 
     // 2. Récupération de l'utilisateur connecté
     const user = await getCurrentUser();
@@ -65,6 +74,8 @@ export async function sendInvoiceEmail(
     if (!invoice) {
       throw new Error("Facture non trouvée");
     }
+
+    console.log(`📧 Envoi facture ${invoice.number} pour ${invoice.client.name}`);
 
     // 4. Vérification que la facture appartient à l'entreprise de l'utilisateur
     if (invoice.companyId !== company.id) {
