@@ -44,10 +44,20 @@ export async function updateCompanyDetails(
     }
 
     // Préparation des données à mettre à jour (seulement les champs fournis)
-    const updateData: Partial<CompanyUpdateData> = {};
+    // Utilisation d'un objet avec types explicites pour éviter les problèmes de typage Prisma
+    const updateData: {
+      name?: string;
+      address?: string | null;
+      siret?: string | null;
+      apeCode?: string | null;
+      vatNumber?: string | null;
+      capital?: string | null;
+      legalForm?: string | null;
+      isAutoEntrepreneur?: boolean;
+    } = {};
     
     if (data.name !== undefined) updateData.name = data.name;
-    if (data.address !== undefined) updateData.address = data.address;
+    if (data.address !== undefined) updateData.address = data.address || null;
     if (data.siret !== undefined) updateData.siret = data.siret || null;
     if (data.apeCode !== undefined) updateData.apeCode = data.apeCode || null;
     if (data.vatNumber !== undefined) updateData.vatNumber = data.vatNumber || null;
