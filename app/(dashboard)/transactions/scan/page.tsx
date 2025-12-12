@@ -262,7 +262,7 @@ export default function ScanReceiptPage() {
                 />
 
                 <Upload
-                  className={`h-12 w-12 mb-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`}
+                  className={cn("h-12 w-12 mb-4", isDragging ? "text-primary" : "text-muted-foreground")}
                 />
                 <p className="text-lg font-medium mb-2">
                   {isDragging ? "Déposez votre image ici" : "Glissez-déposez votre image"}
@@ -290,7 +290,7 @@ export default function ScanReceiptPage() {
             {/* État 3 : Formulaire de correction */}
             {pageState === "form" && (
               <div className="space-y-6">
-                <div className="rounded-lg bg-muted/50 p-4">
+                <div className={cn("rounded-lg p-4", "bg-muted/50")}>
                   <p className="text-sm font-medium mb-2">
                     ✅ Reçu analysé avec succès
                   </p>
