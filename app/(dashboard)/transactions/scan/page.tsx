@@ -10,7 +10,10 @@
  * - Enregistrer la transaction dans la base de données
  */
 
-import { analyzeReceipt, saveScannedTransaction } from "@/app/actions/scan-receipt";
+import {
+  analyzeReceipt,
+  saveScannedTransaction,
+} from "@/app/actions/scan-receipt";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,11 +24,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { TransactionCategory } from "@prisma/client";
-import { Loader2, Upload, CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TransactionCategory } from "@prisma/client";
+import { CheckCircle2, Loader2, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useRef, DragEvent, ChangeEvent } from "react";
+import { ChangeEvent, DragEvent, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 /**
@@ -106,7 +109,9 @@ export default function ScanReceiptPage() {
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       toast.error(
-        `Type de fichier non supporté. Types autorisés : ${allowedTypes.join(", ")}`
+        `Type de fichier non supporté. Types autorisés : ${allowedTypes.join(
+          ", "
+        )}`
       );
       return;
     }
@@ -145,7 +150,9 @@ export default function ScanReceiptPage() {
       });
 
       setPageState("form");
-      toast.success("Reçu analysé avec succès ! Vérifiez et corrigez si nécessaire.");
+      toast.success(
+        "Reçu analysé avec succès ! Vérifiez et corrigez si nécessaire."
+      );
     } catch (error) {
       console.error("Erreur lors de l'analyse:", error);
       toast.error(
@@ -188,7 +195,7 @@ export default function ScanReceiptPage() {
       await saveScannedTransaction(formData);
 
       toast.success("Transaction enregistrée avec succès !");
-      
+
       // Rediriger vers le dashboard après un court délai
       setTimeout(() => {
         router.push("/");
@@ -226,7 +233,8 @@ export default function ScanReceiptPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Scanner un reçu</h1>
         <p className="mt-2 text-muted-foreground">
-          Téléchargez une photo de votre ticket de caisse pour extraire automatiquement les informations.
+          Téléchargez une photo de votre ticket de caisse pour extraire
+          automatiquement les informations.
         </p>
       </div>
 
@@ -234,186 +242,201 @@ export default function ScanReceiptPage() {
         <CardHeader>
           <CardTitle>Analyse de reçu par IA</CardTitle>
           <CardDescription>
-            L'IA va extraire automatiquement le montant, la date, le commerçant et la catégorie.
+            L'IA va extraire automatiquement le montant, la date, le commerçant
+            et la catégorie.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
-            {/* État 1 : Zone d'upload */}
-            {pageState === "upload" && (
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={cn(
-                  "relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-12 transition-colors cursor-pointer",
-                  isDragging
-                    ? cn("border-primary", "bg-primary/5")
-                    : cn("border-muted-foreground/25", "hover:border-primary/50", "hover:bg-accent/5")
-                )}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/webp"
-                  onChange={handleFileInputChange}
-                  className="hidden"
-                />
+          {/* État 1 : Zone d'upload */}
+          {pageState === "upload" && (
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                "relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-12 transition-colors cursor-pointer",
+                isDragging
+                  ? cn("border-primary", "bg-primary/5")
+                  : cn(
+                      "border-muted-foreground/25",
+                      "hover:border-primary/50",
+                      "hover:bg-accent/5"
+                    )
+              )}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                onChange={handleFileInputChange}
+                className="hidden"
+              />
 
-                <Upload
-                  className={cn("h-12 w-12 mb-4", isDragging ? "text-primary" : "text-muted-foreground")}
-                />
-                <p className="text-lg font-medium mb-2">
-                  {isDragging ? "Déposez votre image ici" : "Glissez-déposez votre image"}
-                </p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  ou cliquez pour sélectionner
+              <Upload
+                className={cn(
+                  "h-12 w-12 mb-4",
+                  isDragging ? "text-primary" : "text-muted-foreground"
+                )}
+              />
+              <p className="text-lg font-medium mb-2">
+                {isDragging
+                  ? "Déposez votre image ici"
+                  : "Glissez-déposez votre image"}
+              </p>
+              <p className="text-sm text-muted-foreground mb-4">
+                ou cliquez pour sélectionner
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Formats acceptés : JPEG, PNG, WebP (max 20 MB)
+              </p>
+            </div>
+          )}
+
+          {/* État 2 : Analyse en cours */}
+          {pageState === "analyzing" && (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="h-16 w-16 animate-spin text-primary mb-6" />
+              <p className="text-lg font-medium mb-2">
+                L'IA analyse votre ticket...
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Cela peut prendre quelques secondes
+              </p>
+            </div>
+          )}
+
+          {/* État 3 : Formulaire de correction */}
+          {pageState === "form" && (
+            <div className="space-y-6">
+              <div className={cn("rounded-lg p-4", "bg-muted/50")}>
+                <p className="text-sm font-medium mb-2">
+                  ✅ Reçu analysé avec succès
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Formats acceptés : JPEG, PNG, WebP (max 20 MB)
+                  Vérifiez les informations ci-dessous et corrigez si
+                  nécessaire.
                 </p>
               </div>
-            )}
 
-            {/* État 2 : Analyse en cours */}
-            {pageState === "analyzing" && (
-              <div className="flex flex-col items-center justify-center py-16">
-                <Loader2 className="h-16 w-16 animate-spin text-primary mb-6" />
-                <p className="text-lg font-medium mb-2">L'IA analyse votre ticket...</p>
-                <p className="text-sm text-muted-foreground">
-                  Cela peut prendre quelques secondes
-                </p>
-              </div>
-            )}
-
-            {/* État 3 : Formulaire de correction */}
-            {pageState === "form" && (
-              <div className="space-y-6">
-                <div className={cn("rounded-lg p-4", "bg-muted/50")}>
-                  <p className="text-sm font-medium mb-2">
-                    ✅ Reçu analysé avec succès
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Vérifiez les informations ci-dessous et corrigez si nécessaire.
-                  </p>
-                </div>
-
-                <div className="grid gap-6 md:grid-cols-2">
-                  {/* Montant */}
-                  <div className="space-y-2">
-                    <label htmlFor="amount" className="text-sm font-medium">
-                      Montant (€) *
-                    </label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.amount}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          amount: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  {/* Date */}
-                  <div className="space-y-2">
-                    <label htmlFor="date" className="text-sm font-medium">
-                      Date *
-                    </label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={formData.date}
-                      onChange={(e) =>
-                        setFormData({ ...formData, date: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                {/* Description */}
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* Montant */}
                 <div className="space-y-2">
-                  <label htmlFor="description" className="text-sm font-medium">
-                    Description (Commerçant) *
+                  <label htmlFor="amount" className="text-sm font-medium">
+                    Montant (€) *
                   </label>
                   <Input
-                    id="description"
-                    type="text"
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    placeholder="Ex: Restaurant Le Bon Coin"
-                  />
-                </div>
-
-                {/* Catégorie */}
-                <div className="space-y-2">
-                  <label htmlFor="category" className="text-sm font-medium">
-                    Catégorie *
-                  </label>
-                  <Select
-                    id="category"
-                    value={formData.category}
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.amount}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        category: e.target.value as TransactionCategory,
+                        amount: parseFloat(e.target.value) || 0,
                       })
                     }
-                  >
-                    <option value={TransactionCategory.TRANSPORT}>Transport</option>
-                    <option value={TransactionCategory.REPAS}>Repas</option>
-                    <option value={TransactionCategory.MATERIEL}>Matériel</option>
-                    <option value={TransactionCategory.PRESTATION}>
-                      Prestation
-                    </option>
-                    <option value={TransactionCategory.IMPOTS}>Impôts et taxes</option>
-                    <option value={TransactionCategory.SALAIRES}>Salaires</option>
-                    <option value={TransactionCategory.AUTRE}>Autre</option>
-                  </Select>
+                    placeholder="0.00"
+                  />
                 </div>
 
-                {/* Boutons d'action */}
-                <div className="flex gap-4 pt-4">
-                  <Button
-                    onClick={handleSaveTransaction}
-                    className="flex-1"
-                    disabled={pageState === "saving"}
-                  >
-                    {pageState === "saving" ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Enregistrement...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Valider et Enregistrer
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleReset}
-                    disabled={pageState === "saving"}
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    Scanner un autre reçu
-                  </Button>
+                {/* Date */}
+                <div className="space-y-2">
+                  <label htmlFor="date" className="text-sm font-medium">
+                    Date *
+                  </label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) =>
+                      setFormData({ ...formData, date: e.target.value })
+                    }
+                  />
                 </div>
               </div>
-            )}
+
+              {/* Description */}
+              <div className="space-y-2">
+                <label htmlFor="description" className="text-sm font-medium">
+                  Description (Commerçant) *
+                </label>
+                <Input
+                  id="description"
+                  type="text"
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  placeholder="Ex: Restaurant Le Bon Coin"
+                />
+              </div>
+
+              {/* Catégorie */}
+              <div className="space-y-2">
+                <label htmlFor="category" className="text-sm font-medium">
+                  Catégorie *
+                </label>
+                <Select
+                  id="category"
+                  value={formData.category}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      category: e.target.value as TransactionCategory,
+                    })
+                  }
+                >
+                  <option value={TransactionCategory.TRANSPORT}>
+                    Transport
+                  </option>
+                  <option value={TransactionCategory.REPAS}>Repas</option>
+                  <option value={TransactionCategory.MATERIEL}>Matériel</option>
+                  <option value={TransactionCategory.PRESTATION}>
+                    Prestation
+                  </option>
+                  <option value={TransactionCategory.IMPOTS}>
+                    Impôts et taxes
+                  </option>
+                  <option value={TransactionCategory.SALAIRES}>Salaires</option>
+                  <option value={TransactionCategory.AUTRE}>Autre</option>
+                </Select>
+              </div>
+
+              {/* Boutons d'action */}
+              <div className="flex gap-4 pt-4">
+                <Button
+                  onClick={handleSaveTransaction}
+                  className="flex-1"
+                  disabled={pageState === "saving"}
+                >
+                  {pageState === "saving" ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Enregistrement...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Valider et Enregistrer
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleReset}
+                  disabled={pageState === "saving"}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Scanner un autre reçu
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
-
-

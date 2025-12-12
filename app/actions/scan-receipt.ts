@@ -58,16 +58,38 @@ const openai = new OpenAI({
 });
 
 /**
- * Convertit un fichier en Base64
+ * Normalise le type MIME pour OpenAI Vision API
+ * OpenAI accepte uniquement : png, jpeg, gif, webp
+ *
+ * @param mimeType - Le type MIME original du fichier
+ * @returns {string} Le type MIME normalisé
+ */
+function normalizeMimeType(mimeType: string): string {
+  // Normaliser image/jpg vers image/jpeg (OpenAI n'accepte que jpeg)
+  if (mimeType === "image/jpg") {
+    return "image/jpeg";
+  }
+  // S'assurer que le type est dans la liste des types acceptés par OpenAI
+  const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+  if (allowedTypes.includes(mimeType)) {
+    return mimeType;
+  }
+  // Par défaut, utiliser jpeg
+  return "image/jpeg";
+}
+
+/**
+ * Convertit un fichier en Base64 avec le format correct pour OpenAI Vision API
  *
  * @param file - Le fichier à convertir
- * @returns {Promise<string>} La chaîne Base64 avec le préfixe data URL
+ * @returns {Promise<string>} La chaîne Base64 avec le préfixe data URL normalisé
  */
 async function fileToBase64(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
   const base64 = Buffer.from(buffer).toString("base64");
-  const mimeType = file.type || "image/jpeg";
-  return `data:${mimeType};base64,${base64}`;
+  // Normaliser le type MIME pour OpenAI (jpeg au lieu de jpg, etc.)
+  const normalizedMimeType = normalizeMimeType(file.type || "image/jpeg");
+  return `data:${normalizedMimeType};base64,${base64}`;
 }
 
 /**
