@@ -9,7 +9,10 @@ Ajoutez ces variables dans votre fichier `.env.local` :
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-clé-anon-publique
+SUPABASE_SERVICE_ROLE_KEY=votre-service-role-key
 ```
+
+**⚠️ IMPORTANT :** `SUPABASE_SERVICE_ROLE_KEY` ne doit JAMAIS être exposée au client. Elle est utilisée uniquement dans les Server Actions côté serveur.
 
 ### Où trouver ces valeurs ?
 
@@ -19,6 +22,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=votre-clé-anon-publique
 4. Copiez :
    - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
    - **anon/public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **service_role key** → `SUPABASE_SERVICE_ROLE_KEY` ⚠️ **Gardez cette clé secrète !**
 
 ## 2. Créer le bucket "logos" dans Supabase
 

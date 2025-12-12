@@ -5,7 +5,7 @@
  */
 
 import { getCurrentUser } from "@/app/lib/auth-helper";
-import { supabase } from "@/app/lib/supabase-client";
+import { getSupabaseServerClient } from "@/app/lib/supabase-client";
 import { updateCompanyDetails } from "@/app/actions/company";
 import { revalidatePath } from "next/cache";
 
@@ -60,8 +60,11 @@ export async function uploadCompanyLogo(
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
 
-    // 7. Upload vers Supabase Storage (bucket "logos")
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    // 7. Client Supabase avec service role key (bypasse RLS pour les uploads)
+    const supabaseServer = getSupabaseServerClient();
+
+    // 8. Upload vers Supabase Storage (bucket "logos")
+    const { data: uploadData, error: uploadError } = await supabaseServer.storage
       .from("logos")
       .upload(filePath, uint8Array, {
         contentType: file.type,
@@ -75,16 +78,16 @@ export async function uploadCompanyLogo(
       );
     }
 
-    // 8. Récupération de l'URL publique du fichier
+    // 9. Récupération de l'URL publique du fichier
     const {
       data: { publicUrl },
-    } = supabase.storage.from("logos").getPublicUrl(filePath);
+    } = supabaseServer.storage.from("logos").getPublicUrl(filePath);
 
     if (!publicUrl) {
       throw new Error("Impossible de récupérer l'URL publique du logo");
     }
 
-    // 9. Suppression de l'ancien logo si il existe (optionnel, pour économiser l'espace)
+    // 10. Suppression de l'ancien logo si il existe (optionnel, pour économiser l'espace)
     if (company.logoUrl) {
       try {
         // Extraire le nom de fichier de l'ancienne URL (après /logos/)
@@ -92,7 +95,7 @@ export async function uploadCompanyLogo(
         if (oldUrlParts.length > 1) {
           const oldFileName = oldUrlParts[1].split("?")[0]; // Retirer les query params
           if (oldFileName) {
-            await supabase.storage.from("logos").remove([oldFileName]);
+            await supabaseServer.storage.from("logos").remove([oldFileName]);
           }
         }
       } catch (error) {
@@ -101,14 +104,14 @@ export async function uploadCompanyLogo(
       }
     }
 
-    // 10. Mise à jour de l'URL du logo dans la base de données
+    // 11. Mise à jour de l'URL du logo dans la base de données
     await updateCompanyDetails({
       logoUrl: publicUrl,
     });
 
     console.log(`✅ Logo uploadé avec succès pour company ${companyId}: ${publicUrl}`);
 
-    // 11. Revalidation des caches
+    // 12. Revalidation des caches
     revalidatePath("/settings");
     revalidatePath("/invoices");
 
