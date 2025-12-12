@@ -113,7 +113,7 @@ export default function ScanReceiptPage() {
     // Validation de la taille (max 20 MB pour photos de téléphone)
     const maxSize = 20 * 1024 * 1024; // 20 MB
     if (file.size > maxSize) {
-      toast.error("Le fichier est trop volumineux (maximum 10 MB)");
+      toast.error("Le fichier est trop volumineux (maximum 20 MB)");
       return;
     }
 
