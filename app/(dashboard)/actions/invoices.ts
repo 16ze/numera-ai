@@ -288,3 +288,92 @@ export async function deleteInvoice(invoiceId: string): Promise<{ success: boole
   }
 }
 
+/**
+ * Server Action pour mettre à jour le statut d'une facture
+ * SÉCURITÉ : Vérifie que la facture appartient à l'entreprise de l'utilisateur connecté
+ *
+ * @param invoiceId - ID de la facture à mettre à jour
+ * @param newStatus - Nouveau statut de la facture (DRAFT, SENT, PAID)
+ * @returns {Promise<{ success: true; message: string }>} Résultat de la mise à jour
+ * @throws {Error} Si la facture n'existe pas, n'appartient pas à l'utilisateur, ou en cas d'erreur DB
+ */
+export async function updateInvoiceStatus(
+  invoiceId: string,
+  newStatus: "DRAFT" | "SENT" | "PAID"
+): Promise<{ success: true; message: string }> {
+  try {
+    // Validation de l'ID
+    if (!invoiceId || typeof invoiceId !== "string") {
+      throw new Error("ID de facture invalide");
+    }
+
+    // Validation du statut
+    if (!["DRAFT", "SENT", "PAID"].includes(newStatus)) {
+      throw new Error("Statut invalide");
+    }
+
+    // Récupération de l'utilisateur connecté (redirige vers /sign-in si non connecté)
+    const user = await getCurrentUser();
+
+    // Récupération de la première company de l'utilisateur
+    const company = user.companies[0];
+
+    if (!company) {
+      throw new Error("Aucune entreprise trouvée pour cet utilisateur");
+    }
+
+    // Vérification que la facture existe et appartient à l'entreprise de l'utilisateur
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      select: {
+        id: true,
+        number: true,
+        status: true,
+        companyId: true,
+      },
+    });
+
+    if (!invoice) {
+      throw new Error("Facture non trouvée");
+    }
+
+    // SÉCURITÉ CRITIQUE : Vérifier que la facture appartient à l'entreprise de l'utilisateur
+    if (invoice.companyId !== company.id) {
+      throw new Error("Cette facture ne vous appartient pas");
+    }
+
+    // Mise à jour du statut
+    await prisma.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status: newStatus as InvoiceStatus,
+      },
+    });
+
+    console.log(
+      `✅ Statut de la facture ${invoice.number} mis à jour : ${invoice.status} -> ${newStatus}`
+    );
+
+    // Revalidation du cache pour mettre à jour les pages
+    revalidatePath("/invoices");
+    revalidatePath(`/invoices/${invoiceId}`);
+
+    // Message de confirmation selon le statut
+    const statusMessages = {
+      DRAFT: "Facture remise en brouillon",
+      SENT: "Facture validée et envoyée",
+      PAID: "Facture marquée comme payée",
+    };
+
+    return {
+      success: true,
+      message: statusMessages[newStatus],
+    };
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour du statut de la facture:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("Erreur lors de la mise à jour du statut");
+  }
+}
+

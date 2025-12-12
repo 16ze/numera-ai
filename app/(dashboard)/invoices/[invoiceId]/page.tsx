@@ -8,6 +8,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { PrintButton } from "@/components/invoices/PrintButton";
+import { InvoiceActions } from "@/components/invoices/InvoiceActions";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import Link from "next/link";
@@ -93,7 +94,7 @@ export default async function InvoicePage({
   return (
     <div className="flex flex-col items-center gap-8 py-8 bg-slate-50 min-h-screen">
       {/* Barre d'actions */}
-      <div className="w-full max-w-[210mm] flex justify-between items-center print:hidden px-4 md:px-0">
+      <div className="w-full max-w-[210mm] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden px-4 md:px-0">
         <Link
           href="/invoices"
           className="flex items-center text-sm text-slate-500 hover:text-slate-900 transition-colors"
@@ -101,7 +102,10 @@ export default async function InvoicePage({
           <ArrowLeft className="w-4 h-4 mr-1" />
           Retour
         </Link>
-        <PrintButton />
+        <div className="flex items-center gap-4 flex-wrap">
+          <InvoiceActions invoiceId={invoiceId} currentStatus={invoice.status} />
+          <PrintButton />
+        </div>
       </div>
 
       {/* --- FACTURE A4 --- */}
