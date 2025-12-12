@@ -25,7 +25,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider localization={frFR}>
+    <ClerkProvider
+      localization={frFR}
+      appearance={{
+        // Configuration globale pour tous les composants Clerk
+        variables: {
+          colorPrimary: "#2563eb",
+          colorText: "#1e293b",
+          colorTextSecondary: "#64748b",
+          colorInputBackground: "#ffffff",
+          colorInputText: "#1e293b",
+          borderRadius: "0.5rem",
+          fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+        },
+      }}
+    >
       <html lang="fr">
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50`}
