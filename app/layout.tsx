@@ -30,8 +30,18 @@ export const metadata: Metadata = {
  */
 async function OnboardingGuard({ children }: { children: React.ReactNode }) {
   // Récupérer le pathname depuis les headers (ajouté par le middleware)
-  const headersList = headers();
-  const pathname = headersList.get("x-pathname") || "";
+  const headersList = await headers();
+  
+  // Méthode correcte pour accéder aux headers dans Next.js 16
+  let pathname = "";
+  try {
+    const pathnameHeader = headersList.get("x-pathname");
+    pathname = pathnameHeader || "";
+  } catch (error) {
+    // Si les headers ne sont pas disponibles, continuer sans vérification
+    // (peut arriver dans certains contextes)
+    console.warn("Impossible de récupérer le pathname depuis les headers");
+  }
 
   // Routes publiques qui ne nécessitent pas de vérification d'onboarding
   const publicRoutes = ["/sign-in", "/sign-up"];
