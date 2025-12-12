@@ -221,9 +221,7 @@ export default function ScanReceiptPage() {
   };
 
   return (
-    <>
-      <Toaster position="top-right" />
-      <div className="container mx-auto max-w-4xl px-6 py-8">
+    <div className="container mx-auto max-w-4xl px-6 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Scanner un reçu</h1>
           <p className="mt-2 text-muted-foreground">
@@ -417,7 +415,7 @@ export default function ScanReceiptPage() {
           </CardContent>
         </Card>
       </div>
-    </>
+    </div>
   );
 }
 

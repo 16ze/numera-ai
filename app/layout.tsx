@@ -5,6 +5,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/app/lib/auth-helper";
+import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -109,6 +110,7 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50`}
         >
           <OnboardingGuard>{children}</OnboardingGuard>
+          <Toaster position="top-right" />
         </body>
       </html>
     </ClerkProvider>
