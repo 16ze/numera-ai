@@ -173,6 +173,7 @@ export async function analyzeReceipt(
               type: "image_url",
               image_url: {
                 url: base64Image,
+                detail: "high", // Utiliser le détail élevé pour une meilleure précision OCR
               },
             },
           ],
