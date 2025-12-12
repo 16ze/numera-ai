@@ -45,7 +45,7 @@ export function ClientsPageClient({
   const [clients, setClients] = useState<ClientWithStats[]>(initialClients);
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingClient, setEditingClient] =
+  const [selectedClient, setSelectedClient] =
     useState<ClientWithStats | null>(null);
 
   /**
@@ -69,15 +69,16 @@ export function ClientsPageClient({
    * Ouvre le dialog pour créer un nouveau client
    */
   const handleCreateClick = () => {
-    setEditingClient(null);
+    setSelectedClient(null);
     setDialogOpen(true);
   };
 
   /**
    * Ouvre le dialog pour modifier un client
+   * Appelée lors du clic sur "Modifier" ou sur la ligne du tableau
    */
   const handleEditClick = (client: ClientWithStats) => {
-    setEditingClient(client);
+    setSelectedClient(client);
     setDialogOpen(true);
   };
 
@@ -87,7 +88,7 @@ export function ClientsPageClient({
   const handleDialogClose = (open: boolean) => {
     setDialogOpen(open);
     if (!open) {
-      setEditingClient(null);
+      setSelectedClient(null);
     }
   };
 
@@ -198,7 +199,11 @@ export function ClientsPageClient({
             </TableHeader>
             <TableBody>
               {filteredClients.map((client) => (
-                <TableRow key={client.id} className="hover:bg-slate-50">
+                <TableRow
+                  key={client.id}
+                  className="cursor-pointer hover:bg-slate-50 transition-colors"
+                  onClick={() => handleEditClick(client)}
+                >
                   {/* Client (Avatar + Nom) */}
                   <TableCell>
                     <div className="flex items-center space-x-3">
@@ -263,7 +268,10 @@ export function ClientsPageClient({
                   </TableCell>
 
                   {/* Actions */}
-                  <TableCell className="text-right">
+                  <TableCell
+                    className="text-right"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -272,7 +280,10 @@ export function ClientsPageClient({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => handleEditClick(client)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClick(client);
+                          }}
                         >
                           <Edit className="mr-2 h-4 w-4" />
                           Modifier
@@ -296,8 +307,21 @@ export function ClientsPageClient({
       <ClientDialog
         open={dialogOpen}
         onOpenChange={handleDialogClose}
-        initialData={editingClient || undefined}
+        initialData={
+          selectedClient
+            ? {
+                id: selectedClient.id,
+                name: selectedClient.name,
+                email: selectedClient.email,
+                address: selectedClient.address,
+                siret: selectedClient.siret,
+                vatIntra: selectedClient.vatIntra,
+              }
+            : undefined
+        }
+        onSuccess={handleClientUpdated}
       />
     </div>
   );
 }
+

@@ -32,3 +32,4 @@ export function calculateInvoiceTotalWithVat(rows: InvoiceWithRelations["rows"])
   }, 0);
 }
 
+

@@ -7,3 +7,4 @@ CREATE UNIQUE INDEX "users_clerkUserId_key" ON "users"("clerkUserId");
 -- CreateIndex
 CREATE INDEX "users_clerkUserId_idx" ON "users"("clerkUserId");
 
+

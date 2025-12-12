@@ -183,3 +183,4 @@ Une fois la migration terminée :
 4. ✅ `getAuthUser()` peut créer de nouveaux utilisateurs automatiquement
 
 **🎉 Vous êtes prêt à synchroniser Clerk avec Prisma !**
+

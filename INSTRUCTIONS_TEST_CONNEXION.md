@@ -137,3 +137,4 @@ Si vous voyez le **dashboard avec la sidebar et votre UserButton** en haut à dr
 - ✅ L'authentification fonctionne
 - ✅ La redirection est correcte
 - ✅ Votre application est prête !
+

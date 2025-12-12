@@ -290,3 +290,4 @@ export async function POST(req: Request) {
 
 **🎉 Félicitations ! Votre application est maintenant sécurisée avec Clerk !**
 
+

@@ -47,3 +47,4 @@ Le formulaire de connexion/inscription affichera seulement :
 Ce n'est **PAS une erreur de votre code**, c'est une limitation des clés de développement Clerk.
 
 En utilisant uniquement l'email, votre application fonctionnera parfaitement !
+

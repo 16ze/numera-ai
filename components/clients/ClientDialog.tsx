@@ -5,9 +5,10 @@
  *
  * Ce composant sert à la fois pour la création et la modification d'un client.
  * Il utilise le même formulaire, pré-rempli si c'est une modification.
+ * Support B2B (Entreprise) et B2C (Particulier) avec champs conditionnels.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,8 +19,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { upsertClient, type ClientData } from "@/app/actions/clients";
 import toast from "react-hot-toast";
+
+/**
+ * Type de client : Particulier ou Entreprise
+ */
+type ClientType = "particulier" | "entreprise";
 
 /**
  * Props du composant ClientDialog
@@ -38,6 +45,8 @@ interface ClientDialogProps {
     siret?: string | null;
     vatIntra?: string | null;
   };
+  /** Callback appelé après une création/modification réussie */
+  onSuccess?: () => void;
 }
 
 /**
@@ -47,19 +56,58 @@ export function ClientDialog({
   open,
   onOpenChange,
   initialData,
+  onSuccess,
 }: ClientDialogProps) {
   const isEditMode = !!initialData;
 
+  // État du type de client (Particulier/Entreprise)
+  const [clientType, setClientType] = useState<ClientType>("particulier");
+
   // États des champs du formulaire
   const [formData, setFormData] = useState<ClientData>({
-    name: initialData?.name || "",
-    email: initialData?.email || "",
-    address: initialData?.address || "",
-    siret: initialData?.siret || "",
-    vatIntra: initialData?.vatIntra || "",
+    name: "",
+    email: "",
+    address: "",
+    siret: "",
+    vatIntra: "",
   });
 
   const [isLoading, setIsLoading] = useState(false);
+
+  /**
+   * Réinitialise le formulaire et le type de client quand le dialog s'ouvre/ferme
+   */
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        // Mode édition : pré-remplir avec les données du client
+        setFormData({
+          name: initialData.name || "",
+          email: initialData.email || "",
+          address: initialData.address || "",
+          siret: initialData.siret || "",
+          vatIntra: initialData.vatIntra || "",
+        });
+        // Déterminer le type selon les données existantes
+        // Si le client a un SIRET ou une TVA, c'est une entreprise, sinon particulier
+        if (initialData.siret || initialData.vatIntra) {
+          setClientType("entreprise");
+        } else {
+          setClientType("particulier");
+        }
+      } else {
+        // Mode création : formulaire vide, par défaut "particulier"
+        setFormData({
+          name: "",
+          email: "",
+          address: "",
+          siret: "",
+          vatIntra: "",
+        });
+        setClientType("particulier");
+      }
+    }
+  }, [open, initialData]);
 
   /**
    * Gère le changement des champs du formulaire
@@ -69,30 +117,24 @@ export function ClientDialog({
   };
 
   /**
-   * Réinitialise le formulaire quand le dialog s'ouvre/ferme
+   * Gère le changement de type de client (Particulier/Entreprise)
+   * Si on passe à "particulier", on vide les champs SIRET et TVA
    */
-  const resetForm = () => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name,
-        email: initialData.email || "",
-        address: initialData.address || "",
-        siret: initialData.siret || "",
-        vatIntra: initialData.vatIntra || "",
-      });
-    } else {
-      setFormData({
-        name: "",
-        email: "",
-        address: "",
+  const handleClientTypeChange = (type: ClientType) => {
+    setClientType(type);
+    if (type === "particulier") {
+      // Nettoyer les champs spécifiques aux entreprises
+      setFormData((prev) => ({
+        ...prev,
         siret: "",
         vatIntra: "",
-      });
+      }));
     }
   };
 
   /**
    * Gère la soumission du formulaire
+   * Pour les particuliers, on ne sauvegarde pas SIRET/TVA même s'ils sont remplis
    */
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -106,8 +148,18 @@ export function ClientDialog({
         return;
       }
 
+      // Préparation des données à envoyer
+      // Si c'est un particulier, on ne garde pas SIRET/TVA
+      const dataToSubmit: ClientData = {
+        name: formData.name.trim(),
+        email: formData.email?.trim() || undefined,
+        address: formData.address?.trim() || undefined,
+        siret: clientType === "entreprise" ? formData.siret?.trim() || undefined : undefined,
+        vatIntra: clientType === "entreprise" ? formData.vatIntra?.trim() || undefined : undefined,
+      };
+
       // Appel de la Server Action
-      await upsertClient(formData, initialData?.id);
+      await upsertClient(dataToSubmit, initialData?.id);
 
       toast.success(
         isEditMode
@@ -115,9 +167,11 @@ export function ClientDialog({
           : "Client créé avec succès"
       );
 
-      // Fermer le dialog et réinitialiser le formulaire
+      // Appeler le callback de succès pour mettre à jour la liste
+      onSuccess?.();
+
+      // Fermer le dialog (le formulaire sera réinitialisé via useEffect à la prochaine ouverture)
       onOpenChange(false);
-      resetForm();
     } catch (error) {
       console.error("Erreur lors de la sauvegarde du client:", error);
       toast.error(
@@ -129,11 +183,6 @@ export function ClientDialog({
       setIsLoading(false);
     }
   };
-
-  // Réinitialiser le formulaire quand le dialog s'ouvre
-  if (open && formData.name === "" && !initialData) {
-    resetForm();
-  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -151,17 +200,43 @@ export function ClientDialog({
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            {/* Sélecteur Particulier/Entreprise */}
+            <div className="grid gap-2">
+              <label className="text-sm font-medium leading-none">
+                Type de client
+              </label>
+              <Tabs
+                value={clientType}
+                onValueChange={(value) =>
+                  handleClientTypeChange(value as ClientType)
+                }
+                className="w-full"
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="particulier">Particulier</TabsTrigger>
+                  <TabsTrigger value="entreprise">Entreprise</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
             {/* Nom */}
             <div className="grid gap-2">
               <label
                 htmlFor="name"
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                Nom <span className="text-red-500">*</span>
+                {clientType === "entreprise"
+                  ? "Nom de l'entreprise"
+                  : "Nom complet"}{" "}
+                <span className="text-red-500">*</span>
               </label>
               <Input
                 id="name"
-                placeholder="Ex: Acme Corporation"
+                placeholder={
+                  clientType === "entreprise"
+                    ? "Ex: Acme Corporation"
+                    : "Ex: Jean Dupont"
+                }
                 value={formData.name}
                 onChange={(e) => handleChange("name", e.target.value)}
                 required
@@ -201,47 +276,50 @@ export function ClientDialog({
               />
             </div>
 
-            {/* SIRET */}
-            <div className="grid gap-2">
-              <label
-                htmlFor="siret"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                SIRET
-              </label>
-              <Input
-                id="siret"
-                placeholder="12345678901234"
-                value={formData.siret || ""}
-                onChange={(e) => handleChange("siret", e.target.value)}
-              />
-            </div>
+            {/* Champs spécifiques aux entreprises */}
+            {clientType === "entreprise" && (
+              <>
+                {/* SIRET */}
+                <div className="grid gap-2">
+                  <label
+                    htmlFor="siret"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    SIRET
+                  </label>
+                  <Input
+                    id="siret"
+                    placeholder="12345678901234"
+                    value={formData.siret || ""}
+                    onChange={(e) => handleChange("siret", e.target.value)}
+                    maxLength={14}
+                  />
+                </div>
 
-            {/* TVA Intracommunautaire */}
-            <div className="grid gap-2">
-              <label
-                htmlFor="vatIntra"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                TVA Intracommunautaire
-              </label>
-              <Input
-                id="vatIntra"
-                placeholder="FR12345678901"
-                value={formData.vatIntra || ""}
-                onChange={(e) => handleChange("vatIntra", e.target.value)}
-              />
-            </div>
+                {/* TVA Intracommunautaire */}
+                <div className="grid gap-2">
+                  <label
+                    htmlFor="vatIntra"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    TVA Intracommunautaire
+                  </label>
+                  <Input
+                    id="vatIntra"
+                    placeholder="FR12345678901"
+                    value={formData.vatIntra || ""}
+                    onChange={(e) => handleChange("vatIntra", e.target.value)}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              onClick={() => {
-                onOpenChange(false);
-                resetForm();
-              }}
+              onClick={() => onOpenChange(false)}
               disabled={isLoading}
             >
               Annuler
@@ -259,3 +337,4 @@ export function ClientDialog({
     </Dialog>
   );
 }
+

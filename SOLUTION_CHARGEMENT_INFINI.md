@@ -225,3 +225,4 @@ Si vous voyez le **dashboard avec la sidebar et votre UserButton** en haut à dr
 - ✅ Votre application est prête !
 
 **Félicitations ! 🎊**
+

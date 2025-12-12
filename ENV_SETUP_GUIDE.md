@@ -160,3 +160,4 @@ Si vous avez toujours des problèmes :
 ## 🎉 SUCCÈS
 
 Si vous voyez le formulaire de connexion Clerk et pouvez vous connecter, **votre configuration est correcte** ! ✅
+

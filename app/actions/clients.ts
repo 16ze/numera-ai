@@ -312,3 +312,4 @@ export async function deleteClient(id: string): Promise<{ success: true }> {
     throw new Error("Erreur lors de la suppression du client");
   }
 }
+

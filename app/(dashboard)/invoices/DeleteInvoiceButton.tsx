@@ -51,3 +51,4 @@ export function DeleteInvoiceButton({ invoiceId, invoiceNumber }: { invoiceId: s
   );
 }
 
+
