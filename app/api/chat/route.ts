@@ -851,6 +851,182 @@ export async function POST(req: Request) {
             }
           },
         }),
+
+        // Nouvel outil : Envoyer une facture par email
+        sendInvoice: tool({
+          description:
+            "Envoie une facture par email au client. Passe automatiquement le statut à SENT. Utilise cet outil quand l'utilisateur demande d'envoyer une facture.",
+          inputSchema: z.object({
+            invoiceNumber: z
+              .string()
+              .optional()
+              .describe("Le numéro de la facture (ex: INV-001)"),
+            clientName: z
+              .string()
+              .optional()
+              .describe("Le nom du client (pour trouver la dernière facture)"),
+          }),
+          execute: async ({ invoiceNumber, clientName }) => {
+            console.log("🛠️ Outil 'sendInvoice' en cours...");
+            console.log(
+              `📧 Paramètres: invoiceNumber=${invoiceNumber || "N/A"}, clientName=${clientName || "N/A"}`
+            );
+
+            try {
+              const user = await prisma.user.findUnique({
+                where: { clerkUserId: clerkUser.id },
+                include: {
+                  companies: {
+                    orderBy: { createdAt: "asc" },
+                    take: 1,
+                  },
+                },
+              });
+
+              if (!user || !user.companies || user.companies.length === 0) {
+                throw new Error("Utilisateur ou entreprise introuvable");
+              }
+
+              const companyId = user.companies[0].id;
+              let invoice;
+
+              if (invoiceNumber) {
+                invoice = await prisma.invoice.findFirst({
+                  where: {
+                    companyId,
+                    number: { equals: invoiceNumber, mode: "insensitive" },
+                    status: { not: "PAID" },
+                  },
+                  include: { client: true },
+                });
+              } else if (clientName) {
+                invoice = await prisma.invoice.findFirst({
+                  where: {
+                    companyId,
+                    client: {
+                      name: { contains: clientName, mode: "insensitive" },
+                    },
+                    status: { not: "PAID" },
+                  },
+                  include: { client: true },
+                  orderBy: { createdAt: "desc" },
+                });
+              } else {
+                throw new Error(
+                  "Merci de préciser le numéro de facture ou le nom du client"
+                );
+              }
+
+              if (!invoice) {
+                return {
+                  success: false,
+                  message: invoiceNumber
+                    ? `Aucune facture trouvée avec le numéro ${invoiceNumber}`
+                    : `Aucune facture trouvée pour le client ${clientName}`,
+                };
+              }
+
+              if (!invoice.client.email) {
+                return {
+                  success: false,
+                  message: `Le client ${invoice.client.name} n'a pas d'adresse email.`,
+                };
+              }
+
+              await sendInvoiceEmail(invoice.id);
+
+              if (invoice.status === "DRAFT") {
+                await updateInvoiceStatus(invoice.id, "SENT");
+              }
+
+              return {
+                success: true,
+                invoiceNumber: invoice.number,
+                clientName: invoice.client.name,
+                clientEmail: invoice.client.email,
+                message: `Facture ${invoice.number} envoyée par email à ${invoice.client.email} !`,
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans sendInvoice :", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de l'envoi de la facture"
+              );
+            }
+          },
+        }),
+
+        // Nouvel outil : Valider une facture (sans envoyer d'email)
+        validateInvoice: tool({
+          description:
+            "Valide une facture en passant son statut de DRAFT à SENT (sans envoyer d'email).",
+          inputSchema: z.object({
+            invoiceNumber: z
+              .string()
+              .describe("Le numéro de la facture à valider (ex: INV-001)"),
+          }),
+          execute: async ({ invoiceNumber }) => {
+            console.log("🛠️ Outil 'validateInvoice' en cours...");
+
+            try {
+              const user = await prisma.user.findUnique({
+                where: { clerkUserId: clerkUser.id },
+                include: {
+                  companies: {
+                    orderBy: { createdAt: "asc" },
+                    take: 1,
+                  },
+                },
+              });
+
+              if (!user || !user.companies || user.companies.length === 0) {
+                throw new Error("Utilisateur ou entreprise introuvable");
+              }
+
+              const companyId = user.companies[0].id;
+
+              const invoice = await prisma.invoice.findFirst({
+                where: {
+                  companyId,
+                  number: { equals: invoiceNumber, mode: "insensitive" },
+                },
+                include: { client: true },
+              });
+
+              if (!invoice) {
+                return {
+                  success: false,
+                  message: `Aucune facture trouvée avec le numéro ${invoiceNumber}`,
+                };
+              }
+
+              if (invoice.status === "DRAFT") {
+                await updateInvoiceStatus(invoice.id, "SENT");
+                return {
+                  success: true,
+                  invoiceNumber: invoice.number,
+                  clientName: invoice.client.name,
+                  message: `Facture ${invoice.number} validée avec succès.`,
+                };
+              } else {
+                return {
+                  success: true,
+                  invoiceNumber: invoice.number,
+                  currentStatus: invoice.status,
+                  message: `La facture ${invoice.number} est déjà au statut ${invoice.status}.`,
+                };
+              }
+            } catch (err) {
+              console.error("❌ ERREUR dans validateInvoice :", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la validation de la facture"
+              );
+            }
+          },
+        }),
       },
 
       // 4. Callback onFinish pour logger le moment exact où l'IA a fini
