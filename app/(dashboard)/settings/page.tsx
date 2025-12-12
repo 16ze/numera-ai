@@ -6,7 +6,9 @@
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { CompanyForm } from "@/components/company/CompanyForm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Settings, Download } from "lucide-react";
+import Link from "next/link";
 
 /**
  * Page de paramètres
@@ -72,6 +74,24 @@ export default async function SettingsPage() {
           submitButtonText="Enregistrer les modifications"
         />
       </div>
+
+      {/* Section Export Comptable */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>Export Comptable</CardTitle>
+          <CardDescription>
+            Téléchargez votre journal comptable au format CSV pour votre expert-comptable
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link href="/settings/export">
+            <Button variant="outline" className="w-full sm:w-auto">
+              <Download className="mr-2 h-4 w-4" />
+              Accéder à l&apos;export comptable
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
 
       {/* Note informative */}
       <Card className="mt-8 bg-blue-50 border-blue-200">
