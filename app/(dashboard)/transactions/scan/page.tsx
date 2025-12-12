@@ -107,8 +107,14 @@ export default function ScanReceiptPage() {
   const handleFileSelect = (file: File) => {
     // Vérification spécifique pour les formats HEIC/HEIF non supportés
     const heicExtensions = [".heic", ".heif", ".heifs"];
-    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-    if (heicExtensions.includes(fileExtension) || file.type === "image/heic" || file.type === "image/heif") {
+    const fileExtension = file.name
+      .toLowerCase()
+      .slice(file.name.lastIndexOf("."));
+    if (
+      heicExtensions.includes(fileExtension) ||
+      file.type === "image/heic" ||
+      file.type === "image/heif"
+    ) {
       toast.error(
         "Le format HEIC n'est pas supporté. Veuillez convertir votre photo en JPEG ou PNG avant de l'uploader. Vous pouvez utiliser votre application Photos pour exporter en JPEG."
       );
@@ -119,7 +125,9 @@ export default function ScanReceiptPage() {
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       toast.error(
-        `Type de fichier non supporté. Types autorisés : JPEG, PNG, WebP. Format détecté : ${file.type || "inconnu"}. Si votre photo est en HEIC, convertissez-la en JPEG depuis votre application Photos.`
+        `Type de fichier non supporté. Types autorisés : JPEG, PNG, WebP. Format détecté : ${
+          file.type || "inconnu"
+        }. Si votre photo est en HEIC, convertissez-la en JPEG depuis votre application Photos.`
       );
       return;
     }
@@ -296,12 +304,12 @@ export default function ScanReceiptPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 ou cliquez pour sélectionner
               </p>
-               <p className="text-xs text-muted-foreground">
-                 Formats acceptés : JPEG, PNG, WebP (max 20 MB)
-               </p>
-               <p className="text-xs text-orange-600 font-medium mt-2">
-                 ⚠️ Les photos HEIC doivent être converties en JPEG avant upload
-               </p>
+              <p className="text-xs text-muted-foreground">
+                Formats acceptés : JPEG, PNG, WebP (max 20 MB)
+              </p>
+              <p className="text-xs text-orange-600 font-medium mt-2">
+                ⚠️ Les photos HEIC doivent être converties en JPEG avant upload
+              </p>
             </div>
           )}
 
