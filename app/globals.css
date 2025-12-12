@@ -1,292 +1,176 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+ 
 @layer base {
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
-
+ 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
-
+ 
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
+ 
+    /* BLEU FINTECH PROFOND */
+    --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
-
+ 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-
+ 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-
+ 
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
-
+ 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-
+ 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
+    --ring: 221.2 83.2% 53.3%;
+ 
+    --radius: 0.75rem; /* Arrondis plus modernes */
   }
-
+ 
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
+    /* ... (Garde les valeurs dark par défaut si besoin) ... */
+    --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
   }
 }
-
+ 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }
 
-/* --- STYLES PERSONNALISÉS CLERK (AUTHENTIFICATION) --- */
-/* Utilisation de sélecteurs plus spécifiques pour forcer l'application des styles */
+/* =========================================
+   🎨 CUSTOM CLERK STYLING (THEME PREMIUM)
+   ========================================= */
 
-/* Container principal */
-.cl-rootBox,
-div[data-clerk-component="SignIn"] .cl-rootBox,
-div[data-clerk-component="SignUp"] .cl-rootBox {
-  width: 100% !important;
+/* 1. Nettoyage du conteneur par défaut */
+.cl-rootBox {
+  width: 100%;
 }
-
-.cl-card,
-.cl-rootBox .cl-card {
+.cl-card {
   box-shadow: none !important;
-  border: 0 !important;
   background: transparent !important;
-  padding: 0 !important;
-}
-
-/* Bouton Google/Social - Sélecteurs multiples pour garantir l'application */
-.cl-socialButtonsBlockButton,
-button.cl-socialButtonsBlockButton,
-button[class*="socialButtonsBlockButton"],
-.cl-button.cl-socialButtonsBlockButton {
-  width: 100% !important;
-  height: 3rem !important;
-  min-height: 3rem !important;
-  border: 2px solid rgb(203, 213, 225) !important;
-  border-radius: 0.5rem !important;
-  font-weight: 600 !important;
-  color: rgb(51, 65, 85) !important;
-  transition: all 0.3s ease-in-out !important;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 0.75rem !important;
-  padding: 0.5rem 1rem !important;
-}
-
-.cl-socialButtonsBlockButton:hover,
-button.cl-socialButtonsBlockButton:hover,
-button[class*="socialButtonsBlockButton"]:hover {
-  border-color: rgb(59, 130, 246) !important;
-  background-color: rgba(59, 130, 246, 0.05) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-}
-
-.cl-socialButtonsBlockButton:active,
-button.cl-socialButtonsBlockButton:active {
-  transform: scale(0.98) !important;
-}
-
-/* Champs de formulaire - Sélecteurs multiples */
-.cl-formFieldInput,
-input.cl-formFieldInput,
-input[class*="formFieldInput"],
-.cl-input {
-  width: 100% !important;
-  height: 3rem !important;
-  min-height: 3rem !important;
-  padding: 0 1rem !important;
-  border: 2px solid rgb(226, 232, 240) !important;
-  border-radius: 0.5rem !important;
-  background: white !important;
-  color: rgb(15, 23, 42) !important;
-  transition: all 0.2s ease-in-out !important;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
-  font-size: 1rem !important;
-}
-
-.cl-formFieldInput::placeholder,
-input.cl-formFieldInput::placeholder {
-  color: rgb(148, 163, 184) !important;
-}
-
-.cl-formFieldInput:hover,
-input.cl-formFieldInput:hover {
-  border-color: rgb(203, 213, 225) !important;
-}
-
-.cl-formFieldInput:focus,
-input.cl-formFieldInput:focus,
-.cl-input:focus {
-  border-color: rgb(59, 130, 246) !important;
-  outline: none !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
-}
-
-/* Labels */
-.cl-formFieldLabel,
-label.cl-formFieldLabel,
-label[class*="formFieldLabel"] {
-  color: rgb(51, 65, 85) !important;
-  font-weight: 600 !important;
-  font-size: 0.875rem !important;
-  margin-bottom: 0.5rem !important;
-  display: block !important;
-}
-
-/* Bouton principal - Sélecteurs multiples */
-.cl-formButtonPrimary,
-button.cl-formButtonPrimary,
-button[class*="formButtonPrimary"],
-.cl-button[class*="formButtonPrimary"] {
-  width: 100% !important;
-  height: 3rem !important;
-  min-height: 3rem !important;
-  background: linear-gradient(to right, rgb(37, 99, 235), rgb(29, 78, 216)) !important;
-  background-color: rgb(37, 99, 235) !important;
-  color: white !important;
-  font-weight: 600 !important;
-  font-size: 1rem !important;
-  border-radius: 0.5rem !important;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
-  text-transform: none !important;
-  transition: all 0.2s ease-in-out !important;
   border: none !important;
-  padding: 0.5rem 1rem !important;
+  padding: 30px !important;
+}
+.cl-header {
+  display: none !important; /* On cache le header Clerk car on a fait le nôtre */
 }
 
-.cl-formButtonPrimary:hover,
-button.cl-formButtonPrimary:hover {
-  background: linear-gradient(to right, rgb(29, 78, 216), rgb(30, 64, 175)) !important;
-  background-color: rgb(29, 78, 216) !important;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
-  transform: scale(1.02) !important;
+/* 2. Champs de saisie (Inputs) */
+.cl-formFieldInput {
+  height: 3rem !important; /* 48px */
+  border-radius: 0.75rem !important;
+  border: 1px solid #e2e8f0 !important;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  font-size: 0.95rem !important;
+  padding-left: 1rem !important;
+  transition: all 0.2s ease-in-out !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
 }
 
-.cl-formButtonPrimary:active,
-button.cl-formButtonPrimary:active {
-  transform: scale(0.98) !important;
+.cl-formFieldInput:focus {
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+  outline: none !important;
 }
 
-/* Liens footer */
-.cl-footerActionLink,
-a.cl-footerActionLink,
-a[class*="footerActionLink"] {
-  color: rgb(37, 99, 235) !important;
+/* 3. Bouton Principal (Se connecter) */
+.cl-formButtonPrimary {
+  height: 3rem !important;
+  border-radius: 0.75rem !important;
+  background-color: hsl(var(--primary)) !important;
   font-weight: 600 !important;
-  text-decoration: underline !important;
-  text-decoration-thickness: 2px !important;
-  text-underline-offset: 2px !important;
-  transition: color 0.2s ease-in-out !important;
+  font-size: 0.95rem !important;
+  text-transform: none !important; /* Pas de majuscules forcées */
+  transition: all 0.2s ease !important;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2) !important;
 }
 
-.cl-footerActionLink:hover,
-a.cl-footerActionLink:hover {
-  color: rgb(29, 78, 216) !important;
-  text-decoration-color: rgb(29, 78, 216) !important;
+.cl-formButtonPrimary:hover {
+  background-color: #1d4ed8 !important; /* Bleu un peu plus sombre */
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 10px -1px rgba(37, 99, 235, 0.3) !important;
 }
 
-/* Messages d'erreur */
-.cl-formFieldErrorText,
-.cl-alertText,
-p[class*="formFieldErrorText"],
-p[class*="alertText"] {
-  color: rgb(220, 38, 38) !important;
-  font-size: 0.875rem !important;
+.cl-formButtonPrimary:active {
+  transform: translateY(0) !important;
+}
+
+/* 4. Boutons Sociaux (Google) */
+.cl-socialButtonsBlockButton {
+  height: 3rem !important;
+  border-radius: 0.75rem !important;
+  border: 1px solid #e2e8f0 !important;
+  background-color: white !important;
+  color: #475569 !important;
   font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+}
+
+.cl-socialButtonsBlockButton:hover {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* 5. Liens et Textes */
+.cl-footerActionLink {
+  color: hsl(var(--primary)) !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+.cl-footerActionLink:hover {
+  text-decoration: underline !important;
+}
+.cl-dividerLine {
+  background-color: #e2e8f0 !important;
+}
+.cl-formFieldLabel {
+  color: #334155 !important;
+  font-weight: 500 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* 6. Messages d'erreur */
+.cl-formFieldErrorText {
+  color: #ef4444 !important;
+  font-size: 0.8rem !important;
   margin-top: 0.25rem !important;
 }
 
-/* Séparateur */
-.cl-dividerLine,
-hr.cl-dividerLine,
-hr[class*="dividerLine"] {
-  background-color: rgb(226, 232, 240) !important;
-  border-color: rgb(226, 232, 240) !important;
-}
 
-.cl-dividerText,
-span.cl-dividerText,
-span[class*="dividerText"] {
-  color: rgb(100, 116, 139) !important;
-  font-size: 0.875rem !important;
-  font-weight: 500 !important;
-}
-
-.cl-dividerRow,
-div[class*="dividerRow"] {
-  margin: 1.5rem 0 !important;
-}
-
-/* Checkbox */
-.cl-formFieldCheckbox,
-input[type="checkbox"].cl-formFieldCheckbox,
-input[type="checkbox"][class*="formFieldCheckbox"] {
-  border-color: rgb(203, 213, 225) !important;
-  border-radius: 0.25rem !important;
-  width: 1rem !important;
-  height: 1rem !important;
-}
-
-.cl-formFieldCheckbox:checked,
-input[type="checkbox"].cl-formFieldCheckbox:checked {
-  background-color: rgb(37, 99, 235) !important;
-  border-color: rgb(37, 99, 235) !important;
-}
-
-/* --- STYLES D'IMPRESSION (FACTURE) --- */
+/* =========================================
+   🖨️ STYLES D'IMPRESSION (FACTURE)
+   ========================================= */
 @media print {
   /* Cache tout par défaut */
   body * {
     visibility: hidden;
   }
-
+  
   /* Affiche uniquement la zone de facture */
   #invoice-print-area,
   #invoice-print-area * {
     visibility: visible;
   }
-
+  
   /* Positionne la facture en haut à gauche de la feuille */
   #invoice-print-area {
     position: absolute;
