@@ -20,6 +20,7 @@ export type CompanyUpdateData = {
   capital?: string;
   legalForm?: string;
   isAutoEntrepreneur?: boolean;
+  logoUrl?: string | null;
 };
 
 /**
@@ -54,6 +55,7 @@ export async function updateCompanyDetails(
       capital?: string | null;
       legalForm?: string | null;
       isAutoEntrepreneur?: boolean;
+      logoUrl?: string | null;
     } = {};
     
     if (data.name !== undefined) updateData.name = data.name;
@@ -64,6 +66,7 @@ export async function updateCompanyDetails(
     if (data.capital !== undefined) updateData.capital = data.capital || null;
     if (data.legalForm !== undefined) updateData.legalForm = data.legalForm || null;
     if (data.isAutoEntrepreneur !== undefined) updateData.isAutoEntrepreneur = data.isAutoEntrepreneur;
+    if (data.logoUrl !== undefined) updateData.logoUrl = data.logoUrl || null;
 
     // Mise à jour de l'entreprise
     await prisma.company.update({

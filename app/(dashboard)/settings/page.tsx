@@ -5,6 +5,7 @@
 
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { CompanyForm } from "@/components/company/CompanyForm";
+import { LogoUpload } from "@/components/company/LogoUpload";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Settings, Download } from "lucide-react";
@@ -66,6 +67,22 @@ export default async function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Upload Logo */}
+      <Card className="max-w-4xl mb-6">
+        <CardHeader>
+          <CardTitle>Logo de l&apos;entreprise</CardTitle>
+          <CardDescription>
+            Le logo apparaîtra sur vos factures. Formats acceptés : JPEG, PNG, GIF, WebP (max 5MB)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LogoUpload
+            currentLogoUrl={company.logoUrl}
+            companyName={company.name}
+          />
+        </CardContent>
+      </Card>
 
       {/* Formulaire */}
       <div className="max-w-4xl">
