@@ -5,7 +5,7 @@
  * Permet de créer, modifier et supprimer des clients
  */
 
-import { getClients } from "../actions/clients";
+import { getClients } from "@/app/actions/clients";
 import { ClientDialog } from "@/components/clients/ClientDialog";
 import { DeleteClientButton } from "@/components/clients/DeleteClientButton";
 import { Button } from "@/components/ui/button";
