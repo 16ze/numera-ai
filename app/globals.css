@@ -75,6 +75,155 @@
   }
 }
 
+/* --- STYLES PERSONNALISÉS CLERK (AUTHENTIFICATION) --- */
+.cl-rootBox {
+  width: 100% !important;
+}
+
+.cl-card {
+  box-shadow: none !important;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Bouton Google/Social */
+.cl-socialButtonsBlockButton {
+  width: 100% !important;
+  height: 3rem !important;
+  border: 2px solid rgb(203 213 225) !important;
+  border-radius: 0.5rem !important;
+  font-weight: 600 !important;
+  color: rgb(51 65 85) !important;
+  transition: all 0.3s ease-in-out !important;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.75rem !important;
+}
+
+.cl-socialButtonsBlockButton:hover {
+  border-color: rgb(59 130 246) !important;
+  background-color: rgba(59 130 246 / 0.05) !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+}
+
+.cl-socialButtonsBlockButton:active {
+  transform: scale(0.98) !important;
+}
+
+/* Champs de formulaire */
+.cl-formFieldInput {
+  width: 100% !important;
+  height: 3rem !important;
+  padding: 0 1rem !important;
+  border: 2px solid rgb(226 232 240) !important;
+  border-radius: 0.5rem !important;
+  background: white !important;
+  color: rgb(15 23 42) !important;
+  transition: all 0.2s ease-in-out !important;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+}
+
+.cl-formFieldInput::placeholder {
+  color: rgb(148 163 184) !important;
+}
+
+.cl-formFieldInput:hover {
+  border-color: rgb(203 213 225) !important;
+}
+
+.cl-formFieldInput:focus {
+  border-color: rgb(59 130 246) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(59 130 246 / 0.1) !important;
+}
+
+/* Labels */
+.cl-formFieldLabel {
+  color: rgb(51 65 85) !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  margin-bottom: 0.5rem !important;
+  display: block !important;
+}
+
+/* Bouton principal */
+.cl-formButtonPrimary {
+  width: 100% !important;
+  height: 3rem !important;
+  background: linear-gradient(to right, rgb(37 99 235), rgb(29 78 216)) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 1rem !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1) !important;
+  text-transform: none !important;
+  transition: all 0.2s ease-in-out !important;
+  border: none !important;
+}
+
+.cl-formButtonPrimary:hover {
+  background: linear-gradient(to right, rgb(29 78 216), rgb(30 64 175)) !important;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1) !important;
+  transform: scale(1.02) !important;
+}
+
+.cl-formButtonPrimary:active {
+  transform: scale(0.98) !important;
+}
+
+/* Liens footer */
+.cl-footerActionLink {
+  color: rgb(37 99 235) !important;
+  font-weight: 600 !important;
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 2px !important;
+  transition: color 0.2s ease-in-out !important;
+}
+
+.cl-footerActionLink:hover {
+  color: rgb(29 78 216) !important;
+  text-decoration-color: rgb(29 78 216) !important;
+}
+
+/* Messages d'erreur */
+.cl-formFieldErrorText,
+.cl-alertText {
+  color: rgb(220 38 38) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  margin-top: 0.25rem !important;
+}
+
+/* Séparateur */
+.cl-dividerLine {
+  background-color: rgb(226 232 240) !important;
+}
+
+.cl-dividerText {
+  color: rgb(100 116 139) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+}
+
+.cl-dividerRow {
+  margin: 1.5rem 0 !important;
+}
+
+/* Checkbox */
+.cl-formFieldCheckbox {
+  border-color: rgb(203 213 225) !important;
+  border-radius: 0.25rem !important;
+}
+
+.cl-formFieldCheckbox:checked {
+  background-color: rgb(37 99 235) !important;
+  border-color: rgb(37 99 235) !important;
+}
+
 /* --- STYLES D'IMPRESSION (FACTURE) --- */
 @media print {
   /* Cache tout par défaut */
