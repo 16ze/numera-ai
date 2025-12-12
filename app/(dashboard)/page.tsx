@@ -1,5 +1,6 @@
 import { getDashboardData } from "@/app/(dashboard)/actions/dashboard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
+import { AdvisorCard } from "@/components/dashboard/AdvisorCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -26,6 +27,9 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Tableau de bord</h2>
       </div>
+
+      {/* Carte Conseil du CFO */}
+      <AdvisorCard />
 
       {/* 1. KPI CARDS */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
