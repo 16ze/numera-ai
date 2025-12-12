@@ -32,34 +32,38 @@ export const metadata: Metadata = {
  * (dashboard layout), cette vérification est une couche de sécurité supplémentaire.
  */
 async function OnboardingGuard({ children }: { children: React.ReactNode }) {
+  // Essayer de récupérer le pathname depuis les headers (ajouté par le middleware)
+  let pathname = "";
   try {
-    // Essayer de récupérer le pathname depuis les headers (ajouté par le middleware)
-    let pathname = "";
-    try {
-      const headersList = headers();
-      // Dans Next.js 16, headers() peut être synchrone ou asynchrone selon le contexte
-      const pathnameHeader = typeof headersList.get === "function" 
-        ? headersList.get("x-pathname") 
-        : null;
-      pathname = pathnameHeader || "";
-    } catch (error) {
-      // Si les headers ne sont pas disponibles, continuer sans vérification du pathname
-      // Le middleware et les layouts spécifiques géreront la protection
+    const headersList = headers();
+    // Dans Next.js 16, headers() peut retourner différents types
+    if (headersList && typeof headersList === "object") {
+      // Essayer différentes méthodes pour accéder au pathname
+      if ("get" in headersList && typeof (headersList as any).get === "function") {
+        pathname = (headersList as any).get("x-pathname") || "";
+      } else if ("x-pathname" in headersList) {
+        pathname = (headersList as any)["x-pathname"] || "";
+      }
     }
+  } catch (error) {
+    // Si les headers ne sont pas disponibles, continuer sans vérification du pathname
+    // Le middleware et les layouts spécifiques géreront la protection
+  }
 
-    // Routes publiques qui ne nécessitent pas de vérification d'onboarding
-    const publicRoutes = ["/sign-in", "/sign-up", "/onboarding"];
-    const isPublicRoute = publicRoutes.some((route) =>
-      pathname.startsWith(route)
-    );
+  // Routes publiques qui ne nécessitent pas de vérification d'onboarding
+  const publicRoutes = ["/sign-in", "/sign-up", "/onboarding"];
+  const isPublicRoute = pathname && publicRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
 
-    // Si on est sur une route publique, on laisse passer
-    if (isPublicRoute) {
-      return <>{children}</>;
-    }
+  // Si on est sur une route publique, on laisse passer sans vérifier l'utilisateur
+  if (isPublicRoute) {
+    return <>{children}</>;
+  }
 
+  // Seulement vérifier l'onboarding si on n'est pas sur une route publique
+  try {
     // Récupérer l'utilisateur connecté (redirige vers /sign-in si non connecté)
-    // Cette fonction gère déjà les redirections, donc on ne l'appelle que si nécessaire
     const user = await getCurrentUser();
 
     // Vérifier si l'utilisateur a une entreprise avec un SIRET
@@ -71,12 +75,15 @@ async function OnboardingGuard({ children }: { children: React.ReactNode }) {
     }
   } catch (error) {
     // Si getCurrentUser() ou redirect() lance une redirection Next.js, la propager
-    if (error && typeof error === "object" && "digest" in error) {
-      // C'est une redirection Next.js, la propager
-      throw error;
+    // Les redirections Next.js ont une propriété 'digest' avec 'NEXT_REDIRECT'
+    if (error && typeof error === "object") {
+      const errorObj = error as any;
+      if (errorObj.digest && typeof errorObj.digest === "string" && errorObj.digest.includes("NEXT_REDIRECT")) {
+        throw error; // Ré-throw les redirections Next.js
+      }
     }
-    // Pour les autres erreurs (utilisateur non connecté, etc.), laisser passer
-    // Clerk et le middleware géreront les redirections appropriées
+    // Pour les autres erreurs, laisser passer
+    // Le middleware Clerk gérera les redirections pour les utilisateurs non connectés
   }
 
   return <>{children}</>;
