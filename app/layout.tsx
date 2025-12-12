@@ -2,6 +2,9 @@ import { frFR } from "@clerk/localizations";
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/app/lib/auth-helper";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,6 +21,53 @@ export const metadata: Metadata = {
   title: "Numera AI - Comptabilité pour entrepreneurs",
   description: "SaaS de comptabilité intelligent pour entrepreneurs",
 };
+
+/**
+ * Composant wrapper pour vérifier l'onboarding
+ * 
+ * Ce composant vérifie si l'utilisateur connecté a complété l'onboarding
+ * (a un SIRET) et redirige vers /onboarding si nécessaire.
+ */
+async function OnboardingGuard({ children }: { children: React.ReactNode }) {
+  // Récupérer le pathname depuis les headers (ajouté par le middleware)
+  const headersList = headers();
+  const pathname = headersList.get("x-pathname") || "";
+
+  // Routes publiques qui ne nécessitent pas de vérification d'onboarding
+  const publicRoutes = ["/sign-in", "/sign-up"];
+  const isPublicRoute = publicRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
+
+  // Si on est sur une route publique ou sur /onboarding, on laisse passer
+  if (isPublicRoute || pathname === "/onboarding") {
+    return <>{children}</>;
+  }
+
+  try {
+    // Récupérer l'utilisateur connecté (redirige vers /sign-in si non connecté)
+    const user = await getCurrentUser();
+
+    // Vérifier si l'utilisateur a une entreprise avec un SIRET
+    const company = user.companies[0];
+
+    if (company && (!company.siret || company.siret.trim() === "")) {
+      // Si l'utilisateur n'a pas de SIRET et n'est pas sur /onboarding, rediriger
+      redirect("/onboarding");
+    }
+  } catch (error) {
+    // Si getCurrentUser() redirige ou lance une erreur, laisser Next.js gérer
+    // (probablement redirection vers /sign-in)
+    // Ne pas intercepter les redirections
+    if (error instanceof Error && error.message.includes("NEXT_REDIRECT")) {
+      throw error; // Ré-throw les redirections Next.js
+    }
+    // Pour les autres erreurs, continuer normalement
+    // (l'utilisateur n'est peut-être pas connecté, Clerk gérera)
+  }
+
+  return <>{children}</>;
+}
 
 export default function RootLayout({
   children,
@@ -44,7 +94,7 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50`}
         >
-          {children}
+          <OnboardingGuard>{children}</OnboardingGuard>
         </body>
       </html>
     </ClerkProvider>
