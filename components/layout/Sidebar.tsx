@@ -97,21 +97,20 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Profil utilisateur Clerk - Design amélioré */}
-      <div className="border-t bg-gradient-to-r from-slate-50 to-white">
-        <div className="p-4">
-          <div className="flex items-center space-x-3 rounded-xl p-3 bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-200">
-            <UserButtonWrapper
-              appearance={{
-                elements: {
-                  avatarBox: "h-11 w-11 ring-2 ring-blue-100 ring-offset-2",
-                  userButtonTrigger: "focus:shadow-none hover:opacity-90 transition-opacity",
-                },
-              }}
-              afterSignOutUrl="/sign-in"
-              showName
-            />
-          </div>
+      {/* Profil utilisateur Clerk */}
+      <div className="border-t p-4">
+        <div className="flex items-center w-full">
+          <UserButtonWrapper
+            appearance={{
+              elements: {
+                avatarBox: "h-10 w-10",
+                userButtonTrigger: "focus:shadow-none w-full",
+                userButtonBox: "w-full",
+              },
+            }}
+            afterSignOutUrl="/sign-in"
+            showName
+          />
         </div>
       </div>
     </aside>
