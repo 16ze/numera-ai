@@ -231,7 +231,7 @@ export async function getCurrentUser(): Promise<
       },
     });
 
-    // 5. CAS 1 : L'utilisateur existe déjà -> Retourner avec ses companies
+    // 5. CAS 1 : L'utilisateur existe déjà avec ce clerkUserId -> Retourner avec ses companies
     if (user) {
       // Vérifier que l'utilisateur a au moins une company
       if (!user.companies || user.companies.length === 0) {
@@ -255,7 +255,58 @@ export async function getCurrentUser(): Promise<
       return user;
     }
 
-    // 6. CAS 2 : Nouvel utilisateur -> Créer l'utilisateur ET une company par défaut
+    // 6. CAS 2 : L'utilisateur n'existe pas avec ce clerkUserId
+    // Vérifier s'il existe déjà avec cet email (ancien utilisateur de test ou migration)
+    const existingUserByEmail = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        companies: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+      },
+    });
+
+    if (existingUserByEmail) {
+      // CAS 2a : L'utilisateur existe avec cet email mais sans clerkUserId (ou un autre)
+      // Mettre à jour le clerkUserId pour lier l'utilisateur Clerk existant
+      console.log(`🔗 Liaison de l'utilisateur existant (${existingUserByEmail.id}) avec Clerk: ${clerkUserId}`);
+
+      user = await prisma.user.update({
+        where: { id: existingUserByEmail.id },
+        data: { clerkUserId },
+        include: {
+          companies: {
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+        },
+      });
+
+      // Vérifier que l'utilisateur a au moins une company
+      if (!user.companies || user.companies.length === 0) {
+        console.warn(`⚠️ Utilisateur ${user.id} sans company, création...`);
+
+        const company = await prisma.company.create({
+          data: {
+            name: "Ma Société",
+            currency: "EUR",
+            legalForm: "EI",
+            isAutoEntrepreneur: true,
+            userId: user.id,
+          },
+        });
+
+        user.companies = [company];
+      }
+
+      console.log(`✅ Utilisateur lié avec succès: ${user.id}`);
+      return user;
+    }
+
+    // 7. CAS 3 : Nouvel utilisateur -> Créer l'utilisateur ET une company par défaut
     console.log(`🆕 Création du nouvel utilisateur Clerk: ${clerkUserId}`);
 
     user = await prisma.user.create({
