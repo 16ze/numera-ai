@@ -27,6 +27,7 @@ interface UserButtonWrapperProps {
     elements?: {
       avatarBox?: string;
       userButtonTrigger?: string;
+      userButtonBox?: string;
     };
   };
   afterSignOutUrl?: string;
