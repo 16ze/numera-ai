@@ -70,18 +70,12 @@ export function MobileNav() {
       {/* Header mobile fixe en haut */}
       <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b bg-white px-4 md:hidden">
         {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 text-white font-bold text-base shadow-sm">
-            N
-          </div>
-          <div className="flex flex-col">
-            <span className="text-lg font-bold tracking-tight text-slate-900">
-              Numera AI
-            </span>
-            <span className="text-[10px] text-slate-500 font-medium -mt-0.5">
-              CFO Virtuel
-            </span>
-          </div>
+        <Link href="/" className="flex items-center">
+          <img
+            src="/logo.png"
+            alt="Numera AI"
+            className="h-10 w-auto object-contain"
+          />
         </Link>
 
         {/* Bouton Menu Hamburger */}
@@ -95,18 +89,12 @@ export function MobileNav() {
           <SheetContent side="left" className="w-64 p-0">
             <SheetHeader className="border-b p-4">
               <SheetTitle className="text-left">
-                <div className="flex items-center space-x-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 text-white font-bold text-lg shadow-md">
-                    N
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xl font-bold tracking-tight text-slate-900">
-                      Numera AI
-                    </span>
-                    <span className="text-xs text-slate-500 font-medium">
-                      CFO Virtuel
-                    </span>
-                  </div>
+                <div className="flex items-center justify-center">
+                  <img
+                    src="/logo.png"
+                    alt="Numera AI"
+                    className="h-12 w-auto object-contain"
+                  />
                 </div>
               </SheetTitle>
             </SheetHeader>
@@ -125,7 +113,7 @@ export function MobileNav() {
                     className={cn(
                       "flex items-center space-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                       isActive
-                        ? "bg-blue-50 text-blue-600 shadow-sm"
+                        ? "bg-slate-900 text-white shadow-sm"
                         : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                     )}
                   >

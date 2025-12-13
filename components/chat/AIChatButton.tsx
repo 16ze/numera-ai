@@ -246,7 +246,7 @@ export function AIChatButton() {
       {!isOpen && (
         <Button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 h-14 w-14 md:bottom-8 md:right-8 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 transition-all z-50"
+          className="fixed bottom-6 right-6 h-14 w-14 md:bottom-8 md:right-8 rounded-full shadow-xl bg-slate-900 hover:bg-slate-800 transition-all z-50"
         >
           <MessageCircle className="h-8 w-8 text-white" />
         </Button>
@@ -258,8 +258,8 @@ export function AIChatButton() {
           {/* HEADER - Affiche le titre et le bouton de fermeture */}
           <CardHeader className="flex flex-row items-center justify-between py-3 border-b bg-slate-50">
             <div className="flex items-center gap-2">
-              <div className="bg-blue-100 p-2 rounded-full">
-                <Bot className="h-5 w-5 text-blue-600" />
+              <div className="bg-slate-900 p-2 rounded-full">
+                <Bot className="h-5 w-5 text-white" />
               </div>
               <div>
                 <CardTitle className="text-base">Assistant CFO</CardTitle>
@@ -306,7 +306,7 @@ export function AIChatButton() {
                       className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                         m.role === "user"
                           ? "bg-slate-900 text-white"
-                          : "bg-blue-100 text-blue-600"
+                          : "bg-slate-100 text-slate-900"
                       }`}
                     >
                       {m.role === "user" ? (
@@ -354,8 +354,8 @@ export function AIChatButton() {
               {/* INDICATEUR DE CHARGEMENT GLOBAL */}
               {isLoading && (
                 <div className="flex gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-blue-600 animate-pulse" />
+                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                    <Bot className="h-4 w-4 text-slate-900 animate-pulse" />
                   </div>
                   <div className="bg-slate-50 rounded-2xl px-4 py-2 text-sm text-muted-foreground italic">
                     En train d&apos;écrire...
@@ -381,7 +381,7 @@ export function AIChatButton() {
                 type="submit"
                 size="icon"
                 disabled={isLoading || !input.trim()}
-                className="bg-blue-600"
+                className="bg-slate-900 hover:bg-slate-800"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
