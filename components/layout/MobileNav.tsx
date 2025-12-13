@@ -130,9 +130,8 @@ export function MobileNav() {
                 <UserButtonWrapper
                   appearance={{
                     elements: {
-                      userButtonAvatarBox: "h-10 w-10",
+                      avatarBox: "h-10 w-10",
                       userButtonTrigger: "w-full",
-                      userButtonBox: "w-full",
                     },
                   }}
                   afterSignOutUrl="/sign-in"
