@@ -44,7 +44,11 @@ export function getSupabaseServerClient() {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL manquante.");
   }
 
-  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+  // TypeScript sait maintenant que ces variables sont définies
+  const url: string = supabaseUrl;
+  const key: string = supabaseServiceRoleKey;
+
+  return createClient(url, key, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

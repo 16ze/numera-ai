@@ -111,21 +111,21 @@ export function PlaidNotConfigured() {
             </div>
 
             <div className="flex gap-3 pt-4 border-t">
-              <Button asChild variant="default" className="gap-2">
-                <a
-                  href="https://dashboard.plaid.com/signup"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Créer un compte Plaid
-                </a>
-              </Button>
-              <Button asChild variant="outline" className="gap-2">
-                <Link href="/settings">
-                  Retour aux paramètres
-                </Link>
-              </Button>
+              <a
+                href="https://dashboard.plaid.com/signup"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Créer un compte Plaid
+              </a>
+              <Link
+                href="/settings"
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 gap-2"
+              >
+                Retour aux paramètres
+              </Link>
             </div>
           </CardContent>
         </Card>
