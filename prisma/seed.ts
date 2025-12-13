@@ -4,7 +4,7 @@
  */
 
 // CORRECTION ICI : On utilise l'import standard
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, TransactionType, TransactionCategory, TransactionStatus } from '@prisma/client'
 
 const prisma = new PrismaClient();
 
@@ -112,7 +112,14 @@ async function main() {
   // ============================================
   console.log("💰 Création des transactions...");
 
-  const categories = ["TRANSPORT", "REPAS", "MATERIEL", "PRESTATION", "IMPOTS", "AUTRE"];
+  const categories: TransactionCategory[] = [
+    TransactionCategory.TRANSPORT,
+    TransactionCategory.REPAS,
+    TransactionCategory.MATERIEL,
+    TransactionCategory.PRESTATION,
+    TransactionCategory.IMPOTS,
+    TransactionCategory.AUTRE
+  ];
 
   const transactions = [];
   
@@ -122,21 +129,22 @@ async function main() {
     date.setDate(date.getDate() - Math.floor(Math.random() * 90));
 
     const isIncome = i < 30; // Plus de recettes pour être rentable
-    const type = isIncome ? "INCOME" : "EXPENSE";
+    const type: TransactionType = isIncome ? TransactionType.INCOME : TransactionType.EXPENSE;
     // Montants cohérents
     const amount = isIncome 
         ? Math.floor(Math.random() * 2000) + 500 
         : Math.floor(Math.random() * 300) + 20;
 
-    const category = categories[Math.floor(Math.random() * categories.length)];
+    const category: TransactionCategory = categories[Math.floor(Math.random() * categories.length)];
+    const status: TransactionStatus = Math.random() > 0.1 ? TransactionStatus.COMPLETED : TransactionStatus.PENDING;
 
     transactions.push({
       date,
       amount,
-      description: `${type === 'INCOME' ? 'Vente' : 'Achat'} - ${category}`,
+      description: `${type === TransactionType.INCOME ? 'Vente' : 'Achat'} - ${category}`,
       type,
       category,
-      status: Math.random() > 0.1 ? "COMPLETED" : "PENDING",
+      status,
       companyId: company.id,
       createdAt: date,
     });
