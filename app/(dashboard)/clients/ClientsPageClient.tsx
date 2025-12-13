@@ -186,15 +186,17 @@ export function ClientsPageClient({
           )}
         </div>
       ) : (
-        <div className="rounded-lg border bg-white">
+        <div className="rounded-lg border bg-white overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Entreprise</TableHead>
-                <TableHead className="text-right">Total Facturé</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="min-w-[200px]">Client</TableHead>
+                <TableHead className="min-w-[200px]">Contact</TableHead>
+                <TableHead className="min-w-[150px]">Entreprise</TableHead>
+                <TableHead className="text-right min-w-[120px]">
+                  Total Facturé
+                </TableHead>
+                <TableHead className="text-right min-w-[100px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -309,9 +311,10 @@ export function ClientsPageClient({
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              )          )}
+        </TableBody>
+      </Table>
+    </div>
         </div>
       )}
 

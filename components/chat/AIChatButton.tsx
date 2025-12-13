@@ -242,19 +242,19 @@ export function AIChatButton() {
 
   return (
     <>
-      {/* BOUTON FLOTTANT - Affiche/masque la fenêtre de chat */}
+      {/* BOUTON FLOTTANT - Affiche/masque la fenêtre de chat - Responsive */}
       {!isOpen && (
         <Button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-8 right-8 h-14 w-14 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 transition-all z-50"
+          className="fixed bottom-6 right-6 h-14 w-14 md:bottom-8 md:right-8 rounded-full shadow-xl bg-blue-600 hover:bg-blue-700 transition-all z-50"
         >
           <MessageCircle className="h-8 w-8 text-white" />
         </Button>
       )}
 
-      {/* FENÊTRE DE CHAT */}
+      {/* FENÊTRE DE CHAT - Responsive */}
       {isOpen && (
-        <Card className="fixed bottom-8 right-8 w-[400px] h-[600px] shadow-2xl flex flex-col z-50 border-2 border-slate-200">
+        <Card className="fixed bottom-4 right-4 w-[95vw] h-[85vh] md:bottom-8 md:right-8 md:w-[400px] md:h-[600px] shadow-2xl flex flex-col z-50 border-2 border-slate-200 max-w-full">
           {/* HEADER - Affiche le titre et le bouton de fermeture */}
           <CardHeader className="flex flex-row items-center justify-between py-3 border-b bg-slate-50">
             <div className="flex items-center gap-2">

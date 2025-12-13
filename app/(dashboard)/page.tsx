@@ -31,8 +31,8 @@ export default async function DashboardPage() {
       {/* Carte Conseil du CFO */}
       <AdvisorCard />
 
-      {/* 1. KPI CARDS */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* 1. KPI CARDS - Responsive */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -79,46 +79,49 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        {/* 2. GRAPHIQUE */}
-        <div className="col-span-4">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
+        {/* 2. GRAPHIQUE - Responsive */}
+        <div className="lg:col-span-4">
           <RevenueChart data={data.chartData} />
         </div>
 
         {/* 3. TRANSACTIONS RECENTES */}
-        <Card className="col-span-3">
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Transactions Récentes</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Montant</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.recentTransactions.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell>
-                      <div className="font-medium">{t.description}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(t.date).toLocaleDateString("fr-FR")}
-                      </div>
-                    </TableCell>
-                    <TableCell
-                      className={`text-right font-bold ${
-                        t.type === "INCOME" ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {t.type === "INCOME" ? "+" : "-"}
-                      {formatMoney(Number(t.amount))}
-                    </TableCell>
+            {/* Wrapper pour scroll horizontal sur mobile */}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[150px]">Description</TableHead>
+                    <TableHead className="text-right min-w-[100px]">Montant</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {data.recentTransactions.map((t) => (
+                    <TableRow key={t.id}>
+                      <TableCell>
+                        <div className="font-medium">{t.description}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(t.date).toLocaleDateString("fr-FR")}
+                        </div>
+                      </TableCell>
+                      <TableCell
+                        className={`text-right font-bold ${
+                          t.type === "INCOME" ? "text-green-600" : "text-red-600"
+                        }`}
+                      >
+                        {t.type === "INCOME" ? "+" : "-"}
+                        {formatMoney(Number(t.amount))}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
