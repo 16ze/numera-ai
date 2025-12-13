@@ -34,9 +34,11 @@ export default function SignUpPage() {
         <div className="relative z-10 flex flex-col justify-between p-12 h-full">
           {/* Logo en haut */}
           <div className="flex items-center space-x-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/95 backdrop-blur-sm text-2xl font-bold text-blue-600 shadow-lg">
-              N
-            </div>
+            <img
+              src="/logo.png"
+              alt="Numera AI"
+              className="h-12 w-auto object-contain"
+            />
             <span className="text-2xl font-bold text-white drop-shadow-lg">
               Numera AI
             </span>
@@ -149,9 +151,11 @@ export default function SignUpPage() {
         <div className="w-full max-w-md">
           {/* Logo mobile */}
           <div className="lg:hidden mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-2xl font-bold text-white shadow-lg">
-              N
-            </div>
+            <img
+              src="/logo.png"
+              alt="Numera AI"
+              className="mx-auto mb-4 h-12 w-auto object-contain"
+            />
             <h1 className="text-2xl font-bold text-slate-900">Numera AI</h1>
           </div>
 

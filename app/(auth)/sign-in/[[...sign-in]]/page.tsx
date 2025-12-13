@@ -125,9 +125,11 @@ export default function SignInPage() {
         <div className="w-full max-w-md">
           {/* Logo mobile */}
           <div className="lg:hidden mb-8 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-2xl font-bold text-white shadow-lg">
-              N
-            </div>
+            <img
+              src="/logo.png"
+              alt="Numera AI"
+              className="mx-auto mb-4 h-12 w-auto object-contain"
+            />
             <h1 className="text-2xl font-bold text-slate-900">Numera AI</h1>
           </div>
 
