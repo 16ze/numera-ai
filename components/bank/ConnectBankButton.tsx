@@ -21,20 +21,20 @@ interface ConnectBankButtonProps {
 /**
  * Bouton pour lancer le flow Plaid Link
  */
-export function ConnectBankButton({ onSuccess }: ConnectBankButtonProps) {
+export function ConnectBankButton({ onSuccess: onSuccessCallback }: ConnectBankButtonProps) {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   /**
    * Gère le succès de la connexion Plaid
    */
-  const onSuccess = useCallback(
+  const handlePlaidSuccess = useCallback(
     async (publicToken: string) => {
       setIsLoading(true);
       try {
         await exchangePublicToken(publicToken);
         toast.success("Compte bancaire connecté avec succès !");
-        onSuccess?.();
+        onSuccessCallback?.();
       } catch (error) {
         console.error("Erreur échange token:", error);
         toast.error(
@@ -46,7 +46,7 @@ export function ConnectBankButton({ onSuccess }: ConnectBankButtonProps) {
         setIsLoading(false);
       }
     },
-    [onSuccess]
+    [onSuccessCallback]
   );
 
   /**
@@ -54,7 +54,7 @@ export function ConnectBankButton({ onSuccess }: ConnectBankButtonProps) {
    */
   const config = {
     token: linkToken,
-    onSuccess,
+    onSuccess: handlePlaidSuccess,
   };
 
   const { open, ready } = usePlaidLink(config);
