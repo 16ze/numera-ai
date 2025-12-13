@@ -39,6 +39,11 @@ export function getSupabaseServerClient() {
     );
   }
 
+  // Vérification TypeScript : on sait maintenant que supabaseUrl et supabaseServiceRoleKey sont des string
+  if (!supabaseUrl) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL manquante.");
+  }
+
   return createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: {
       autoRefreshToken: false,
