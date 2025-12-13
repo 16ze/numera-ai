@@ -118,7 +118,6 @@ CONSEIL :`;
       model: openai("gpt-4o"),
       prompt,
       temperature: 0.7,
-      maxSteps: 1, // Une seule étape pour un conseil court
     });
 
     console.log("✅ Conseil généré:", text);
