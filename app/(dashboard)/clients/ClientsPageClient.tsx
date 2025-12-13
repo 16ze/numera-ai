@@ -311,10 +311,9 @@ export function ClientsPageClient({
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              )          )}
-        </TableBody>
-      </Table>
-    </div>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
 
