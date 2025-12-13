@@ -85,7 +85,7 @@ export function ConnectBankButton({ onSuccess: onSuccessCallback }: ConnectBankB
    * Ouvre automatiquement Plaid Link quand le token est prêt
    */
   useEffect(() => {
-    if (linkToken && ready && !isLoading) {
+    if (linkToken && ready) {
       console.log("🚀 Tentative d'ouverture de Plaid Link...");
       try {
         open();
@@ -93,10 +93,9 @@ export function ConnectBankButton({ onSuccess: onSuccessCallback }: ConnectBankB
       } catch (err) {
         console.error("❌ Erreur lors de l'appel à open():", err);
         toast.error("Erreur lors de l'ouverture de Plaid Link");
-        setIsLoading(false);
       }
     }
-  }, [linkToken, ready, isLoading, open]);
+  }, [linkToken, ready, open]);
 
   /**
    * Initialise le Link Token et ouvre Plaid Link
@@ -111,7 +110,8 @@ export function ConnectBankButton({ onSuccess: onSuccessCallback }: ConnectBankB
       const { linkToken: token } = await createLinkToken();
       console.log("✅ Link Token reçu:", token.substring(0, 20) + "...");
       setLinkToken(token);
-      // L'useEffect ouvrira automatiquement Plaid Link
+      // Reset isLoading pour permettre au useEffect de déclencher open()
+      setIsLoading(false);
     } catch (error) {
       console.error("❌ Erreur création Link Token:", error);
       toast.error(
