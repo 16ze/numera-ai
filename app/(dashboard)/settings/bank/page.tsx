@@ -6,10 +6,21 @@
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { getBankAccounts } from "@/app/actions/bank";
 import { BankAccountsClient } from "./BankAccountsClient";
+import { PlaidNotConfigured } from "@/components/bank/PlaidNotConfigured";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2 } from "lucide-react";
 
 export default async function BankAccountsPage() {
+  // Vérifier si Plaid est configuré
+  const isPlaidConfigured = 
+    process.env.PLAID_CLIENT_ID && 
+    process.env.PLAID_SECRET;
+
+  // Si Plaid n'est pas configuré, afficher la page d'aide
+  if (!isPlaidConfigured) {
+    return <PlaidNotConfigured />;
+  }
+
   // Récupération de l'utilisateur connecté
   const user = await getCurrentUser();
 
