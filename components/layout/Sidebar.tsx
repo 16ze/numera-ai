@@ -55,7 +55,10 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside data-sidebar className="fixed left-0 top-0 h-screen w-64 border-r bg-white flex flex-col print:hidden">
+    <aside
+      data-sidebar
+      className="fixed left-0 top-0 h-screen w-64 border-r bg-white flex flex-col print:hidden"
+    >
       {/* Logo - Design amélioré */}
       <div className="flex h-16 items-center border-b px-6 bg-gradient-to-r from-blue-50 to-white">
         <Link href="/" className="flex items-center space-x-3 group">
@@ -105,7 +108,7 @@ export function Sidebar() {
               elements: {
                 avatarBox: "h-10 w-10",
                 userButtonTrigger: "focus:shadow-none w-full gap-3",
-                userButtonBox: "w-full flex items-center gap-3",
+                userButtonBox: "w-full flex items-center gap-3 justify-center",
               },
             }}
             afterSignOutUrl="/sign-in"
