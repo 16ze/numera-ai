@@ -93,14 +93,22 @@ export default async function InvoicePage({
 
   return (
     <div className="flex flex-col items-center gap-8 py-8 bg-slate-50 min-h-screen">
-      {/* Barre d'actions */}
+      {/* Barre d'actions - Responsive */}
       <div className="w-full max-w-[210mm] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden px-4 md:px-0">
         <Link
           href="/invoices"
-          className="flex items-center text-sm text-slate-500 hover:text-slate-900 transition-colors"
+          className="hidden md:flex items-center text-sm text-slate-500 hover:text-slate-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
           Retour
+        </Link>
+        {/* Bouton retour version mobile (icône seule) */}
+        <Link
+          href="/invoices"
+          className="md:hidden flex items-center justify-center w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-500 hover:text-slate-900 transition-colors"
+          aria-label="Retour"
+        >
+          <ArrowLeft className="w-4 h-4" />
         </Link>
         <div className="flex items-center gap-4 flex-wrap">
           <InvoiceActions invoiceId={invoiceId} currentStatus={invoice.status} />
@@ -108,12 +116,14 @@ export default async function InvoicePage({
         </div>
       </div>
 
-      {/* --- FACTURE A4 --- */}
-      <div
-        id="invoice-print-area"
-        className="bg-white w-full max-w-[210mm] min-h-[297mm] shadow-lg text-slate-900 print:shadow-none print:w-full flex flex-col"
-        style={{ aspectRatio: "210 / 297" }}
-      >
+      {/* Conteneur avec scroll horizontal pour mobile */}
+      <div className="w-full overflow-x-auto px-4 md:px-0">
+        {/* --- FACTURE A4 --- */}
+        <div
+          id="invoice-print-area"
+          className="bg-white w-full min-w-[210mm] max-w-[210mm] min-h-[297mm] shadow-lg text-slate-900 print:shadow-none print:w-full flex flex-col mx-auto"
+          style={{ aspectRatio: "210 / 297" }}
+        >
         {/* Contenu principal avec padding */}
         <div className="flex-1 flex flex-col p-[15mm]">
           {/* 1. EN-TÊTE & VENDEUR */}
