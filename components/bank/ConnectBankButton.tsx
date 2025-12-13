@@ -67,15 +67,34 @@ export function ConnectBankButton({ onSuccess: onSuccessCallback }: ConnectBankB
     onExit: handleExit,
   };
 
-  const { open, ready } = usePlaidLink(config);
+  const { open, ready, error } = usePlaidLink(config);
+
+  /**
+   * Log l'état de Plaid Link pour debugging
+   */
+  useEffect(() => {
+    console.log("📊 État Plaid Link:", { 
+      linkToken: linkToken ? "✓" : "✗", 
+      ready, 
+      isLoading,
+      error: error?.message 
+    });
+  }, [linkToken, ready, isLoading, error]);
 
   /**
    * Ouvre automatiquement Plaid Link quand le token est prêt
    */
   useEffect(() => {
     if (linkToken && ready && !isLoading) {
-      console.log("🚀 Ouverture de Plaid Link...");
-      open();
+      console.log("🚀 Tentative d'ouverture de Plaid Link...");
+      try {
+        open();
+        console.log("✅ Plaid Link.open() appelé avec succès");
+      } catch (err) {
+        console.error("❌ Erreur lors de l'appel à open():", err);
+        toast.error("Erreur lors de l'ouverture de Plaid Link");
+        setIsLoading(false);
+      }
     }
   }, [linkToken, ready, isLoading, open]);
 
