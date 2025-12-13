@@ -97,15 +97,15 @@ export default async function TransactionsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="rounded-lg border bg-white">
+        <div className="rounded-lg border bg-white overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Catégorie</TableHead>
-                <TableHead className="text-center">Type</TableHead>
-                <TableHead className="text-right">Montant</TableHead>
+                <TableHead className="min-w-[100px]">Date</TableHead>
+                <TableHead className="min-w-[200px]">Description</TableHead>
+                <TableHead className="min-w-[120px]">Catégorie</TableHead>
+                <TableHead className="text-center min-w-[80px]">Type</TableHead>
+                <TableHead className="text-right min-w-[100px]">Montant</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
