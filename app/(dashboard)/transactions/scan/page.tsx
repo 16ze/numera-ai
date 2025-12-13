@@ -50,6 +50,7 @@ export default function ScanReceiptPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pageState, setPageState] = useState<PageState>("upload");
+  const [isSaving, setIsSaving] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState<ReceiptData>({
@@ -186,24 +187,28 @@ export default function ScanReceiptPage() {
    */
   const handleSaveTransaction = async () => {
     try {
+      setIsSaving(true);
       setPageState("saving");
 
       // Valider les champs obligatoires
       if (!formData.amount || formData.amount <= 0) {
         toast.error("Le montant doit être supérieur à 0");
         setPageState("form");
+        setIsSaving(false);
         return;
       }
 
       if (!formData.date) {
         toast.error("La date est obligatoire");
         setPageState("form");
+        setIsSaving(false);
         return;
       }
 
       if (!formData.description.trim()) {
         toast.error("La description est obligatoire");
         setPageState("form");
+        setIsSaving(false);
         return;
       }
 
@@ -224,6 +229,7 @@ export default function ScanReceiptPage() {
           : "Erreur lors de l'enregistrement de la transaction. Veuillez réessayer."
       );
       setPageState("form");
+      setIsSaving(false);
     }
   };
 
@@ -429,9 +435,9 @@ export default function ScanReceiptPage() {
                 <Button
                   onClick={handleSaveTransaction}
                   className="flex-1"
-                  disabled={pageState === "saving"}
+                  disabled={isSaving}
                 >
-                  {pageState === "saving" ? (
+                  {isSaving ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Enregistrement...
@@ -446,7 +452,7 @@ export default function ScanReceiptPage() {
                 <Button
                   variant="outline"
                   onClick={handleReset}
-                  disabled={pageState === "saving"}
+                  disabled={isSaving}
                 >
                   <X className="mr-2 h-4 w-4" />
                   Scanner un autre reçu
