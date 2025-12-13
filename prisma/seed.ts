@@ -36,7 +36,7 @@ async function main() {
     data: {
       email: "demo@numera.ai",
       name: "Demo User",
-      // CORRECTION ICI : "passwordHash" au lieu de "password"
+      clerkUserId: "demo_user_clerk_id_seed", // ID Clerk factice pour le seed
       passwordHash: "password_fictif_123", 
       createdAt: new Date("2024-01-01"),
     },
