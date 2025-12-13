@@ -44,7 +44,7 @@ type ReceiptData = {
 /**
  * États possibles de la page
  */
-type PageState = "upload" | "analyzing" | "form" | "saving";
+type PageState = "upload" | "analyzing" | "form";
 
 export default function ScanReceiptPage() {
   const router = useRouter();
@@ -188,26 +188,22 @@ export default function ScanReceiptPage() {
   const handleSaveTransaction = async () => {
     try {
       setIsSaving(true);
-      setPageState("saving");
 
       // Valider les champs obligatoires
       if (!formData.amount || formData.amount <= 0) {
         toast.error("Le montant doit être supérieur à 0");
-        setPageState("form");
         setIsSaving(false);
         return;
       }
 
       if (!formData.date) {
         toast.error("La date est obligatoire");
-        setPageState("form");
         setIsSaving(false);
         return;
       }
 
       if (!formData.description.trim()) {
         toast.error("La description est obligatoire");
-        setPageState("form");
         setIsSaving(false);
         return;
       }
@@ -228,7 +224,6 @@ export default function ScanReceiptPage() {
           ? error.message
           : "Erreur lors de l'enregistrement de la transaction. Veuillez réessayer."
       );
-      setPageState("form");
       setIsSaving(false);
     }
   };
