@@ -355,6 +355,9 @@ export default async function InvoicePage({
           </div>
         </div>
       </div>
+      {/* Fin du conteneur overflow-x-auto */}
     </div>
+    {/* Fin du conteneur principal */}
+  </div>
   );
 }
