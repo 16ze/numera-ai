@@ -131,10 +131,12 @@ export function MobileNav() {
                   appearance={{
                     elements: {
                       avatarBox: "h-10 w-10",
-                      userButtonTrigger: "w-full",
+                      userButtonTrigger: "focus:shadow-none w-full gap-3",
+                      userButtonBox: "w-full flex items-center gap-3 justify-center",
                     },
                   }}
                   afterSignOutUrl="/sign-in"
+                  showName
                 />
               </div>
             </div>
