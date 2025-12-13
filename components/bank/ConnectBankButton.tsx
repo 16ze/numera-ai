@@ -4,7 +4,7 @@
  * Composant pour connecter un compte bancaire via Plaid Link
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { usePlaidLink } from "react-plaid-link";
 import { Button } from "@/components/ui/button";
 import { createLinkToken, exchangePublicToken } from "@/app/actions/bank";
@@ -30,6 +30,7 @@ export function ConnectBankButton({ onSuccess: onSuccessCallback }: ConnectBankB
    */
   const handlePlaidSuccess = useCallback(
     async (publicToken: string) => {
+      console.log("✅ Plaid Link succès, échange du token...");
       setIsLoading(true);
       try {
         await exchangePublicToken(publicToken);
@@ -50,50 +51,69 @@ export function ConnectBankButton({ onSuccess: onSuccessCallback }: ConnectBankB
   );
 
   /**
+   * Gère la fermeture de Plaid Link
+   */
+  const handleExit = useCallback(() => {
+    console.log("Plaid Link fermé");
+    setIsLoading(false);
+  }, []);
+
+  /**
    * Configuration de Plaid Link
    */
   const config = {
     token: linkToken,
     onSuccess: handlePlaidSuccess,
+    onExit: handleExit,
   };
 
   const { open, ready } = usePlaidLink(config);
 
   /**
+   * Ouvre automatiquement Plaid Link quand le token est prêt
+   */
+  useEffect(() => {
+    if (linkToken && ready && !isLoading) {
+      console.log("🚀 Ouverture de Plaid Link...");
+      open();
+    }
+  }, [linkToken, ready, isLoading, open]);
+
+  /**
    * Initialise le Link Token et ouvre Plaid Link
    */
   const handleClick = async () => {
-    if (!linkToken) {
-      setIsLoading(true);
-      try {
-        const { linkToken: token } = await createLinkToken();
-        setLinkToken(token);
-        // Le useEffect ouvrira automatiquement Plaid Link
-      } catch (error) {
-        console.error("Erreur création Link Token:", error);
-        toast.error("Erreur lors de l'initialisation");
-        setIsLoading(false);
-      }
-    } else {
-      open();
+    if (isLoading) return;
+
+    console.log("🔗 Demande de Link Token...");
+    setIsLoading(true);
+    
+    try {
+      const { linkToken: token } = await createLinkToken();
+      console.log("✅ Link Token reçu:", token.substring(0, 20) + "...");
+      setLinkToken(token);
+      // L'useEffect ouvrira automatiquement Plaid Link
+    } catch (error) {
+      console.error("❌ Erreur création Link Token:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de l'initialisation"
+      );
+      setIsLoading(false);
     }
   };
-
-  // Ouvrir automatiquement Plaid Link quand le token est prêt
-  if (linkToken && ready && !isLoading) {
-    open();
-  }
 
   return (
     <Button
       onClick={handleClick}
-      disabled={isLoading || (linkToken !== null && !ready)}
+      disabled={isLoading}
       className="gap-2"
     >
       {isLoading ? (
         <>
           <Loader2 className="h-4 w-4 animate-spin" />
-          Connexion en cours...
+          {linkToken ? "Ouverture..." : "Connexion en cours..."}
         </>
       ) : (
         <>
