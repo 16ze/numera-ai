@@ -1,5 +1,6 @@
 import { AIChatButtonWrapper } from "@/components/chat/AIChatButtonWrapper";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { MobileNav } from "@/components/layout/MobileNav";
 import { UserButtonWrapper } from "@/components/layout/UserButtonWrapper";
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { redirect } from "next/navigation";
@@ -7,7 +8,9 @@ import { redirect } from "next/navigation";
 /**
  * Layout pour les pages protégées (dashboard, transactions, etc.)
  *
- * Ce layout inclut la sidebar et le header avec le bouton utilisateur Clerk.
+ * Ce layout inclut :
+ * - Desktop: Sidebar fixe à gauche + Header avec UserButton
+ * - Mobile: Header avec logo et menu hamburger (Sheet)
  * Force les utilisateurs sans SIRET à compléter l'onboarding.
  */
 export default async function DashboardLayout({
@@ -23,19 +26,20 @@ export default async function DashboardLayout({
   
   if (company && (!company.siret || company.siret.trim() === "")) {
     // Rediriger vers l'onboarding si l'entreprise n'a pas de SIRET
-    // La page /onboarding n'est pas dans ce layout, donc elle sera accessible
     redirect("/onboarding");
   }
 
   return (
     <div className="flex h-screen">
-      {/* Sidebar fixe à gauche */}
-      <Sidebar />
+      {/* Sidebar Desktop - Cachée sur mobile */}
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
 
       {/* Contenu principal */}
-      <div className="flex flex-1 flex-col ml-64">
-        {/* Header avec UserButton Clerk */}
-        <header className="sticky top-0 z-10 flex h-16 items-center border-b bg-white px-6 print:hidden">
+      <div className="flex flex-1 flex-col md:ml-64 w-full">
+        {/* Header Desktop uniquement - Caché sur mobile */}
+        <header className="sticky top-0 z-10 hidden md:flex h-16 items-center border-b bg-white px-6 print:hidden">
           {/* Spacer pour pousser l'avatar à droite */}
           <div className="flex-1"></div>
           
@@ -52,11 +56,14 @@ export default async function DashboardLayout({
           </div>
         </header>
 
-        {/* Contenu de la page */}
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        {/* Header Mobile avec menu hamburger */}
+        <MobileNav />
+
+        {/* Contenu de la page - Responsive */}
+        <main className="flex-1 overflow-y-auto w-full">{children}</main>
       </div>
 
-      {/* Bouton de chat flottant (accessible partout) - Chargé uniquement côté client */}
+      {/* Bouton de chat flottant (accessible partout) */}
       <AIChatButtonWrapper />
     </div>
   );
