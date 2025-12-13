@@ -34,7 +34,8 @@ export async function createLinkToken(): Promise<{ linkToken: string }> {
       products: [Products.Transactions], // On veut accéder aux transactions
       country_codes: [CountryCode.Us, CountryCode.Fr], // US et France
       language: "fr",
-      redirect_uri: `${APP_URL}/settings/bank`, // Redirection après connexion
+      // redirect_uri retiré car nécessite configuration OAuth dans le dashboard
+      // L'utilisateur restera sur la même page après connexion
     });
 
     console.log("✅ Link Token créé avec succès");
