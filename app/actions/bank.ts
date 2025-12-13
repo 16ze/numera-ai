@@ -44,6 +44,17 @@ export async function createLinkToken(): Promise<{ linkToken: string }> {
     };
   } catch (error) {
     console.error("❌ Erreur création Link Token:", error);
+    
+    // Log détaillé pour debugging
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as any;
+      console.error("Détails erreur Plaid:", {
+        status: axiosError.response?.status,
+        data: axiosError.response?.data,
+        message: axiosError.message,
+      });
+    }
+    
     throw new Error(
       error instanceof Error
         ? error.message

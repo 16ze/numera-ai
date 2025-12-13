@@ -16,8 +16,14 @@ const PLAID_SECRET = process.env.PLAID_SECRET;
 const PLAID_ENV = process.env.PLAID_ENV || "sandbox";
 
 if (!PLAID_CLIENT_ID || !PLAID_SECRET) {
+  console.error("⚠️ Variables d'environnement Plaid manquantes !");
+  console.error("PLAID_CLIENT_ID:", PLAID_CLIENT_ID ? "✓ Configuré" : "✗ Manquant");
+  console.error("PLAID_SECRET:", PLAID_SECRET ? "✓ Configuré" : "✗ Manquant");
+  console.error("\n📖 Consultez PLAID_QUICKSTART.md pour configurer Plaid\n");
+  
   throw new Error(
-    "Variables d'environnement Plaid manquantes. Configurez PLAID_CLIENT_ID et PLAID_SECRET dans .env.local"
+    "Variables d'environnement Plaid manquantes. Configurez PLAID_CLIENT_ID et PLAID_SECRET dans .env.local. " +
+    "Consultez PLAID_QUICKSTART.md pour plus d'informations."
   );
 }
 
