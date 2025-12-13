@@ -34,9 +34,11 @@ export default function SignInPage() {
         <div className="relative z-10 flex flex-col justify-between p-12 h-full">
           {/* Logo en haut */}
           <div className="flex items-center space-x-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/95 backdrop-blur-sm text-2xl font-bold text-blue-600 shadow-lg">
-              N
-            </div>
+            <img
+              src="/logo.png"
+              alt="Numera AI"
+              className="h-12 w-auto object-contain"
+            />
             <span className="text-2xl font-bold text-white drop-shadow-lg">
               Numera AI
             </span>
