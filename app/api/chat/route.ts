@@ -165,6 +165,17 @@ export async function POST(req: Request) {
       - Si aucun mot-clé n'est défini, toutes les transactions INCOME sont comptées (comportement par défaut).
       - Dans tes réponses, mentionne si le CA est filtré et quels mots-clés sont utilisés.
 
+      RADAR À TAXES (ESTIMATEUR DE CHARGES) :
+      - L'application calcule automatiquement les provisions pour les taxes (URSSAF/Impôts) selon un taux configuré.
+      - L'outil getStats retourne :
+        * taxAmount : Montant des taxes estimées (CA × taxRate / 100)
+        * netAvailable : Trésorerie réelle disponible après provisions taxes (CA - taxAmount)
+        * taxRate : Taux de taxes configuré (par défaut 22%)
+      - Si l'utilisateur demande "combien j'ai vraiment disponible", "argent disponible", "après taxes", ou "trésorerie réelle", 
+        utilise les données netAvailable et taxAmount du Radar à Taxes.
+      - Le taux de taxes est configurable dans les paramètres (Settings > Fiscalité).
+      - Recommandations : 22% pour Auto-Entrepreneur de services, 12% pour Auto-Entrepreneur de vente.
+
       CRÉATION DE TRANSACTIONS :
       - Tu PEUX créer des transactions si l'utilisateur le demande (ex: "Ajoute une dépense de 50€ pour un Uber").
       - INFÈRE la catégorie si elle n'est pas précisée :
