@@ -6,6 +6,7 @@ import {
   sendReminderEmail,
 } from "@/app/actions/reminders";
 import { sendInvoiceEmail } from "@/app/actions/send-invoice-email";
+import { getCashFlowForecast } from "@/app/actions/forecast";
 import { prisma } from "@/app/lib/prisma";
 import { openai } from "@ai-sdk/openai";
 import { currentUser } from "@clerk/nextjs/server";
@@ -186,6 +187,19 @@ export async function POST(req: Request) {
         utilise les données netAvailable et taxAmount du Radar à Taxes.
       - Le taux de taxes est configurable dans les paramètres (Settings > Fiscalité).
       - Recommandations : 22% pour Auto-Entrepreneur de services, 12% pour Auto-Entrepreneur de vente.
+
+      PRÉVISIONS DE TRÉSORERIE (CASH FLOW FORECAST) :
+      - L'application calcule automatiquement les prévisions de trésorerie sur 6 mois.
+      - L'outil getCashFlowForecast retourne :
+        * forecastData : Tableau de prévisions mois par mois (3 mois passés + 6 mois futurs)
+        * currentBalance : Solde actuel (somme Income - Expense depuis le début)
+        * burnRate : Dépenses moyennes mensuelles (moyenne des 3 derniers mois)
+        * hasEnoughData : Indique si on a assez de données pour une projection fiable
+      - La projection calcule : Nouveau Solde = Ancien Solde - Burn Rate + Factures dues ce mois
+      - Les factures SENT (envoyées mais non payées) sont prises en compte selon leur dueDate.
+      - Si l'utilisateur demande "prévisions de trésorerie", "cash flow", "projection financière", "combien j'aurai dans 3 mois", 
+        ou des questions sur l'évolution future de la trésorerie, utilise getCashFlowForecast.
+      - Présente les résultats de manière claire : solde actuel, burn rate, et évolution mois par mois.
 
       CRÉATION DE TRANSACTIONS :
       - Tu PEUX créer des transactions si l'utilisateur le demande (ex: "Ajoute une dépense de 50€ pour un Uber").
@@ -1696,6 +1710,41 @@ export async function POST(req: Request) {
                 err instanceof Error
                   ? err.message
                   : "Erreur lors de l'envoi de l'email de relance"
+              );
+            }
+          },
+        }),
+
+        getCashFlowForecast: tool({
+          description:
+            "Donne les prévisions de trésorerie sur 6 mois. Calcule le solde actuel, le burn rate (dépenses moyennes), et projette l'évolution de la trésorerie en tenant compte des factures à recevoir. Utilise cet outil quand l'utilisateur demande des prévisions financières, l'évolution future de la trésorerie, ou 'combien j'aurai dans X mois'.",
+          inputSchema: z.object({}),
+          execute: async () => {
+            console.log("🛠️ Outil 'getCashFlowForecast' en cours...");
+
+            try {
+              const forecast = await getCashFlowForecast();
+
+              console.log(
+                `✅ Prévisions calculées : Solde=${forecast.currentBalance}€, Burn Rate=${forecast.burnRate}€/mois, ${forecast.forecastData.length} points`
+              );
+
+              return {
+                currentBalance: forecast.currentBalance,
+                burnRate: forecast.burnRate,
+                hasEnoughData: forecast.hasEnoughData,
+                forecast: forecast.forecastData.map((point) => ({
+                  mois: point.date,
+                  solde: point.solde,
+                  type: point.type === "real" ? "réel" : "projeté",
+                })),
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans getCashFlowForecast:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors du calcul des prévisions de trésorerie"
               );
             }
           },
