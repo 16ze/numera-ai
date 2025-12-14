@@ -11,6 +11,7 @@ import { InteractiveCards } from "@/components/dashboard/InteractiveCards";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { TaxRadarCard } from "@/components/dashboard/TaxRadarCard";
 import { OverdueAlerts } from "@/components/dashboard/OverdueAlerts";
+import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -221,6 +222,14 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Prévisions de Trésorerie - Cash Flow Forecast */}
+      <CashFlowChart
+        forecastData={data.cashFlowForecast.forecastData}
+        currentBalance={data.cashFlowForecast.currentBalance}
+        burnRate={data.cashFlowForecast.burnRate}
+        hasEnoughData={data.cashFlowForecast.hasEnoughData}
+      />
     </div>
   );
 }

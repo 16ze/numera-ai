@@ -5,6 +5,7 @@
 
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { prisma } from "@/app/lib/prisma";
+import { getCashFlowForecast, type CashFlowForecast } from "@/app/actions/forecast";
 
 /**
  * Type pour les données du graphique
@@ -52,6 +53,7 @@ export type DashboardData = {
   recentTransactions: RecentTransaction[];
   chartData: ChartDataPoint[];
   historyData: HistoryDataPoint[];
+  cashFlowForecast: CashFlowForecast; // Prévisions de trésorerie
 };
 
 /**
@@ -83,6 +85,12 @@ export async function getDashboardData(): Promise<DashboardData> {
         recentTransactions: [],
         chartData: [],
         historyData: [],
+        cashFlowForecast: {
+          forecastData: [],
+          currentBalance: 0,
+          burnRate: 0,
+          hasEnoughData: false,
+        },
       };
     }
 
@@ -332,6 +340,9 @@ export async function getDashboardData(): Promise<DashboardData> {
       });
     }
 
+    // Récupération des prévisions de trésorerie
+    const cashFlowForecast = await getCashFlowForecast();
+
     return {
       totalRevenue,
       totalExpenses,
@@ -343,6 +354,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       recentTransactions,
       chartData,
       historyData,
+      cashFlowForecast,
     };
   } catch (error) {
     console.error(
