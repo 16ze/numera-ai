@@ -85,12 +85,7 @@ export async function getClients(): Promise<ClientWithStats[]> {
           include: {
             rows: true, // Inclure les lignes pour calculer les totaux
           },
-          select: {
-            id: true,
-            status: true,
-            dueDate: true,
-            rows: true, // Pour calculer les totaux
-          },
+          // On inclut tous les champs nécessaires via include
         },
       },
       orderBy: {
