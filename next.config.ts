@@ -18,10 +18,36 @@ const nextConfig: NextConfig = {
 
 const pwaConfig = withPWA({
   dest: "public",
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
-  // Désactiver en dev pour éviter les bugs de cache pendant que tu codes
   disable: process.env.NODE_ENV === "development",
+  // 1. Désactiver le cache pour la connexion (CRUCIAL - évite les boucles infinies)
+  buildExcludes: [/middleware-manifest.json$/],
+  publicExcludes: ["!robots.txt", "!sitemap.xml", "!manifest.webmanifest"],
+  // 2. Ne pas mettre en cache les routes d'API ou d'Auth
+  runtimeCaching: [
+    {
+      urlPattern: /^https?:\/\/.*\/sign-in.*/i,
+      handler: "NetworkOnly",
+    },
+    {
+      urlPattern: /^https?:\/\/.*\/sign-up.*/i,
+      handler: "NetworkOnly",
+    },
+    {
+      urlPattern: /\/api\/.*$/i,
+      handler: "NetworkOnly",
+    },
+    {
+      urlPattern: /.*/i,
+      handler: "NetworkFirst", // Pour le reste, on essaie le réseau d'abord
+      options: {
+        cacheName: "others",
+        expiration: {
+          maxEntries: 32,
+          maxAgeSeconds: 24 * 60 * 60, // 24 hours
+        },
+      },
+    },
+  ],
 });
 
 export default pwaConfig(nextConfig);

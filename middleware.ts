@@ -18,9 +18,10 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    // La regex magique qui laisse passer les fichiers internes de Next.js et Clerk
-    // On ajoute explicitement l'exclusion des fichiers PWA (manifest, sw.js, icons)
+    // La regex magique qui laisse passer les fichiers PWA et statiques
+    // Exclut : _next, fichiers statiques (images, CSS, JS sauf JSON), et fichiers PWA (sw.js, workbox-*.js, webmanifest)
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // EXCLUSION EXPLICITE DES FICHIERS PWA :
     "/(api|trpc)(.*)",
   ],
 };
