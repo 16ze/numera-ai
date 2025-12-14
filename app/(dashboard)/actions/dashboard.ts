@@ -3,8 +3,8 @@
  * Récupère les données financières pour l'utilisateur connecté via Clerk
  */
 
-import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth-helper";
+import { prisma } from "@/app/lib/prisma";
 
 /**
  * Type pour les données du graphique
@@ -29,14 +29,26 @@ export type RecentTransaction = {
 };
 
 /**
+ * Type pour les données historiques mensuelles
+ */
+export type HistoryDataPoint = {
+  name: string; // Format: "Jan", "Fév", etc.
+  income: number;
+  expense: number;
+  net: number;
+};
+
+/**
  * Type de retour de la Server Action
  */
 export type DashboardData = {
   totalRevenue: number;
   totalExpenses: number;
   netIncome: number;
+  annualRevenue: number;
   recentTransactions: RecentTransaction[];
   chartData: ChartDataPoint[];
+  historyData: HistoryDataPoint[];
 };
 
 /**
@@ -47,27 +59,38 @@ export async function getDashboardData(): Promise<DashboardData> {
   try {
     // Récupération de l'utilisateur connecté via Clerk (redirige vers /sign-in si non connecté)
     const user = await getCurrentUser();
-    
+
     // Récupération de la première company de l'utilisateur
     // Si l'utilisateur vient d'être créé, il aura déjà une company "Ma Société"
     const company = user.companies[0];
-    
+
     // Protection : si pas de company (cas rare), on retourne des zéros
     if (!company) {
-      console.warn(`⚠️ Utilisateur ${user.id} sans company, retour de données vides`);
+      console.warn(
+        `⚠️ Utilisateur ${user.id} sans company, retour de données vides`
+      );
       return {
         totalRevenue: 0,
         totalExpenses: 0,
         netIncome: 0,
+        annualRevenue: 0,
         recentTransactions: [],
         chartData: [],
+        historyData: [],
       };
     }
 
     // Calcul des dates pour le mois en cours
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const endOfMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      23,
+      59,
+      59
+    );
 
     // Calcul des dates pour les 30 derniers jours (pour le graphique)
     const thirtyDaysAgo = new Date(now);
@@ -85,9 +108,28 @@ export async function getDashboardData(): Promise<DashboardData> {
     });
 
     // Calcul des totaux du mois en cours
-    const totalRevenue = monthlyTransactions
-      .filter((t) => t.type === "INCOME")
-      .reduce((sum, t) => sum + Number(t.amount), 0);
+    // Filtrage du CA selon les revenueKeywords si définis
+    const revenueKeywords = company.revenueKeywords
+      ? company.revenueKeywords.split(",").map((k) => k.trim().toUpperCase())
+      : [];
+
+    // Si des mots-clés sont définis, filtrer les transactions INCOME
+    const revenueTransactions =
+      revenueKeywords.length > 0
+        ? monthlyTransactions.filter((t) => {
+            if (t.type !== "INCOME") return false;
+            if (!t.description) return false;
+            const descriptionUpper = t.description.toUpperCase();
+            return revenueKeywords.some((keyword) =>
+              descriptionUpper.includes(keyword)
+            );
+          })
+        : monthlyTransactions.filter((t) => t.type === "INCOME");
+
+    const totalRevenue = revenueTransactions.reduce(
+      (sum, t) => sum + Number(t.amount),
+      0
+    );
 
     const totalExpenses = monthlyTransactions
       .filter((t) => t.type === "EXPENSE")
@@ -133,7 +175,10 @@ export async function getDashboardData(): Promise<DashboardData> {
     });
 
     // Préparation des données pour le graphique (groupées par jour)
-    const chartDataMap = new Map<string, { recettes: number; depenses: number }>();
+    const chartDataMap = new Map<
+      string,
+      { recettes: number; depenses: number }
+    >();
 
     // Initialisation de tous les jours des 30 derniers jours avec 0
     for (let i = 0; i < 30; i++) {
@@ -146,7 +191,10 @@ export async function getDashboardData(): Promise<DashboardData> {
     // Agrégation des transactions par jour
     chartTransactions.forEach((transaction) => {
       const dateKey = transaction.date.toISOString().split("T")[0];
-      const existing = chartDataMap.get(dateKey) || { recettes: 0, depenses: 0 };
+      const existing = chartDataMap.get(dateKey) || {
+        recettes: 0,
+        depenses: 0,
+      };
 
       if (transaction.type === "INCOME") {
         existing.recettes += Number(transaction.amount);
@@ -166,17 +214,128 @@ export async function getDashboardData(): Promise<DashboardData> {
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    // Calcul du CA Annuel (du 1er janvier de l'année en cours à aujourd'hui)
+    const startOfYear = new Date(now.getFullYear(), 0, 1); // 1er janvier
+    const allAnnualTransactions = await prisma.transaction.findMany({
+      where: {
+        companyId: company.id,
+        type: "INCOME",
+        date: {
+          gte: startOfYear,
+          lte: now,
+        },
+      },
+    });
+
+    // Filtrage selon les revenueKeywords si définis
+    const annualRevenueTransactions =
+      revenueKeywords.length > 0
+        ? allAnnualTransactions.filter((t) => {
+            if (!t.description) return false;
+            const descriptionUpper = t.description.toUpperCase();
+            return revenueKeywords.some((keyword) =>
+              descriptionUpper.includes(keyword)
+            );
+          })
+        : allAnnualTransactions;
+
+    const annualRevenue = annualRevenueTransactions.reduce(
+      (sum, t) => sum + Number(t.amount),
+      0
+    );
+
+    // Calcul de l'historique des 12 derniers mois
+    const historyData: HistoryDataPoint[] = [];
+    const monthNames = [
+      "Jan",
+      "Fév",
+      "Mar",
+      "Avr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Aoû",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Déc",
+    ];
+
+    // Pour chaque mois des 12 derniers mois
+    for (let i = 11; i >= 0; i--) {
+      const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStart = new Date(
+        targetDate.getFullYear(),
+        targetDate.getMonth(),
+        1
+      );
+      const monthEnd = new Date(
+        targetDate.getFullYear(),
+        targetDate.getMonth() + 1,
+        0,
+        23,
+        59,
+        59
+      );
+
+      // Récupération des transactions du mois
+      const monthTransactions = await prisma.transaction.findMany({
+        where: {
+          companyId: company.id,
+          date: {
+            gte: monthStart,
+            lte: monthEnd,
+          },
+        },
+      });
+
+      // Filtrage des recettes selon les revenueKeywords si définis
+      const monthIncomeTransactions =
+        revenueKeywords.length > 0
+          ? monthTransactions.filter((t) => {
+              if (t.type !== "INCOME") return false;
+              if (!t.description) return false;
+              const descriptionUpper = t.description.toUpperCase();
+              return revenueKeywords.some((keyword) =>
+                descriptionUpper.includes(keyword)
+              );
+            })
+          : monthTransactions.filter((t) => t.type === "INCOME");
+
+      const monthIncome = monthIncomeTransactions.reduce(
+        (sum, t) => sum + Number(t.amount),
+        0
+      );
+
+      const monthExpense = monthTransactions
+        .filter((t) => t.type === "EXPENSE")
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      const monthNet = monthIncome - monthExpense;
+
+      historyData.push({
+        name: monthNames[targetDate.getMonth()],
+        income: monthIncome,
+        expense: monthExpense,
+        net: monthNet,
+      });
+    }
+
     return {
       totalRevenue,
       totalExpenses,
       netIncome,
+      annualRevenue,
       recentTransactions,
       chartData,
+      historyData,
     };
   } catch (error) {
-    console.error("Erreur lors de la récupération des données du dashboard:", error);
+    console.error(
+      "Erreur lors de la récupération des données du dashboard:",
+      error
+    );
     throw error;
   }
   // Note: On ne déconnecte pas Prisma Client en Next.js car il est réutilisé entre les requêtes
 }
-

@@ -1,56 +1,14 @@
 /**
  * Page des Transactions
- * Affiche la liste des transactions de l'utilisateur connecté
+ * Affiche la liste des transactions de l'utilisateur connecté avec gestion complète
  */
 
 import { getTransactions } from "../actions/transactions";
+import { TransactionsPageClient } from "./TransactionsPageClient";
 import Link from "next/link";
 import { Receipt, Plus, FileText, FileSpreadsheet } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { TransactionCategory, TransactionType } from "@prisma/client";
-
-/**
- * Fonction utilitaire pour formater le montant en euros
- */
-function formatMoney(amount: number): string {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
-}
-
-/**
- * Fonction utilitaire pour obtenir le label de la catégorie
- */
-function getCategoryLabel(category: TransactionCategory): string {
-  const labels: Record<TransactionCategory, string> = {
-    TRANSPORT: "Transport",
-    REPAS: "Repas",
-    MATERIEL: "Matériel",
-    PRESTATION: "Prestation",
-    IMPOTS: "Impôts et taxes",
-    SALAIRES: "Salaires",
-    AUTRE: "Autre",
-  };
-  return labels[category] || category;
-}
-
-/**
- * Fonction utilitaire pour obtenir la couleur du badge selon le type
- */
-function getTypeBadgeVariant(type: TransactionType): "default" | "secondary" | "outline" {
-  return type === "INCOME" ? "default" : "secondary";
-}
 
 /**
  * Page des Transactions
@@ -91,7 +49,7 @@ export default async function TransactionsPage() {
         </div>
       </div>
 
-      {/* Tableau des transactions */}
+      {/* Tableau des transactions avec gestion complète */}
       {transactions.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 px-4 text-center">
@@ -111,53 +69,7 @@ export default async function TransactionsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="rounded-lg border bg-white overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[100px]">Date</TableHead>
-                <TableHead className="min-w-[200px]">Description</TableHead>
-                <TableHead className="min-w-[120px]">Catégorie</TableHead>
-                <TableHead className="text-center min-w-[80px]">Type</TableHead>
-                <TableHead className="text-right min-w-[100px]">Montant</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map((transaction) => {
-                const formattedDate = new Date(transaction.date).toLocaleDateString("fr-FR", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                });
-
-                return (
-                  <TableRow key={transaction.id}>
-                    <TableCell className="font-medium">{formattedDate}</TableCell>
-                    <TableCell>
-                      {transaction.description || <span className="text-muted-foreground italic">Sans description</span>}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{getCategoryLabel(transaction.category)}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant={getTypeBadgeVariant(transaction.type)}>
-                        {transaction.type === "INCOME" ? "Recette" : "Dépense"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell
-                      className={`text-right font-bold ${
-                        transaction.type === "INCOME" ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {transaction.type === "INCOME" ? "+" : "-"}
-                      {formatMoney(transaction.amount)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <TransactionsPageClient initialTransactions={transactions} />
       )}
     </div>
   );

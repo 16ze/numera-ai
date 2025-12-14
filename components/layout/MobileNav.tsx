@@ -5,10 +5,6 @@
  * Affiche un header avec logo et bouton menu qui ouvre un Sheet (side panel)
  */
 
-import { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -17,14 +13,18 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 import {
   FileText,
   LayoutDashboard,
   ListOrdered,
+  Menu,
   Settings,
   Users,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { UserButtonWrapper } from "./UserButtonWrapper";
 
 /**
@@ -63,7 +63,13 @@ const navigationItems = [
  */
 export function MobileNav() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+
+  // Éviter les problèmes d'hydratation en rendant le Sheet uniquement côté client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <>
@@ -78,72 +84,80 @@ export function MobileNav() {
           />
         </Link>
 
-        {/* Bouton Menu Hamburger */}
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Menu className="h-6 w-6" />
-              <span className="sr-only">Ouvrir le menu</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0">
-            <SheetHeader className="border-b p-4">
-              <SheetTitle className="text-left">
-                <div className="flex items-center justify-center">
-                  <img
-                    src="/logo.png"
-                    alt="Numera AI"
-                    className="h-12 w-auto object-contain"
+        {/* Bouton Menu Hamburger - Rendu uniquement côté client pour éviter les problèmes d'hydratation */}
+        {mounted ? (
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden">
+                <Menu className="h-6 w-6" />
+                <span className="sr-only">Ouvrir le menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-64 p-0">
+              <SheetHeader className="border-b p-4">
+                <SheetTitle className="text-left">
+                  <div className="flex items-center justify-center">
+                    <img
+                      src="/logo.png"
+                      alt="Numera AI"
+                      className="h-12 w-auto object-contain"
+                    />
+                  </div>
+                </SheetTitle>
+              </SheetHeader>
+
+              {/* Navigation */}
+              <nav className="flex flex-col space-y-1 p-4">
+                {navigationItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className={cn(
+                        "flex items-center space-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                        isActive
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      )}
+                    >
+                      <Icon className="h-5 w-5 flex-shrink-0" />
+                      <span>{item.name}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              {/* User Profile dans le footer */}
+              <div className="absolute bottom-0 left-0 right-0 border-t p-4 bg-slate-50">
+                <div className="flex items-center gap-3 w-full">
+                  <UserButtonWrapper
+                    appearance={{
+                      elements: {
+                        avatarBox: "h-10 w-10",
+                        userButtonTrigger: "focus:shadow-none w-full gap-3",
+                        userButtonBox:
+                          "w-full flex items-center gap-3 justify-center",
+                      },
+                    }}
+                    afterSignOutUrl="/sign-in"
+                    showName
                   />
                 </div>
-              </SheetTitle>
-            </SheetHeader>
-
-            {/* Navigation */}
-            <nav className="flex flex-col space-y-1 p-4">
-              {navigationItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      "flex items-center space-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                      isActive
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                    )}
-                  >
-                    <Icon className="h-5 w-5 flex-shrink-0" />
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-
-            {/* User Profile dans le footer */}
-            <div className="absolute bottom-0 left-0 right-0 border-t p-4 bg-slate-50">
-              <div className="flex items-center gap-3 w-full">
-                <UserButtonWrapper
-                  appearance={{
-                    elements: {
-                      avatarBox: "h-10 w-10",
-                      userButtonTrigger: "focus:shadow-none w-full gap-3",
-                      userButtonBox: "w-full flex items-center gap-3 justify-center",
-                    },
-                  }}
-                  afterSignOutUrl="/sign-in"
-                  showName
-                />
               </div>
-            </div>
-          </SheetContent>
-        </Sheet>
+            </SheetContent>
+          </Sheet>
+        ) : (
+          // Placeholder pendant le SSR pour éviter le décalage de layout
+          <Button variant="ghost" size="icon" className="md:hidden" disabled>
+            <Menu className="h-6 w-6" />
+            <span className="sr-only">Ouvrir le menu</span>
+          </Button>
+        )}
       </header>
     </>
   );
 }
-

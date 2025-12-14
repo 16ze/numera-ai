@@ -6,9 +6,20 @@
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { CompanyForm } from "@/components/company/CompanyForm";
 import { LogoUpload } from "@/components/company/LogoUpload";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Settings, Download, Building2, FileDown, ChevronRight } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Building2,
+  ChevronRight,
+  FileDown,
+  Settings,
+  TrendingUp,
+} from "lucide-react";
 import Link from "next/link";
 
 /**
@@ -73,7 +84,8 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Logo de l&apos;entreprise</CardTitle>
           <CardDescription>
-            Le logo apparaîtra sur vos factures. Formats acceptés : JPEG, PNG, GIF, WebP (max 5MB)
+            Le logo apparaîtra sur vos factures. Formats acceptés : JPEG, PNG,
+            GIF, WebP (max 5MB)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -92,8 +104,8 @@ export default async function SettingsPage() {
         />
       </div>
 
-      {/* Section Export et Connexion Bancaire */}
-      <div className="grid gap-4 md:grid-cols-2 mt-8">
+      {/* Section Export, Connexion Bancaire et Configuration CA */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-8">
         {/* Carte Export Comptable */}
         <Card className="hover:border-blue-300 transition-colors cursor-pointer">
           <Link href="/settings/export" className="block">
@@ -129,7 +141,31 @@ export default async function SettingsPage() {
                     Connexion Bancaire
                   </h3>
                   <p className="text-sm text-slate-600 mt-1">
-                    Connectez vos comptes pour synchroniser vos transactions automatiquement
+                    Connectez vos comptes pour synchroniser vos transactions
+                    automatiquement
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-slate-400" />
+              </div>
+            </CardContent>
+          </Link>
+        </Card>
+
+        {/* Carte Configuration CA */}
+        <Card className="hover:border-purple-300 transition-colors cursor-pointer">
+          <Link href="/settings/revenue" className="block">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-purple-100">
+                  <TrendingUp className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-slate-900">
+                    Configuration du CA
+                  </h3>
+                  <p className="text-sm text-slate-600 mt-1">
+                    Définissez les mots-clés pour identifier le vrai Chiffre
+                    d&apos;Affaires
                   </p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-slate-400" />
@@ -164,8 +200,8 @@ export default async function SettingsPage() {
               </p>
               <p className="text-sm text-blue-700">
                 Ces informations seront utilisées pour générer vos factures
-                légalement conformes. Assurez-vous qu&apos;elles sont
-                exactes et à jour.
+                légalement conformes. Assurez-vous qu&apos;elles sont exactes et
+                à jour.
               </p>
             </div>
           </div>
@@ -174,5 +210,3 @@ export default async function SettingsPage() {
     </div>
   );
 }
-
-

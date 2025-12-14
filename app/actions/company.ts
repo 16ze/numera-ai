@@ -4,8 +4,8 @@
  * Server Actions pour la gestion des entreprises
  */
 
-import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth-helper";
+import { prisma } from "@/app/lib/prisma";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -25,7 +25,7 @@ export type CompanyUpdateData = {
 
 /**
  * Server Action pour mettre à jour les détails de l'entreprise de l'utilisateur connecté
- * 
+ *
  * @param data - Données de mise à jour de l'entreprise
  * @returns {Promise<{ success: boolean; message: string }>} Résultat de la mise à jour
  * @throws {Error} Si l'entreprise n'existe pas ou si l'utilisateur n'est pas connecté
@@ -57,15 +57,18 @@ export async function updateCompanyDetails(
       isAutoEntrepreneur?: boolean;
       logoUrl?: string | null;
     } = {};
-    
+
     if (data.name !== undefined) updateData.name = data.name;
     if (data.address !== undefined) updateData.address = data.address || null;
     if (data.siret !== undefined) updateData.siret = data.siret || null;
     if (data.apeCode !== undefined) updateData.apeCode = data.apeCode || null;
-    if (data.vatNumber !== undefined) updateData.vatNumber = data.vatNumber || null;
+    if (data.vatNumber !== undefined)
+      updateData.vatNumber = data.vatNumber || null;
     if (data.capital !== undefined) updateData.capital = data.capital || null;
-    if (data.legalForm !== undefined) updateData.legalForm = data.legalForm || null;
-    if (data.isAutoEntrepreneur !== undefined) updateData.isAutoEntrepreneur = data.isAutoEntrepreneur;
+    if (data.legalForm !== undefined)
+      updateData.legalForm = data.legalForm || null;
+    if (data.isAutoEntrepreneur !== undefined)
+      updateData.isAutoEntrepreneur = data.isAutoEntrepreneur;
     if (data.logoUrl !== undefined) updateData.logoUrl = data.logoUrl || null;
 
     // Mise à jour de l'entreprise
@@ -93,3 +96,64 @@ export async function updateCompanyDetails(
   }
 }
 
+/**
+ * Server Action pour mettre à jour les mots-clés de revenus de l'entreprise
+ * Ces mots-clés permettent d'identifier quelles transactions INCOME sont du vrai CA
+ *
+ * @param keywords - Tableau de mots-clés (ex: ["STRIPE", "VRST", "VIR"])
+ * @returns {Promise<{ success: boolean; message: string }>} Résultat de la mise à jour
+ * @throws {Error} Si l'entreprise n'existe pas ou si l'utilisateur n'est pas connecté
+ */
+export async function updateRevenueKeywords(
+  keywords: string[]
+): Promise<{ success: boolean; message: string }> {
+  try {
+    // Récupération de l'utilisateur connecté
+    const user = await getCurrentUser();
+
+    // Récupération de la première company de l'utilisateur
+    const company = user.companies[0];
+
+    if (!company) {
+      throw new Error("Aucune entreprise trouvée pour cet utilisateur");
+    }
+
+    // Nettoyage des mots-clés : trim, suppression des doublons, conversion en majuscules
+    const cleanedKeywords = Array.from(
+      new Set(
+        keywords.map((k) => k.trim().toUpperCase()).filter((k) => k.length > 0)
+      )
+    );
+
+    // Stockage sous forme de chaîne séparée par des virgules
+    const keywordsString =
+      cleanedKeywords.length > 0 ? cleanedKeywords.join(",") : null;
+
+    // Mise à jour de l'entreprise
+    await prisma.company.update({
+      where: { id: company.id },
+      data: {
+        revenueKeywords: keywordsString,
+      },
+    });
+
+    console.log(
+      `✅ Mots-clés de revenus mis à jour pour l'entreprise ${company.id}: ${keywordsString || "aucun"}`
+    );
+
+    // Revalidation des caches pour mettre à jour le dashboard
+    revalidatePath("/");
+    revalidatePath("/settings/revenue");
+
+    return {
+      success: true,
+      message: `Mots-clés de revenus mis à jour (${cleanedKeywords.length} mot${cleanedKeywords.length > 1 ? "s" : ""}-clé${cleanedKeywords.length > 1 ? "s" : ""})`,
+    };
+  } catch (error) {
+    console.error(
+      "Erreur lors de la mise à jour des mots-clés de revenus:",
+      error
+    );
+    throw error;
+  }
+}

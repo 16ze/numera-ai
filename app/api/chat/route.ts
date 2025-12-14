@@ -1,3 +1,6 @@
+import { updateInvoiceStatus } from "@/app/(dashboard)/actions/invoices";
+import { updateTransaction } from "@/app/(dashboard)/actions/transactions-management";
+import { sendInvoiceEmail } from "@/app/actions/send-invoice-email";
 import { prisma } from "@/app/lib/prisma";
 import { openai } from "@ai-sdk/openai";
 import { currentUser } from "@clerk/nextjs/server";
@@ -9,8 +12,6 @@ import {
 import { streamText, tool } from "ai";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { sendInvoiceEmail } from "@/app/actions/send-invoice-email";
-import { updateInvoiceStatus } from "@/app/(dashboard)/actions/invoices";
 
 // On laisse 30 secondes max pour éviter les timeouts
 export const maxDuration = 30;
@@ -103,6 +104,9 @@ export async function POST(req: Request) {
       3. Si l'utilisateur demande d'AJOUTER une transaction (dépense ou recette) -> Appelle l'outil addTransaction.
          Si l'utilisateur mentionne une date spécifique pour la transaction, note-la et mentionne-la dans ta réponse.
 
+      3b. Si l'utilisateur demande de MODIFIER une transaction existante -> Utilise d'abord getTransactionsByPeriod pour trouver la transaction, puis appelle l'outil updateTransaction.
+         ⚠️ CRITIQUE : Ne modifie JAMAIS la date de la transaction sauf si l'utilisateur le demande explicitement. Cela permet de préserver le mois d'origine de la transaction.
+
       4. Si l'utilisateur demande de CRÉER une FACTURE -> Appelle l'outil createInvoice.
 
       5. Si l'utilisateur demande des informations sur une FACTURE EXISTANTE ou un CLIENT (ex: "Qu'est-ce que j'ai facturé à Martin ?", "Montre-moi la facture INV-001") -> Appelle l'outil searchInvoices.
@@ -147,6 +151,19 @@ export async function POST(req: Request) {
         * Sinon -> AUTRE
       - Le montant doit être positif (toujours en euros).
       - La description doit être claire et concise.
+
+      MODIFICATION DE TRANSACTIONS :
+      - Tu PEUX modifier des transactions existantes si l'utilisateur le demande (ex: "Change le montant de la transaction Uber du 15 novembre à -50€").
+      - ⚠️ CRITIQUE : Quand tu modifies une transaction, NE CHANGE JAMAIS SA DATE SAUF SI L'UTILISATEUR LE DEMANDE EXPLICITEMENT.
+      - Pour modifier une transaction :
+        1. Utilise d'abord getTransactionsByPeriod pour trouver la transaction à modifier (recherche par description, montant, ou période)
+        2. Identifie l'ID de la transaction à modifier
+        3. Utilise l'outil updateTransaction avec SEULEMENT les champs à modifier (description, amount, category)
+        4. N'INCLUS PAS le champ "date" sauf si l'utilisateur demande explicitement de changer la date
+      - Exemple : Si l'utilisateur dit "Change le montant de la dépense Uber de novembre à -50€", tu dois :
+        * Trouver la transaction Uber de novembre
+        * Modifier SEULEMENT le montant (amount: -50)
+        * NE PAS modifier la date pour que la transaction reste dans le mois de novembre
 
       CRÉATION DE FACTURES :
       - Tu PEUX créer des factures si l'utilisateur le demande (ex: "Facture Martin 500€ pour du coaching").
@@ -248,22 +265,26 @@ export async function POST(req: Request) {
           inputSchema: z.object({
             startDate: z
               .string()
-              .regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)")
+              .regex(
+                /^\d{4}-\d{2}-\d{2}$/,
+                "Format de date invalide (YYYY-MM-DD)"
+              )
               .describe(
                 "Date de début au format YYYY-MM-DD (ex: '2025-08-01' pour le 1er août 2025)"
               ),
             endDate: z
               .string()
-              .regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)")
+              .regex(
+                /^\d{4}-\d{2}-\d{2}$/,
+                "Format de date invalide (YYYY-MM-DD)"
+              )
               .describe(
                 "Date de fin au format YYYY-MM-DD (ex: '2025-08-31' pour le 31 août 2025)"
               ),
           }),
           execute: async ({ startDate, endDate }) => {
             console.log("🛠️ Outil 'getTransactionsByPeriod' en cours...");
-            console.log(
-              `📅 Période demandée: du ${startDate} au ${endDate}`
-            );
+            console.log(`📅 Période demandée: du ${startDate} au ${endDate}`);
 
             try {
               // Recherche de l'utilisateur Prisma via clerkUserId
@@ -298,7 +319,9 @@ export async function POST(req: Request) {
               }
 
               if (start > end) {
-                throw new Error("La date de début doit être antérieure à la date de fin");
+                throw new Error(
+                  "La date de début doit être antérieure à la date de fin"
+                );
               }
 
               console.log(
@@ -319,10 +342,13 @@ export async function POST(req: Request) {
                 },
               });
 
-              console.log(`📊 ${transactions.length} transactions trouvées pour la période.`);
+              console.log(
+                `📊 ${transactions.length} transactions trouvées pour la période.`
+              );
 
               // Formatage des transactions pour la réponse
               const formattedTransactions = transactions.map((t) => ({
+                id: t.id, // ID nécessaire pour modifier la transaction
                 date: t.date.toISOString().split("T")[0], // Format YYYY-MM-DD
                 description: t.description || "Sans description",
                 amount: Number(t.amount),
@@ -355,7 +381,10 @@ export async function POST(req: Request) {
                 },
               };
             } catch (err) {
-              console.error("❌ ERREUR dans getTransactionsByPeriod execute :", err);
+              console.error(
+                "❌ ERREUR dans getTransactionsByPeriod execute :",
+                err
+              );
               console.error(
                 "Stack trace:",
                 err instanceof Error ? err.stack : "N/A"
@@ -458,8 +487,7 @@ export async function POST(req: Request) {
                 // Calcul du montant total TTC
                 const totalHT = invoice.rows.reduce(
                   (sum, row) =>
-                    sum +
-                    Number(row.quantity) * Number(row.unitPrice),
+                    sum + Number(row.quantity) * Number(row.unitPrice),
                   0
                 );
 
@@ -675,6 +703,138 @@ export async function POST(req: Request) {
                 err instanceof Error
                   ? err.message
                   : "Erreur lors de la création de la transaction"
+              );
+            }
+          },
+        }),
+
+        updateTransaction: tool({
+          description:
+            "Modifie une transaction existante. Utilise cet outil quand l'utilisateur demande de modifier une transaction (montant, description, catégorie). IMPORTANT : Ne modifie JAMAIS la date sauf si l'utilisateur le demande explicitement. Pour trouver l'ID d'une transaction, utilise d'abord getTransactionsByPeriod.",
+          inputSchema: z.object({
+            transactionId: z
+              .string()
+              .min(1, "L'ID de la transaction est requis")
+              .describe(
+                "ID de la transaction à modifier (obtenu via getTransactionsByPeriod)"
+              ),
+            amount: z
+              .number()
+              .refine((val) => val !== 0, {
+                message: "Le montant ne peut pas être égal à 0",
+              })
+              .optional()
+              .describe(
+                "Nouveau montant en euros (positif ou négatif, mais pas 0). Ne pas inclure si le montant ne doit pas être modifié."
+              ),
+            description: z
+              .string()
+              .min(1)
+              .optional()
+              .describe(
+                "Nouvelle description. Ne pas inclure si la description ne doit pas être modifiée."
+              ),
+            category: z
+              .enum([
+                "TRANSPORT",
+                "REPAS",
+                "MATERIEL",
+                "PRESTATION",
+                "IMPOTS",
+                "SALAIRES",
+                "AUTRE",
+              ])
+              .optional()
+              .describe(
+                "Nouvelle catégorie. Ne pas inclure si la catégorie ne doit pas être modifiée."
+              ),
+            date: z
+              .string()
+              .regex(/^\d{4}-\d{2}-\d{2}$/)
+              .optional()
+              .describe(
+                "Nouvelle date au format YYYY-MM-DD. ⚠️ NE PAS INCLURE SAUF SI L'UTILISATEUR DEMANDE EXPLICITEMENT DE CHANGER LA DATE. Par défaut, la date de la transaction ne doit JAMAIS être modifiée pour préserver le mois d'origine."
+              ),
+          }),
+          execute: async ({
+            transactionId,
+            amount,
+            description,
+            category,
+            date,
+          }) => {
+            console.log("🛠️ Outil 'updateTransaction' en cours...");
+            console.log(
+              `📝 Paramètres: transactionId=${transactionId}, amount=${
+                amount !== undefined ? amount : "N/A"
+              }, description=${description || "N/A"}, category=${
+                category || "N/A"
+              }, date=${date || "N/A (non modifiée)"}`
+            );
+
+            try {
+              // Préparer les données de mise à jour (seulement les champs fournis)
+              const updateData: {
+                amount?: number;
+                description?: string;
+                category?: TransactionCategory;
+                date?: string;
+              } = {};
+
+              if (amount !== undefined) {
+                updateData.amount = amount;
+              }
+
+              if (description !== undefined) {
+                updateData.description = description;
+              }
+
+              if (category !== undefined) {
+                updateData.category = category as TransactionCategory;
+              }
+
+              // ⚠️ CRITIQUE : Ne modifier la date QUE si elle est explicitement fournie
+              if (date !== undefined) {
+                updateData.date = date;
+                console.log(
+                  "⚠️ ATTENTION : La date de la transaction est modifiée"
+                );
+              } else {
+                console.log(
+                  "✅ La date de la transaction n'est pas modifiée (conservation du mois d'origine)"
+                );
+              }
+
+              // Appeler la fonction de mise à jour
+              await updateTransaction(transactionId, updateData);
+
+              console.log(
+                `✅ Transaction ${transactionId} modifiée avec succès`
+              );
+
+              // IMPORTANT : Revalidation du cache pour mettre à jour le dashboard instantanément
+              revalidatePath("/");
+              revalidatePath("/transactions");
+
+              return {
+                success: true,
+                transactionId,
+                message: `Transaction modifiée avec succès${
+                  date
+                    ? ` (date changée vers ${date})`
+                    : " (date conservée pour préserver le mois d'origine)"
+                }`,
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans updateTransaction execute :", err);
+              console.error(
+                "Stack trace:",
+                err instanceof Error ? err.stack : "N/A"
+              );
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la modification de la transaction"
               );
             }
           },

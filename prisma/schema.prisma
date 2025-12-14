@@ -102,6 +102,7 @@ model Company {
   apeCode            String? // Code APE/NAF (ex: "6201Z")
   capital            String? // Capital social (ex: "1000")
   isAutoEntrepreneur Boolean  @default(false) // Si true, TVA non applicable (art. 293 B du CGI)
+  revenueKeywords     String? // Mots-clés séparés par des virgules pour identifier le CA (ex: "STRIPE,VRST,VIR")
   userId             String // Propriétaire de l'entreprise
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt

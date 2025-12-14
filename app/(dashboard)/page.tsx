@@ -1,6 +1,7 @@
 import { getDashboardData } from "@/app/(dashboard)/actions/dashboard";
-import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { AdvisorCard } from "@/components/dashboard/AdvisorCard";
+import { InteractiveCards } from "@/components/dashboard/InteractiveCards";
+import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -10,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Euro, TrendingDown, Wallet } from "lucide-react";
 
 export default async function DashboardPage() {
   const data = await getDashboardData();
@@ -31,53 +31,14 @@ export default async function DashboardPage() {
       {/* Carte Conseil du CFO */}
       <AdvisorCard />
 
-      {/* 1. KPI CARDS - Responsive */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Chiffre d'Affaires
-            </CardTitle>
-            <Euro className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatMoney(data.totalRevenue)}
-            </div>
-            <p className="text-xs text-muted-foreground">Ce mois-ci</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Dépenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {formatMoney(data.totalExpenses)}
-            </div>
-            <p className="text-xs text-muted-foreground">Ce mois-ci</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Résultat Net</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div
-              className={`text-2xl font-bold ${
-                data.netIncome >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {formatMoney(data.netIncome)}
-            </div>
-            <p className="text-xs text-muted-foreground">Bénéfice estimé</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Cartes Interactives avec Dialog et graphiques */}
+      <InteractiveCards
+        totalRevenue={data.totalRevenue}
+        totalExpenses={data.totalExpenses}
+        netIncome={data.netIncome}
+        annualRevenue={data.annualRevenue}
+        historyData={data.historyData}
+      />
 
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
         {/* 2. GRAPHIQUE - Responsive */}
@@ -97,7 +58,9 @@ export default async function DashboardPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="min-w-[150px]">Description</TableHead>
-                    <TableHead className="text-right min-w-[100px]">Montant</TableHead>
+                    <TableHead className="text-right min-w-[100px]">
+                      Montant
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -111,7 +74,9 @@ export default async function DashboardPage() {
                       </TableCell>
                       <TableCell
                         className={`text-right font-bold ${
-                          t.type === "INCOME" ? "text-green-600" : "text-red-600"
+                          t.type === "INCOME"
+                            ? "text-green-600"
+                            : "text-red-600"
                         }`}
                       >
                         {t.type === "INCOME" ? "+" : "-"}
