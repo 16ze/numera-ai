@@ -1,11 +1,11 @@
 import { updateInvoiceStatus } from "@/app/(dashboard)/actions/invoices";
 import { updateTransaction } from "@/app/(dashboard)/actions/transactions-management";
-import { sendInvoiceEmail } from "@/app/actions/send-invoice-email";
 import {
-  getOverdueInvoices,
   generateReminderEmail,
+  getOverdueInvoices,
   sendReminderEmail,
 } from "@/app/actions/reminders";
+import { sendInvoiceEmail } from "@/app/actions/send-invoice-email";
 import { prisma } from "@/app/lib/prisma";
 import { openai } from "@ai-sdk/openai";
 import { currentUser } from "@clerk/nextjs/server";
@@ -241,7 +241,18 @@ export async function POST(req: Request) {
       - Le client sera créé automatiquement s'il n'existe pas déjà.
       - Si l'utilisateur donne juste un montant et une description simple, crée une facture avec une ligne.
       - Les items peuvent être un tableau (plusieurs lignes) ou juste un montant simple (une ligne).
-      - La date d'échéance est optionnelle (par défaut J+30 jours).
+      - CONDITIONS DE PAIEMENT : Tu DOIS demander ou inférer les conditions de paiement :
+        * Si l'utilisateur mentionne "à réception", "paiement immédiat", "comptant" → paymentTerms = "à réception" (pas de date d'échéance)
+        * Si l'utilisateur mentionne "30 jours", "60 jours", etc. → paymentTerms = "X jours" (date d'échéance = J+X)
+        * Pour les prestations de service, souvent "à réception" ou "paiement immédiat"
+        * Par défaut si non précisé : "30 jours" (date d'échéance = J+30)
+      - FACTURES EN RETARD : Si l'utilisateur demande une facture "en retard" ou avec une date d'échéance passée (ex: "pas payé depuis le 9 décembre") :
+        * Utilise issuedDate avec une date dans le passé (avant la dueDate, ex: quelques jours avant)
+        * Utilise dueDate avec la date passée mentionnée par l'utilisateur (ex: "2025-12-09")
+        * Utilise paymentTerms = "à payer maintenant" (PAS "30 jours")
+        * Le statut sera automatiquement OVERDUE
+        * Exemple : "facture en retard, pas payé depuis le 9 décembre" → issuedDate = "2025-12-01", dueDate = "2025-12-09", paymentTerms = "à payer maintenant"
+      - La date d'échéance est calculée automatiquement selon les conditions de paiement SAUF si l'utilisateur spécifie une date (passée ou future).
 
       RECHERCHE DE FACTURES :
       - Tu as accès aux factures existantes via l'outil searchInvoices.
@@ -299,7 +310,9 @@ export async function POST(req: Request) {
 
               // Récupération des mots-clés de revenus pour filtrer le CA
               const revenueKeywords = company.revenueKeywords
-                ? company.revenueKeywords.split(",").map((k) => k.trim().toUpperCase())
+                ? company.revenueKeywords
+                    .split(",")
+                    .map((k) => k.trim().toUpperCase())
                 : [];
 
               if (revenueKeywords.length > 0) {
@@ -371,7 +384,8 @@ export async function POST(req: Request) {
                 netAvailable, // Trésorerie réelle disponible après provisions taxes
                 taxRate, // Taux de taxes configuré
                 revenueFiltered: revenueKeywords.length > 0,
-                revenueKeywords: revenueKeywords.length > 0 ? revenueKeywords : null,
+                revenueKeywords:
+                  revenueKeywords.length > 0 ? revenueKeywords : null,
               };
             } catch (err) {
               console.error("❌ CRASH dans execute :", err);
@@ -416,7 +430,9 @@ export async function POST(req: Request) {
 
               // Récupération des mots-clés de revenus pour filtrer le CA
               const revenueKeywords = company.revenueKeywords
-                ? company.revenueKeywords.split(",").map((k) => k.trim().toUpperCase())
+                ? company.revenueKeywords
+                    .split(",")
+                    .map((k) => k.trim().toUpperCase())
                 : [];
 
               if (revenueKeywords.length > 0) {
@@ -464,7 +480,8 @@ export async function POST(req: Request) {
               return {
                 annualRevenue,
                 revenueFiltered: revenueKeywords.length > 0,
-                revenueKeywords: revenueKeywords.length > 0 ? revenueKeywords : null,
+                revenueKeywords:
+                  revenueKeywords.length > 0 ? revenueKeywords : null,
                 transactionCount: annualRevenueTransactions.length,
                 period: {
                   start: startOfYear.toISOString().split("T")[0],
@@ -935,12 +952,14 @@ export async function POST(req: Request) {
               // On revalide tous les chemins concernés pour forcer la mise à jour
               revalidatePath("/"); // Dashboard principal
               revalidatePath("/transactions"); // Page transactions
-              
+
               console.log("🔄 Cache revalidé pour / et /transactions");
 
               // Formatage de la date pour le message
               const dateMessage = date
-                ? ` enregistrée pour le ${new Date(transactionDate).toLocaleDateString("fr-FR", {
+                ? ` enregistrée pour le ${new Date(
+                    transactionDate
+                  ).toLocaleDateString("fr-FR", {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
@@ -1064,9 +1083,7 @@ export async function POST(req: Request) {
 
               if (type !== undefined) {
                 updateData.type = type as TransactionType;
-                console.log(
-                  `🔄 Type de transaction modifié: ${type}`
-                );
+                console.log(`🔄 Type de transaction modifié: ${type}`);
               }
 
               // ⚠️ CRITIQUE : Ne modifier la date QUE si elle est explicitement fournie
@@ -1118,7 +1135,7 @@ export async function POST(req: Request) {
 
         createInvoice: tool({
           description:
-            "Crée une facture pour un client. Le client sera créé automatiquement s'il n'existe pas déjà. Utilise cet outil quand l'utilisateur demande de créer une facture.",
+            "Crée une facture pour un client. Le client sera créé automatiquement s'il n'existe pas déjà. Utilise cet outil quand l'utilisateur demande de créer une facture. IMPORTANT : Si l'utilisateur demande une facture 'en retard' ou avec une date d'échéance passée, utilise issuedDate dans le passé et dueDate passée, et met paymentTerms à 'à payer maintenant' ou 'à réception'.",
           inputSchema: z.object({
             clientName: z
               .string()
@@ -1144,19 +1161,39 @@ export async function POST(req: Request) {
               )
               .min(1, "Au moins un item est requis")
               .describe("Lignes de la facture (items)"),
-            dueDate: z
+            issuedDate: z
+              .string()
+              .regex(/^\d{4}-\d{2}-\d{2}$/)
+              .optional()
+              .describe(
+                "Date d'émission au format YYYY-MM-DD (optionnel, date actuelle par défaut). IMPORTANT : Si l'utilisateur demande une facture 'en retard' ou avec une date d'échéance passée, utilise une date d'émission dans le passé (avant la date d'échéance)."
+              ),
+            paymentTerms: z
               .string()
               .optional()
               .describe(
-                "Date d'échéance au format ISO (optionnel, par défaut J+30 jours)"
+                "Conditions de paiement (ex: '30 jours', '60 jours', 'à réception', 'paiement immédiat', 'à payer maintenant'). Si l'utilisateur demande une facture 'en retard', utilise 'à payer maintenant' ou 'à réception'. Si non fourni, par défaut '30 jours'."
+              ),
+            dueDate: z
+              .string()
+              .regex(/^\d{4}-\d{2}-\d{2}$/)
+              .optional()
+              .describe(
+                "Date d'échéance au format YYYY-MM-DD (optionnel, calculée automatiquement selon paymentTerms si non fourni). IMPORTANT : Tu PEUX utiliser une date passée si l'utilisateur demande une facture 'en retard', 'du mois dernier', ou avec une date d'échéance spécifique dans le passé (ex: 'pas payé depuis le 9 décembre')."
               ),
           }),
-          execute: async ({ clientName, items, dueDate }) => {
+          execute: async ({
+            clientName,
+            items,
+            dueDate,
+            paymentTerms,
+            issuedDate,
+          }) => {
             console.log("🛠️ Outil 'createInvoice' en cours...");
             console.log(
               `📝 Paramètres: clientName=${clientName}, items=${
                 items.length
-              }, dueDate=${dueDate || "AUTO"}`
+              }, paymentTerms=${paymentTerms || "30 jours (défaut)"}, dueDate=${dueDate || "AUTO"}`
             );
 
             try {
@@ -1205,12 +1242,89 @@ export async function POST(req: Request) {
                 console.log(`✅ Client trouvé: ${client.id}`);
               }
 
-              // Calcul de la date d'échéance (J+30 par défaut)
+              // Calcul de la date d'émission
               const now = new Date();
-              const issuedDate = now;
-              const calculatedDueDate = dueDate
-                ? new Date(dueDate)
-                : new Date(now.setDate(now.getDate() + 30));
+              let calculatedIssuedDate: Date;
+              
+              if (issuedDate) {
+                // Si une date d'émission est fournie, l'utiliser (peut être dans le passé pour factures en retard)
+                calculatedIssuedDate = new Date(issuedDate + "T00:00:00.000Z");
+                if (isNaN(calculatedIssuedDate.getTime())) {
+                  throw new Error(
+                    "Date d'émission invalide. Format attendu: YYYY-MM-DD"
+                  );
+                }
+                console.log(
+                  `📅 Date d'émission fournie: ${issuedDate} ${calculatedIssuedDate < now ? "(PASSÉE)" : ""}`
+                );
+              } else {
+                // Par défaut, date actuelle
+                calculatedIssuedDate = now;
+              }
+
+              // Détermination des conditions de paiement et calcul de la date d'échéance
+              let finalPaymentTerms: string;
+              let calculatedDueDate: Date | null = null;
+              let invoiceStatus: InvoiceStatus = InvoiceStatus.DRAFT;
+
+              if (dueDate) {
+                // Si une date d'échéance est explicitement fournie, l'utiliser (même si elle est dans le passé)
+                calculatedDueDate = new Date(dueDate + "T00:00:00.000Z");
+                if (isNaN(calculatedDueDate.getTime())) {
+                  throw new Error(
+                    "Date d'échéance invalide. Format attendu: YYYY-MM-DD"
+                  );
+                }
+                
+                // Si la date d'échéance est dans le passé, c'est une facture en retard
+                if (calculatedDueDate < now) {
+                  finalPaymentTerms = paymentTerms || "à payer maintenant";
+                  invoiceStatus = InvoiceStatus.OVERDUE;
+                  console.log(
+                    `⚠️ Facture en retard détectée: échéance ${dueDate} (passée)`
+                  );
+                } else {
+                  finalPaymentTerms = paymentTerms || "30 jours";
+                }
+                console.log(
+                  `📅 Date d'échéance explicitement fournie: ${dueDate} ${calculatedDueDate < now ? "(PASSÉE - facture en retard)" : ""}`
+                );
+              } else {
+                // Sinon, calculer selon les conditions de paiement
+                finalPaymentTerms = paymentTerms || "30 jours";
+                const paymentTermsLower = finalPaymentTerms.toLowerCase();
+
+                if (
+                  paymentTermsLower.includes("réception") ||
+                  paymentTermsLower.includes("reception") ||
+                  paymentTermsLower.includes("immédiat") ||
+                  paymentTermsLower.includes("immediat") ||
+                  paymentTermsLower.includes("comptant") ||
+                  paymentTermsLower.includes("payer maintenant")
+                ) {
+                  // Pas de date d'échéance pour paiement à réception/immédiat
+                  calculatedDueDate = null;
+                } else {
+                  // Extraction du nombre de jours depuis paymentTerms (ex: "30 jours", "60 jours")
+                  const daysMatch = finalPaymentTerms.match(/(\d+)\s*jour/i);
+                  const days = daysMatch ? parseInt(daysMatch[1], 10) : 30;
+
+                  calculatedDueDate = new Date(calculatedIssuedDate);
+                  calculatedDueDate.setDate(calculatedDueDate.getDate() + days);
+                  
+                  // Si la date d'échéance calculée est dans le passé, c'est une facture en retard
+                  if (calculatedDueDate < now) {
+                    invoiceStatus = InvoiceStatus.OVERDUE;
+                    console.log(
+                      `⚠️ Facture en retard détectée: échéance calculée ${calculatedDueDate.toISOString().split("T")[0]} (passée)`
+                    );
+                  }
+                }
+              }
+
+              console.log(
+                `📅 Conditions: ${finalPaymentTerms}, Date d'émission: ${calculatedIssuedDate.toISOString().split("T")[0]}, Date d'échéance: ${calculatedDueDate ? calculatedDueDate.toISOString().split("T")[0] : "Aucune (paiement immédiat)"}, Statut: ${invoiceStatus}`
+              );
 
               // Récupération du dernier numéro de facture pour cette company
               const lastInvoice = await prisma.invoice.findFirst({
@@ -1236,9 +1350,10 @@ export async function POST(req: Request) {
               const invoice = await prisma.invoice.create({
                 data: {
                   number: invoiceNumber,
-                  issuedDate,
+                  issuedDate: calculatedIssuedDate,
                   dueDate: calculatedDueDate,
-                  status: InvoiceStatus.DRAFT,
+                  paymentTerms: finalPaymentTerms,
+                  status: invoiceStatus,
                   companyId,
                   clientId: client.id,
                   rows: {
@@ -1551,13 +1666,13 @@ export async function POST(req: Request) {
             subject: z.string().describe("Sujet de l'email de relance"),
             body: z
               .string()
-              .describe("Corps de l'email de relance (peut être HTML ou texte)"),
+              .describe(
+                "Corps de l'email de relance (peut être HTML ou texte)"
+              ),
           }),
           execute: async ({ invoiceId, subject, body }) => {
             console.log("🛠️ Outil 'sendReminderEmail' en cours...");
-            console.log(
-              `📧 Envoi relance facture ${invoiceId} : "${subject}"`
-            );
+            console.log(`📧 Envoi relance facture ${invoiceId} : "${subject}"`);
 
             try {
               const result = await sendReminderEmail(invoiceId, subject, body);

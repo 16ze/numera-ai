@@ -115,6 +115,32 @@ export default async function InvoicesPage() {
                   }
                 );
 
+                // Calcul de la couleur du montant selon l'échéance
+                let amountColor = "text-slate-900"; // Par défaut (vert si payée)
+                if (invoice.status !== "PAID" && invoice.dueDate) {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const dueDate = new Date(invoice.dueDate);
+                  dueDate.setHours(0, 0, 0, 0);
+                  const daysUntilDue = Math.floor(
+                    (dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+                  );
+
+                  if (daysUntilDue < 0) {
+                    // Échéance dépassée : ROUGE
+                    amountColor = "text-red-600 font-bold";
+                  } else if (daysUntilDue <= 7) {
+                    // Bientôt à l'échéance (7 jours ou moins) : ORANGE
+                    amountColor = "text-orange-600 font-semibold";
+                  } else {
+                    // Tout est OK : VERT
+                    amountColor = "text-green-600";
+                  }
+                } else if (invoice.status === "PAID") {
+                  // Facture payée : VERT
+                  amountColor = "text-green-600";
+                }
+
                 return (
                   <TableRow key={invoice.id} className="hover:bg-slate-50">
                     <TableCell className="font-medium">
@@ -141,10 +167,10 @@ export default async function InvoicesPage() {
                         {invoice.client.name}
                       </Link>
                     </TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className={`text-right font-medium ${amountColor}`}>
                       <Link
                         href={`/invoices/${invoice.id}`}
-                        className="text-slate-900 hover:text-blue-600"
+                        className={`hover:underline ${amountColor}`}
                       >
                         {total.toFixed(2)} €
                       </Link>

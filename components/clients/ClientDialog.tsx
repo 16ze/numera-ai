@@ -41,6 +41,7 @@ interface ClientDialogProps {
     id: string;
     name: string;
     email?: string | null;
+    phone?: string | null;
     address?: string | null;
     siret?: string | null;
     vatIntra?: string | null;
@@ -67,6 +68,7 @@ export function ClientDialog({
   const [formData, setFormData] = useState<ClientData>({
     name: "",
     email: "",
+    phone: "",
     address: "",
     siret: "",
     vatIntra: "",
@@ -84,6 +86,7 @@ export function ClientDialog({
         setFormData({
           name: initialData.name || "",
           email: initialData.email || "",
+          phone: initialData.phone || "",
           address: initialData.address || "",
           siret: initialData.siret || "",
           vatIntra: initialData.vatIntra || "",
@@ -100,6 +103,7 @@ export function ClientDialog({
         setFormData({
           name: "",
           email: "",
+          phone: "",
           address: "",
           siret: "",
           vatIntra: "",
@@ -154,6 +158,7 @@ export function ClientDialog({
       const dataToSubmit: ClientData = {
         name: formData.name.trim(),
         email: formData.email?.trim() || undefined,
+        phone: formData.phone?.trim() || undefined,
         address: formData.address?.trim() || undefined,
         // Pour les entreprises : on envoie la valeur (ou undefined si vide)
         // Pour les particuliers : on force undefined pour s'assurer que les champs sont vidés en DB
@@ -266,6 +271,23 @@ export function ClientDialog({
                 placeholder="contact@example.com"
                 value={formData.email || ""}
                 onChange={(e) => handleChange("email", e.target.value)}
+              />
+            </div>
+
+            {/* Téléphone */}
+            <div className="grid gap-2">
+              <label
+                htmlFor="phone"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Téléphone
+              </label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="+33 6 12 34 56 78"
+                value={formData.phone || ""}
+                onChange={(e) => handleChange("phone", e.target.value)}
               />
             </div>
 

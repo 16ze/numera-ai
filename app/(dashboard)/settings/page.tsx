@@ -17,6 +17,7 @@ import {
   Building2,
   ChevronRight,
   FileDown,
+  Receipt,
   Settings,
   TrendingUp,
 } from "lucide-react";
@@ -104,7 +105,7 @@ export default async function SettingsPage() {
         />
       </div>
 
-      {/* Section Export, Connexion Bancaire et Configuration CA */}
+      {/* Section Export, Connexion Bancaire, Configuration CA et Fiscalité */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-8">
         {/* Carte Export Comptable */}
         <Card className="hover:border-blue-300 transition-colors cursor-pointer">
@@ -166,6 +167,28 @@ export default async function SettingsPage() {
                   <p className="text-sm text-slate-600 mt-1">
                     Définissez les mots-clés pour identifier le vrai Chiffre
                     d&apos;Affaires
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-slate-400" />
+              </div>
+            </CardContent>
+          </Link>
+        </Card>
+
+        {/* Carte Fiscalité */}
+        <Card className="hover:border-orange-300 transition-colors cursor-pointer">
+          <Link href="/settings/taxes" className="block">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-orange-100">
+                  <Receipt className="h-6 w-6 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-slate-900">
+                    Fiscalité
+                  </h3>
+                  <p className="text-sm text-slate-600 mt-1">
+                    Configurez le taux de taxes pour estimer vos charges
                   </p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-slate-400" />

@@ -103,6 +103,7 @@ model Company {
   capital            String? // Capital social (ex: "1000")
   isAutoEntrepreneur Boolean  @default(false) // Si true, TVA non applicable (art. 293 B du CGI)
   revenueKeywords     String? // Mots-clés séparés par des virgules pour identifier le CA (ex: "STRIPE,VRST,VIR")
+  taxRate             Float    @default(22.0) // Pourcentage du CA à mettre de côté pour les taxes (URSSAF/Impôts)
   userId             String // Propriétaire de l'entreprise
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -126,6 +127,7 @@ model Client {
   id        String   @id @default(uuid())
   name      String
   email     String?
+  phone     String? // Numéro de téléphone du client
   address   String?
   siret     String? // SIRET du client
   vatIntra  String? // Numéro TVA intracommunautaire du client

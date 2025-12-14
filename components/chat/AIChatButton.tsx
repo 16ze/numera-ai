@@ -192,6 +192,85 @@ export function AIChatButton() {
                   }
                   return updated;
                 });
+                
+                // Notifier le Dashboard si une transaction a été ajoutée ou modifiée
+                if (event.toolName === "addTransaction" || event.toolName === "updateTransaction") {
+                  try {
+                    console.log("🔔 Détection transaction ajoutée/modifiée:", event.toolName);
+                    console.log("📦 Output brut:", event.output);
+                    
+                    let output: any;
+                    if (typeof event.output === "string") {
+                      try {
+                        output = JSON.parse(event.output);
+                      } catch (parseErr) {
+                        // Si le parsing échoue, essayer de détecter "success" dans la string
+                        if (event.output.includes("success") || event.output.includes("Transaction")) {
+                          output = { success: true };
+                        } else {
+                          console.warn("Impossible de parser l'output:", event.output);
+                          output = { success: true }; // On assume le succès si on ne peut pas parser
+                        }
+                      }
+                    } else {
+                      output = event.output;
+                    }
+                    
+                    console.log("✅ Output parsé:", output);
+                    
+                    // Notifier même si on n'a pas de confirmation explicite de success
+                    // car si l'outil a été appelé, c'est qu'il a probablement réussi
+                    if (output?.success !== false) {
+                      console.log("📢 Envoi notification Dashboard: transaction ajoutée/modifiée");
+                      
+                      // Méthode 1: BroadcastChannel
+                      try {
+                        const channel = new BroadcastChannel("dashboard-updates");
+                        channel.postMessage({
+                          type: event.toolName === "addTransaction" 
+                            ? "transaction-added" 
+                            : "transaction-updated",
+                          timestamp: Date.now(),
+                        });
+                        channel.close();
+                        console.log("✅ Notification BroadcastChannel envoyée");
+                      } catch (bcErr) {
+                        console.warn("⚠️ BroadcastChannel non disponible, utilisation de postMessage:", bcErr);
+                      }
+                      
+                      // Méthode 2: window.postMessage (fallback)
+                      try {
+                        window.postMessage({
+                          type: event.toolName === "addTransaction" 
+                            ? "transaction-added" 
+                            : "transaction-updated",
+                          source: "ai-chat",
+                          timestamp: Date.now(),
+                        }, "*");
+                        console.log("✅ Notification postMessage envoyée");
+                      } catch (pmErr) {
+                        console.error("❌ Erreur postMessage:", pmErr);
+                      }
+                      
+                      // Méthode 3: Déclencher un événement personnalisé
+                      try {
+                        window.dispatchEvent(new CustomEvent("dashboard-refresh", {
+                          detail: {
+                            type: event.toolName === "addTransaction" 
+                              ? "transaction-added" 
+                              : "transaction-updated",
+                            timestamp: Date.now(),
+                          }
+                        }));
+                        console.log("✅ Événement personnalisé dispatché");
+                      } catch (evtErr) {
+                        console.error("❌ Erreur événement personnalisé:", evtErr);
+                      }
+                    }
+                  } catch (err) {
+                    console.error("❌ Erreur lors de la notification Dashboard:", err);
+                  }
+                }
                 break;
 
               case "finish":

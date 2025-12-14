@@ -46,6 +46,9 @@ export type DashboardData = {
   totalExpenses: number;
   netIncome: number;
   annualRevenue: number;
+  taxAmount: number; // Montant des taxes estimées (CA * taxRate / 100)
+  netAvailable: number; // Trésorerie réelle disponible après provisions taxes (CA - taxAmount)
+  taxRate: number; // Taux de taxes configuré
   recentTransactions: RecentTransaction[];
   chartData: ChartDataPoint[];
   historyData: HistoryDataPoint[];
@@ -74,6 +77,9 @@ export async function getDashboardData(): Promise<DashboardData> {
         totalExpenses: 0,
         netIncome: 0,
         annualRevenue: 0,
+        taxAmount: 0,
+        netAvailable: 0,
+        taxRate: 22.0,
         recentTransactions: [],
         chartData: [],
         historyData: [],
@@ -136,6 +142,11 @@ export async function getDashboardData(): Promise<DashboardData> {
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
     const netIncome = totalRevenue - totalExpenses;
+
+    // Calcul des taxes et de la trésorerie réelle disponible
+    const taxRate = company.taxRate ?? 22.0; // Par défaut 22%
+    const taxAmount = (totalRevenue * taxRate) / 100;
+    const netAvailable = totalRevenue - taxAmount;
 
     // Récupération des 5 dernières transactions (toutes périodes confondues)
     const recentTransactionsData = await prisma.transaction.findMany({
@@ -326,6 +337,9 @@ export async function getDashboardData(): Promise<DashboardData> {
       totalExpenses,
       netIncome,
       annualRevenue,
+      taxAmount,
+      netAvailable,
+      taxRate,
       recentTransactions,
       chartData,
       historyData,

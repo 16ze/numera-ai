@@ -20,6 +20,7 @@ export type ClientWithStats = {
   id: string;
   name: string;
   email: string | null;
+  phone: string | null;
   address: string | null;
   siret: string | null;
   vatIntra: string | null;
@@ -36,6 +37,7 @@ export type ClientWithStats = {
 export type ClientData = {
   name: string;
   email?: string;
+  phone?: string;
   address?: string;
   siret?: string;
   vatIntra?: string;
@@ -106,6 +108,7 @@ export async function getClients(): Promise<ClientWithStats[]> {
         id: client.id,
         name: client.name,
         email: client.email,
+        phone: client.phone,
         address: client.address,
         siret: client.siret,
         vatIntra: client.vatIntra,
@@ -172,6 +175,7 @@ export async function upsertClient(
     const clientData = {
       name: data.name.trim(),
       email: data.email?.trim() || null,
+      phone: data.phone?.trim() || null,
       address: data.address?.trim() || null,
       siret: data.siret?.trim() || null,
       vatIntra: data.vatIntra?.trim() || null,

@@ -157,3 +157,56 @@ export async function updateRevenueKeywords(
     throw error;
   }
 }
+
+/**
+ * Server Action pour mettre à jour le taux de taxes de l'entreprise
+ * Ce taux représente le pourcentage du CA à mettre de côté pour les taxes (URSSAF/Impôts)
+ *
+ * @param taxRate - Taux de taxes en pourcentage (ex: 22.0 pour 22%)
+ * @returns {Promise<{ success: boolean; message: string }>} Résultat de la mise à jour
+ * @throws {Error} Si l'entreprise n'existe pas, si l'utilisateur n'est pas connecté, ou si le taux est invalide
+ */
+export async function updateTaxRate(
+  taxRate: number
+): Promise<{ success: boolean; message: string }> {
+  try {
+    // Validation du taux
+    if (taxRate < 0 || taxRate > 50) {
+      throw new Error("Le taux de taxes doit être entre 0% et 50%");
+    }
+
+    // Récupération de l'utilisateur connecté
+    const user = await getCurrentUser();
+
+    // Récupération de la première company de l'utilisateur
+    const company = user.companies[0];
+
+    if (!company) {
+      throw new Error("Aucune entreprise trouvée pour cet utilisateur");
+    }
+
+    // Mise à jour de l'entreprise
+    await prisma.company.update({
+      where: { id: company.id },
+      data: {
+        taxRate,
+      },
+    });
+
+    console.log(
+      `✅ Taux de taxes mis à jour pour l'entreprise ${company.id}: ${taxRate}%`
+    );
+
+    // Revalidation des caches pour mettre à jour le dashboard
+    revalidatePath("/");
+    revalidatePath("/settings/taxes");
+
+    return {
+      success: true,
+      message: `Taux de taxes mis à jour à ${taxRate}%`,
+    };
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour du taux de taxes:", error);
+    throw error;
+  }
+}
