@@ -89,6 +89,8 @@ export async function POST(req: Request) {
          ⚠️ ATTENTION : Le CA retourné par getStats est FILTRÉ selon les mots-clés définis dans les paramètres.
          Si des mots-clés sont configurés (ex: STRIPE, VRST), seules les transactions INCOME contenant ces mots-clés sont comptées comme CA.
          L'outil retourne aussi 'revenueFiltered' et 'revenueKeywords' pour t'informer du filtrage actif.
+         📊 RADAR À TAXES : L'outil retourne aussi 'taxAmount' (provisions taxes), 'netAvailable' (trésorerie réelle disponible) et 'taxRate' (taux configuré).
+         Si l'utilisateur demande "combien j'ai vraiment disponible" ou "argent disponible après taxes", utilise ces données.
 
       1b. Si l'utilisateur demande le CA ANNUEL (du 1er janvier à aujourd'hui) -> Appelle l'outil getAnnualRevenue.
          Cet outil retourne le CA annuel filtré selon les mêmes mots-clés que le CA mensuel.
@@ -109,10 +111,17 @@ export async function POST(req: Request) {
          - AFFICHE les dates des transactions si elles sont pertinentes
 
       3. Si l'utilisateur demande d'AJOUTER une transaction (dépense ou recette) -> Appelle l'outil addTransaction.
-         Si l'utilisateur mentionne une date spécifique pour la transaction, note-la et mentionne-la dans ta réponse.
+         ⚠️ IMPORTANT : Si l'utilisateur mentionne une date spécifique (ex: "le mois dernier", "le 15 novembre", "hier", "la semaine dernière", "en octobre"), tu DOIS utiliser le champ "date" avec la date au format YYYY-MM-DD.
+         - "le mois dernier" = premier jour du mois précédent (ex: si on est en décembre 2025, c'est 2025-11-01)
+         - "hier" = date d'hier
+         - "la semaine dernière" = il y a 7 jours
+         - "le 15 novembre" = 2025-11-15 (ou l'année en cours)
+         - "en octobre" = premier jour d'octobre de l'année en cours
+         Si aucune date n'est mentionnée, n'inclus PAS le champ "date" et la date actuelle sera utilisée.
 
       3b. Si l'utilisateur demande de MODIFIER une transaction existante -> Utilise d'abord getTransactionsByPeriod pour trouver la transaction, puis appelle l'outil updateTransaction.
          ⚠️ CRITIQUE : Ne modifie JAMAIS la date de la transaction sauf si l'utilisateur le demande explicitement. Cela permet de préserver le mois d'origine de la transaction.
+         🔧 CORRECTION D'ERREURS : Si l'utilisateur signale une erreur de type (recette au lieu de dépense ou vice versa), utilise immédiatement updateTransaction avec le champ "type" pour corriger.
 
       4. Si l'utilisateur demande de CRÉER une FACTURE -> Appelle l'outil createInvoice.
 
@@ -168,21 +177,42 @@ export async function POST(req: Request) {
         * Sinon -> AUTRE
       - Le montant doit être positif (toujours en euros).
       - La description doit être claire et concise.
+      - 📅 GESTION DES DATES : Si l'utilisateur mentionne une date spécifique, tu DOIS utiliser le champ "date" :
+        * "le mois dernier" → premier jour du mois précédent
+        * "hier" → date d'hier
+        * "la semaine dernière" → il y a 7 jours
+        * "le 15 novembre" → 2025-11-15 (année en cours)
+        * "en octobre" → 2025-10-01 (premier jour du mois mentionné)
+        Si aucune date n'est mentionnée, n'inclus PAS le champ "date" (la date actuelle sera utilisée).
       - 💡 ASTUCE : Si l'utilisateur crée une transaction de recette qui doit être comptée comme CA, 
         assure-toi que la description contient un des mots-clés configurés (ex: "Paiement STRIPE - Facture #123").
 
       MODIFICATION DE TRANSACTIONS :
       - Tu PEUX modifier des transactions existantes si l'utilisateur le demande (ex: "Change le montant de la transaction Uber du 15 novembre à -50€").
       - ⚠️ CRITIQUE : Quand tu modifies une transaction, NE CHANGE JAMAIS SA DATE SAUF SI L'UTILISATEUR LE DEMANDE EXPLICITEMENT.
+      - 🔧 CORRECTION D'ERREURS : Tu PEUX et DOIS corriger les erreurs que tu as pu commettre :
+        * Si tu as ajouté une transaction comme DÉPENSE (EXPENSE) alors que c'était une RECETTE (INCOME), tu DOIS la corriger
+        * Si tu as ajouté une transaction comme RECETTE (INCOME) alors que c'était une DÉPENSE (EXPENSE), tu DOIS la corriger
+        * Si l'utilisateur te signale une erreur (ex: "J'ai dit recette pas dépense"), tu DOIS immédiatement corriger avec updateTransaction en changeant le champ "type"
       - Pour modifier une transaction :
         1. Utilise d'abord getTransactionsByPeriod pour trouver la transaction à modifier (recherche par description, montant, ou période)
         2. Identifie l'ID de la transaction à modifier
-        3. Utilise l'outil updateTransaction avec SEULEMENT les champs à modifier (description, amount, category)
-        4. N'INCLUS PAS le champ "date" sauf si l'utilisateur demande explicitement de changer la date
-      - Exemple : Si l'utilisateur dit "Change le montant de la dépense Uber de novembre à -50€", tu dois :
-        * Trouver la transaction Uber de novembre
-        * Modifier SEULEMENT le montant (amount: -50)
-        * NE PAS modifier la date pour que la transaction reste dans le mois de novembre
+        3. Utilise l'outil updateTransaction avec SEULEMENT les champs à modifier (description, amount, category, type)
+        4. Pour corriger le type (INCOME/EXPENSE), utilise le champ "type" : "INCOME" pour recette, "EXPENSE" pour dépense
+        5. N'INCLUS PAS le champ "date" sauf si l'utilisateur demande explicitement de changer la date
+      - Exemples :
+        * Si l'utilisateur dit "Change le montant de la dépense Uber de novembre à -50€" :
+          → Trouver la transaction Uber de novembre
+          → Modifier SEULEMENT le montant (amount: -50)
+          → NE PAS modifier la date
+        * Si l'utilisateur dit "C'était une recette pas une dépense" ou "J'ai dit recette" :
+          → Trouver la transaction récemment ajoutée
+          → Modifier SEULEMENT le type (type: "INCOME")
+          → NE PAS modifier la date
+        * Si l'utilisateur dit "Corrige, c'était une dépense" :
+          → Trouver la transaction récemment ajoutée
+          → Modifier SEULEMENT le type (type: "EXPENSE")
+          → NE PAS modifier la date
 
       CRÉATION DE FACTURES :
       - Tu PEUX créer des factures si l'utilisateur le demande (ex: "Facture Martin 500€ pour du coaching").
@@ -207,7 +237,7 @@ export async function POST(req: Request) {
       tools: {
         getStats: tool({
           description:
-            "Donne le CA (income), les dépenses (expense) et le résultat net du mois en cours. IMPORTANT : Le CA est filtré selon les mots-clés définis dans les paramètres (ex: STRIPE, VRST). Seules les transactions INCOME contenant ces mots-clés sont comptées comme CA.",
+            "Donne le CA (income), les dépenses (expense), le résultat net, et les données du Radar à Taxes (taxAmount, netAvailable, taxRate) du mois en cours. IMPORTANT : Le CA est filtré selon les mots-clés définis dans les paramètres (ex: STRIPE, VRST). Seules les transactions INCOME contenant ces mots-clés sont comptées comme CA. Le Radar à Taxes calcule automatiquement les provisions pour les taxes (URSSAF/Impôts) selon le taux configuré.",
           inputSchema: z.object({}),
           execute: async () => {
             console.log("🛠️ Outil 'getStats' en cours...");
@@ -291,8 +321,13 @@ export async function POST(req: Request) {
 
               const net = revenue - expense;
 
+              // Calcul des taxes et de la trésorerie réelle disponible (Radar à Taxes)
+              const taxRate = company.taxRate ?? 22.0; // Par défaut 22%
+              const taxAmount = (revenue * taxRate) / 100;
+              const netAvailable = revenue - taxAmount;
+
               console.log(
-                `💰 Succès : CA=${revenue} (filtré: ${revenueKeywords.length > 0 ? "OUI" : "NON"}) | Dépenses=${expense} | Net=${net}`
+                `💰 Succès : CA=${revenue} (filtré: ${revenueKeywords.length > 0 ? "OUI" : "NON"}) | Dépenses=${expense} | Net=${net} | Taxes=${taxAmount} (${taxRate}%) | Disponible=${netAvailable}`
               );
 
               // On retourne le résultat
@@ -300,6 +335,9 @@ export async function POST(req: Request) {
                 revenue,
                 expense,
                 net,
+                taxAmount, // Montant des taxes estimées
+                netAvailable, // Trésorerie réelle disponible après provisions taxes
+                taxRate, // Taux de taxes configuré
                 revenueFiltered: revenueKeywords.length > 0,
                 revenueKeywords: revenueKeywords.length > 0 ? revenueKeywords : null,
               };
@@ -702,7 +740,7 @@ export async function POST(req: Request) {
 
         addTransaction: tool({
           description:
-            "Ajoute une transaction (recette ou dépense) dans la base de données. Utilise cet outil quand l'utilisateur demande d'ajouter une transaction.",
+            "Ajoute une transaction (recette ou dépense) dans la base de données. Utilise cet outil quand l'utilisateur demande d'ajouter une transaction. IMPORTANT : Si l'utilisateur mentionne une date spécifique (ex: 'le mois dernier', 'le 15 novembre', 'hier'), tu DOIS utiliser le champ 'date' pour enregistrer la transaction à la bonne date.",
           inputSchema: z.object({
             amount: z
               .number()
@@ -733,13 +771,20 @@ export async function POST(req: Request) {
               .describe(
                 "Catégorie de la transaction (inférée si non précisée). Options: TRANSPORT, REPAS, MATERIEL, PRESTATION, IMPOTS, SALAIRES, AUTRE"
               ),
+            date: z
+              .string()
+              .regex(/^\d{4}-\d{2}-\d{2}$/)
+              .optional()
+              .describe(
+                "Date de la transaction au format YYYY-MM-DD. INCLUS ce champ si l'utilisateur mentionne une date spécifique (ex: 'le mois dernier', 'le 15 novembre', 'hier', 'la semaine dernière'). Si non fourni, la date actuelle sera utilisée."
+              ),
           }),
-          execute: async ({ amount, type, description, category }) => {
+          execute: async ({ amount, type, description, category, date }) => {
             console.log("🛠️ Outil 'addTransaction' en cours...");
             console.log(
               `📝 Paramètres: amount=${amount}, type=${type}, description=${description}, category=${
                 category || "AUTO"
-              }`
+              }, date=${date || "Aujourd'hui (par défaut)"}`
             );
 
             try {
@@ -823,6 +868,20 @@ export async function POST(req: Request) {
                 console.log(`🔍 Catégorie inférée : ${finalCategory}`);
               }
 
+              // Préparation de la date : utiliser la date fournie ou la date actuelle
+              let transactionDate: Date;
+              if (date) {
+                // Parser la date fournie (format YYYY-MM-DD)
+                transactionDate = new Date(date + "T00:00:00.000Z");
+                if (isNaN(transactionDate.getTime())) {
+                  throw new Error("Date invalide. Format attendu: YYYY-MM-DD");
+                }
+                console.log(`📅 Date spécifiée utilisée: ${date}`);
+              } else {
+                transactionDate = new Date();
+                console.log("📅 Date actuelle utilisée (par défaut)");
+              }
+
               // Création de la transaction
               const transaction = await prisma.transaction.create({
                 data: {
@@ -832,7 +891,7 @@ export async function POST(req: Request) {
                   category: finalCategory,
                   status: "COMPLETED",
                   companyId,
-                  date: new Date(), // Date actuelle par défaut
+                  date: transactionDate,
                 },
               });
 
@@ -847,12 +906,21 @@ export async function POST(req: Request) {
               
               console.log("🔄 Cache revalidé pour / et /transactions");
 
+              // Formatage de la date pour le message
+              const dateMessage = date
+                ? ` enregistrée pour le ${new Date(transactionDate).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}`
+                : " (date d'aujourd'hui)";
+
               return {
                 success: true,
                 transactionId: transaction.id,
                 message: `Transaction ${
                   type === "INCOME" ? "de recette" : "de dépense"
-                } de ${amount}€ ajoutée avec succès. Rechargez la page pour voir la mise à jour du Dashboard.`,
+                } de ${amount}€ ajoutée avec succès${dateMessage}. Rechargez la page pour voir la mise à jour du Dashboard.`,
               };
             } catch (err) {
               console.error("❌ ERREUR dans addTransaction execute :", err);
@@ -871,7 +939,7 @@ export async function POST(req: Request) {
 
         updateTransaction: tool({
           description:
-            "Modifie une transaction existante. Utilise cet outil quand l'utilisateur demande de modifier une transaction (montant, description, catégorie). IMPORTANT : Ne modifie JAMAIS la date sauf si l'utilisateur le demande explicitement. Pour trouver l'ID d'une transaction, utilise d'abord getTransactionsByPeriod.",
+            "Modifie une transaction existante. Utilise cet outil quand l'utilisateur demande de modifier une transaction (montant, description, catégorie, type INCOME/EXPENSE). IMPORTANT : Tu PEUX corriger les erreurs de type (ex: changer une dépense en recette ou vice versa). Ne modifie JAMAIS la date sauf si l'utilisateur le demande explicitement. Pour trouver l'ID d'une transaction, utilise d'abord getTransactionsByPeriod.",
           inputSchema: z.object({
             transactionId: z
               .string()
@@ -909,6 +977,12 @@ export async function POST(req: Request) {
               .describe(
                 "Nouvelle catégorie. Ne pas inclure si la catégorie ne doit pas être modifiée."
               ),
+            type: z
+              .enum(["INCOME", "EXPENSE"])
+              .optional()
+              .describe(
+                "Type de transaction : INCOME (recette) ou EXPENSE (dépense). Utilise ce champ pour CORRIGER les erreurs (ex: si tu as ajouté une dépense au lieu d'une recette, ou vice versa). Ne pas inclure si le type ne doit pas être modifié."
+              ),
             date: z
               .string()
               .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -922,6 +996,7 @@ export async function POST(req: Request) {
             amount,
             description,
             category,
+            type,
             date,
           }) => {
             console.log("🛠️ Outil 'updateTransaction' en cours...");
@@ -930,7 +1005,7 @@ export async function POST(req: Request) {
                 amount !== undefined ? amount : "N/A"
               }, description=${description || "N/A"}, category=${
                 category || "N/A"
-              }, date=${date || "N/A (non modifiée)"}`
+              }, type=${type || "N/A"}, date=${date || "N/A (non modifiée)"}`
             );
 
             try {
@@ -939,6 +1014,7 @@ export async function POST(req: Request) {
                 amount?: number;
                 description?: string;
                 category?: TransactionCategory;
+                type?: TransactionType;
                 date?: string;
               } = {};
 
@@ -952,6 +1028,13 @@ export async function POST(req: Request) {
 
               if (category !== undefined) {
                 updateData.category = category as TransactionCategory;
+              }
+
+              if (type !== undefined) {
+                updateData.type = type as TransactionType;
+                console.log(
+                  `🔄 Type de transaction modifié: ${type}`
+                );
               }
 
               // ⚠️ CRITIQUE : Ne modifier la date QUE si elle est explicitement fournie
