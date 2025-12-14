@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "20mb", // Limite pour les uploads (images et PDFs)
     },
   },
+  // Configuration Turbopack vide pour permettre l'utilisation de webpack par next-pwa
+  // next-pwa utilise webpack, donc on doit permettre les deux systèmes
+  turbopack: {},
   // Note: pdf-parse est utilisé uniquement dans les Server Actions (côté serveur)
   // Pas besoin de configuration webpack/turbopack spéciale
 };
