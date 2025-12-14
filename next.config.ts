@@ -1,3 +1,4 @@
+import withPWA from "@ducanh2912/next-pwa";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -12,4 +13,11 @@ const nextConfig: NextConfig = {
   // Pas besoin de configuration webpack/turbopack spéciale
 };
 
-export default nextConfig;
+const pwaConfig = withPWA({
+  dest: "public",
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  disable: process.env.NODE_ENV === "development", // Désactivé en développement
+});
+
+export default pwaConfig(nextConfig);
