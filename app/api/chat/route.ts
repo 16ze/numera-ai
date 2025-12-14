@@ -1,6 +1,11 @@
 import { updateInvoiceStatus } from "@/app/(dashboard)/actions/invoices";
 import { updateTransaction } from "@/app/(dashboard)/actions/transactions-management";
 import { sendInvoiceEmail } from "@/app/actions/send-invoice-email";
+import {
+  getOverdueInvoices,
+  generateReminderEmail,
+  sendReminderEmail,
+} from "@/app/actions/reminders";
 import { prisma } from "@/app/lib/prisma";
 import { openai } from "@ai-sdk/openai";
 import { currentUser } from "@clerk/nextjs/server";
@@ -130,6 +135,12 @@ export async function POST(req: Request) {
          - L'outil retourne les détails complets : numéro, date, nom client, produits/services, montant total, statut
          - Présente les résultats de manière claire et organisée
 
+      6. Si l'utilisateur demande quelles FACTURES SONT EN RETARD ou veut RELANCER des factures -> Appelle d'abord getOverdueInvoices pour voir les factures en retard.
+         - Si l'utilisateur veut relancer une facture spécifique :
+           1. Utilise generateReminderEmail pour générer l'email de relance (l'IA adapte le ton selon le retard)
+           2. Utilise sendReminderEmail pour envoyer la relance
+         - Si l'utilisateur demande "relance toutes les factures en retard", liste-les d'abord puis demande confirmation avant d'envoyer.
+
       6. ATTENDS le résultat de l'outil.
 
       7. IMPORTANT : Une fois le résultat reçu, TU DOIS RÉDIGER une phrase de réponse PRÉCISE.
@@ -242,6 +253,16 @@ export async function POST(req: Request) {
         * Montant total TTC
         * Statut de la facture
       - Présente les résultats de manière claire, en listant chaque facture trouvée avec ses détails.
+
+      RELANCE DE FACTURES EN RETARD (Le Bad Cop) :
+      - Tu PEUX gérer les relances de factures en retard si l'utilisateur le demande.
+      - Pour vérifier les factures en retard : utilise getOverdueInvoices.
+      - Pour relancer une facture :
+        1. Utilise generateReminderEmail pour générer l'email (l'IA adapte le ton : courtois < 15 jours, ferme >= 15 jours)
+        2. Utilise sendReminderEmail pour envoyer la relance
+      - Si l'utilisateur demande "quelles factures sont en retard" ou "relance les factures", commence par getOverdueInvoices.
+      - IMPORTANT : Le client doit avoir une adresse email configurée pour pouvoir recevoir la relance.
+      - Présente clairement les factures en retard avec : client, montant, jours de retard.
 
       Devise : Euros (€).`,
 
@@ -1438,6 +1459,128 @@ export async function POST(req: Request) {
                 err instanceof Error
                   ? err.message
                   : "Erreur lors de la validation de la facture"
+              );
+            }
+          },
+        }),
+
+        getOverdueInvoices: tool({
+          description:
+            "Récupère la liste des factures en retard (non payées et dont la date d'échéance est passée). Utilise cet outil quand l'utilisateur demande quelles factures sont en retard, ou pour vérifier s'il y a des relances à faire.",
+          inputSchema: z.object({}),
+          execute: async () => {
+            console.log("🛠️ Outil 'getOverdueInvoices' en cours...");
+
+            try {
+              const invoices = await getOverdueInvoices();
+
+              console.log(
+                `✅ ${invoices.length} facture(s) en retard trouvée(s)`
+              );
+
+              return {
+                count: invoices.length,
+                invoices: invoices.map((inv) => ({
+                  id: inv.id,
+                  number: inv.number,
+                  clientName: inv.clientName,
+                  clientEmail: inv.clientEmail,
+                  totalAmount: inv.totalAmount,
+                  dueDate: inv.dueDate.toISOString().split("T")[0],
+                  daysOverdue: inv.daysOverdue,
+                })),
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans getOverdueInvoices:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la récupération des factures en retard"
+              );
+            }
+          },
+        }),
+
+        generateReminderEmail: tool({
+          description:
+            "Génère un email de relance pour une facture en retard en utilisant l'IA. Le ton est adaptatif : courtois si retard < 15 jours, ferme si retard >= 15 jours. Utilise cet outil quand l'utilisateur demande de relancer une facture ou de générer un email de relance.",
+          inputSchema: z.object({
+            invoiceId: z
+              .string()
+              .describe(
+                "ID de la facture à relancer (obtenu via getOverdueInvoices ou searchInvoices)"
+              ),
+          }),
+          execute: async ({ invoiceId }) => {
+            console.log("🛠️ Outil 'generateReminderEmail' en cours...");
+            console.log(`📧 Génération email pour facture ${invoiceId}`);
+
+            try {
+              const emailData = await generateReminderEmail(invoiceId);
+
+              console.log(
+                `✅ Email généré : "${emailData.subject}" (${emailData.body.length} caractères)`
+              );
+
+              return {
+                success: true,
+                invoiceId,
+                subject: emailData.subject,
+                body: emailData.body,
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans generateReminderEmail:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la génération de l'email de relance"
+              );
+            }
+          },
+        }),
+
+        sendReminderEmail: tool({
+          description:
+            "Envoie un email de relance à un client pour une facture en retard. Utilise cet outil après avoir généré l'email (generateReminderEmail) ou si l'utilisateur demande d'envoyer directement une relance. IMPORTANT : Le client doit avoir une adresse email configurée.",
+          inputSchema: z.object({
+            invoiceId: z
+              .string()
+              .describe(
+                "ID de la facture à relancer (obtenu via getOverdueInvoices ou searchInvoices)"
+              ),
+            subject: z.string().describe("Sujet de l'email de relance"),
+            body: z
+              .string()
+              .describe("Corps de l'email de relance (peut être HTML ou texte)"),
+          }),
+          execute: async ({ invoiceId, subject, body }) => {
+            console.log("🛠️ Outil 'sendReminderEmail' en cours...");
+            console.log(
+              `📧 Envoi relance facture ${invoiceId} : "${subject}"`
+            );
+
+            try {
+              const result = await sendReminderEmail(invoiceId, subject, body);
+
+              console.log(
+                `✅ Email de relance envoyé (messageId: ${result.messageId})`
+              );
+
+              // Revalidation du cache pour mettre à jour le dashboard
+              revalidatePath("/");
+
+              return {
+                success: true,
+                invoiceId,
+                messageId: result.messageId,
+                message: "Email de relance envoyé avec succès",
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans sendReminderEmail:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de l'envoi de l'email de relance"
               );
             }
           },

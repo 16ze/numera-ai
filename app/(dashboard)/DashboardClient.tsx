@@ -9,6 +9,8 @@ import { useEffect, useState } from "react";
 import { AdvisorCard } from "@/components/dashboard/AdvisorCard";
 import { InteractiveCards } from "@/components/dashboard/InteractiveCards";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
+import { TaxRadarCard } from "@/components/dashboard/TaxRadarCard";
+import { OverdueAlerts } from "@/components/dashboard/OverdueAlerts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -148,6 +150,9 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       {/* Carte Conseil du CFO */}
       <AdvisorCard />
 
+      {/* Alertes Factures en Retard - Le Bad Cop */}
+      <OverdueAlerts />
+
       {/* Cartes Interactives avec Dialog et graphiques */}
       <InteractiveCards
         totalRevenue={data.totalRevenue}
@@ -156,6 +161,15 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         annualRevenue={data.annualRevenue}
         historyData={data.historyData}
       />
+
+      {/* Carte Radar à Taxes - Trésorerie Réelle */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+        <TaxRadarCard
+          netAvailable={data.netAvailable}
+          taxAmount={data.taxAmount}
+          taxRate={data.taxRate}
+        />
+      </div>
 
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
         {/* 2. GRAPHIQUE - Responsive */}
