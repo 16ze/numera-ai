@@ -5,7 +5,7 @@
 
 import { getTransactions } from "../actions/transactions";
 import Link from "next/link";
-import { Receipt, Plus } from "lucide-react";
+import { Receipt, Plus, FileText } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -69,12 +69,20 @@ export default async function TransactionsPage() {
             Gérez toutes vos transactions (recettes et dépenses)
           </p>
         </div>
-        <Link href="/transactions/scan">
-          <Button>
-            <Receipt className="mr-2 h-4 w-4" />
-            Scanner un reçu
-          </Button>
-        </Link>
+        <div className="flex gap-3">
+          <Link href="/transactions/scan">
+            <Button variant="outline">
+              <Receipt className="mr-2 h-4 w-4" />
+              Scanner un reçu
+            </Button>
+          </Link>
+          <Link href="/transactions/import-pdf">
+            <Button>
+              <FileText className="mr-2 h-4 w-4" />
+              Importer un PDF
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Tableau des transactions */}
