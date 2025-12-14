@@ -130,6 +130,7 @@ export async function POST(req: Request) {
            * "Pour le mois de décembre 2025, votre CA est de 4000€"
            * "Vos dépenses du 1er au 31 août 2025 s'élèvent à 11.40€"
            * "Voici vos transactions d'octobre 2024 : [liste avec dates]"
+         - Si tu as ajouté ou modifié une transaction, rappelle à l'utilisateur de recharger la page pour voir les changements sur le Dashboard
          NE T'ARRÊTE JAMAIS APRÈS L'EXÉCUTION DE L'OUTIL. PARLE À L'UTILISATEUR AVEC PRÉCISION.
 
       CALCUL DES DATES - RÈGLES STRICTES :
@@ -840,14 +841,18 @@ export async function POST(req: Request) {
               );
 
               // IMPORTANT : Revalidation du cache pour mettre à jour le dashboard instantanément
-              revalidatePath("/");
+              // On revalide tous les chemins concernés pour forcer la mise à jour
+              revalidatePath("/"); // Dashboard principal
+              revalidatePath("/transactions"); // Page transactions
+              
+              console.log("🔄 Cache revalidé pour / et /transactions");
 
               return {
                 success: true,
                 transactionId: transaction.id,
                 message: `Transaction ${
                   type === "INCOME" ? "de recette" : "de dépense"
-                } de ${amount}€ ajoutée avec succès`,
+                } de ${amount}€ ajoutée avec succès. Rechargez la page pour voir la mise à jour du Dashboard.`,
               };
             } catch (err) {
               console.error("❌ ERREUR dans addTransaction execute :", err);
