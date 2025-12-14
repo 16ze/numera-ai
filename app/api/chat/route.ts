@@ -86,6 +86,13 @@ export async function POST(req: Request) {
 
       1. Si l'utilisateur demande des chiffres du mois EN COURS -> Appelle l'outil getStats.
          IMPORTANT : Dans ta réponse, précise TOUJOURS la période exacte (ex: "Pour le mois de décembre 2025...")
+         ⚠️ ATTENTION : Le CA retourné par getStats est FILTRÉ selon les mots-clés définis dans les paramètres.
+         Si des mots-clés sont configurés (ex: STRIPE, VRST), seules les transactions INCOME contenant ces mots-clés sont comptées comme CA.
+         L'outil retourne aussi 'revenueFiltered' et 'revenueKeywords' pour t'informer du filtrage actif.
+
+      1b. Si l'utilisateur demande le CA ANNUEL (du 1er janvier à aujourd'hui) -> Appelle l'outil getAnnualRevenue.
+         Cet outil retourne le CA annuel filtré selon les mêmes mots-clés que le CA mensuel.
+         Mentionne toujours la période (du 1er janvier [année] à aujourd'hui) dans ta réponse.
 
       2. Si l'utilisateur demande des informations sur une PÉRIODE SPÉCIFIQUE (un mois particulier, une date, une période) :
          - IDENTIFIE PRÉCISÉMENT la période demandée (mois, année, dates exactes)
@@ -139,6 +146,15 @@ export async function POST(req: Request) {
       - Si tu donnes des totaux, préciser pour quelle période
       - Être explicite sur les dates pour éviter toute confusion
 
+      CALCUL DU CHIFFRE D'AFFAIRES - FILTRAGE PAR MOTS-CLÉS :
+      - ⚠️ IMPORTANT : Le CA (Chiffre d'Affaires) n'est PAS la somme de toutes les transactions INCOME.
+      - L'entreprise peut définir des mots-clés (ex: STRIPE, VRST, VIR) dans les paramètres pour filtrer le vrai CA.
+      - Seules les transactions INCOME dont la description contient un de ces mots-clés sont comptées comme CA.
+      - Cela permet d'exclure les apports personnels, remboursements, etc. du calcul du CA.
+      - Les outils getStats et getAnnualRevenue appliquent automatiquement ce filtrage.
+      - Si aucun mot-clé n'est défini, toutes les transactions INCOME sont comptées (comportement par défaut).
+      - Dans tes réponses, mentionne si le CA est filtré et quels mots-clés sont utilisés.
+
       CRÉATION DE TRANSACTIONS :
       - Tu PEUX créer des transactions si l'utilisateur le demande (ex: "Ajoute une dépense de 50€ pour un Uber").
       - INFÈRE la catégorie si elle n'est pas précisée :
@@ -151,6 +167,8 @@ export async function POST(req: Request) {
         * Sinon -> AUTRE
       - Le montant doit être positif (toujours en euros).
       - La description doit être claire et concise.
+      - 💡 ASTUCE : Si l'utilisateur crée une transaction de recette qui doit être comptée comme CA, 
+        assure-toi que la description contient un des mots-clés configurés (ex: "Paiement STRIPE - Facture #123").
 
       MODIFICATION DE TRANSACTIONS :
       - Tu PEUX modifier des transactions existantes si l'utilisateur le demande (ex: "Change le montant de la transaction Uber du 15 novembre à -50€").
@@ -188,7 +206,7 @@ export async function POST(req: Request) {
       tools: {
         getStats: tool({
           description:
-            "Donne le CA (income), les dépenses (expense) et le résultat net du mois en cours.",
+            "Donne le CA (income), les dépenses (expense) et le résultat net du mois en cours. IMPORTANT : Le CA est filtré selon les mots-clés définis dans les paramètres (ex: STRIPE, VRST). Seules les transactions INCOME contenant ces mots-clés sont comptées comme CA.",
           inputSchema: z.object({}),
           execute: async () => {
             console.log("🛠️ Outil 'getStats' en cours...");
@@ -212,8 +230,24 @@ export async function POST(req: Request) {
                 return { revenue: 0, expense: 0, net: 0 };
               }
 
-              const companyId = user.companies[0].id;
+              const company = user.companies[0];
+              const companyId = company.id;
               console.log(`✅ Company trouvée : ${companyId}`);
+
+              // Récupération des mots-clés de revenus pour filtrer le CA
+              const revenueKeywords = company.revenueKeywords
+                ? company.revenueKeywords.split(",").map((k) => k.trim().toUpperCase())
+                : [];
+
+              if (revenueKeywords.length > 0) {
+                console.log(
+                  `🔍 Filtrage CA activé avec mots-clés : ${revenueKeywords.join(", ")}`
+                );
+              } else {
+                console.log(
+                  "ℹ️ Aucun filtre CA défini, toutes les transactions INCOME sont comptées"
+                );
+              }
 
               const now = new Date();
               const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -232,9 +266,23 @@ export async function POST(req: Request) {
 
               console.log(`📊 ${transactions.length} transactions trouvées.`);
 
-              const revenue = transactions
-                .filter((t) => t.type === "INCOME")
-                .reduce((acc, t) => acc + Number(t.amount), 0);
+              // Filtrage du CA selon les revenueKeywords si définis
+              const revenueTransactions =
+                revenueKeywords.length > 0
+                  ? transactions.filter((t) => {
+                      if (t.type !== "INCOME") return false;
+                      if (!t.description) return false;
+                      const descriptionUpper = t.description.toUpperCase();
+                      return revenueKeywords.some((keyword) =>
+                        descriptionUpper.includes(keyword)
+                      );
+                    })
+                  : transactions.filter((t) => t.type === "INCOME");
+
+              const revenue = revenueTransactions.reduce(
+                (acc, t) => acc + Number(t.amount),
+                0
+              );
 
               const expense = transactions
                 .filter((t) => t.type === "EXPENSE")
@@ -243,11 +291,17 @@ export async function POST(req: Request) {
               const net = revenue - expense;
 
               console.log(
-                `💰 Succès : Recettes=${revenue} | Dépenses=${expense} | Net=${net}`
+                `💰 Succès : CA=${revenue} (filtré: ${revenueKeywords.length > 0 ? "OUI" : "NON"}) | Dépenses=${expense} | Net=${net}`
               );
 
               // On retourne le résultat
-              return { revenue, expense, net };
+              return {
+                revenue,
+                expense,
+                net,
+                revenueFiltered: revenueKeywords.length > 0,
+                revenueKeywords: revenueKeywords.length > 0 ? revenueKeywords : null,
+              };
             } catch (err) {
               console.error("❌ CRASH dans execute :", err);
               console.error(
@@ -255,6 +309,108 @@ export async function POST(req: Request) {
                 err instanceof Error ? err.stack : "N/A"
               );
               throw new Error("Erreur technique lors du calcul.");
+            }
+          },
+        }),
+
+        getAnnualRevenue: tool({
+          description:
+            "Donne le Chiffre d'Affaires annuel (du 1er janvier de l'année en cours à aujourd'hui). IMPORTANT : Le CA est filtré selon les mots-clés définis dans les paramètres (ex: STRIPE, VRST). Seules les transactions INCOME contenant ces mots-clés sont comptées comme CA.",
+          inputSchema: z.object({}),
+          execute: async () => {
+            console.log("🛠️ Outil 'getAnnualRevenue' en cours...");
+
+            try {
+              // Recherche de l'utilisateur Prisma via clerkUserId
+              const user = await prisma.user.findUnique({
+                where: { clerkUserId: clerkUser.id },
+                include: {
+                  companies: {
+                    orderBy: { createdAt: "asc" },
+                    take: 1,
+                  },
+                },
+              });
+
+              if (!user || !user.companies || user.companies.length === 0) {
+                console.warn(
+                  "⚠️ Utilisateur ou company non trouvé, retour de zéro"
+                );
+                return { annualRevenue: 0 };
+              }
+
+              const company = user.companies[0];
+              const companyId = company.id;
+              console.log(`✅ Company trouvée : ${companyId}`);
+
+              // Récupération des mots-clés de revenus pour filtrer le CA
+              const revenueKeywords = company.revenueKeywords
+                ? company.revenueKeywords.split(",").map((k) => k.trim().toUpperCase())
+                : [];
+
+              if (revenueKeywords.length > 0) {
+                console.log(
+                  `🔍 Filtrage CA activé avec mots-clés : ${revenueKeywords.join(", ")}`
+                );
+              }
+
+              // Calcul du CA Annuel (du 1er janvier de l'année en cours à aujourd'hui)
+              const now = new Date();
+              const startOfYear = new Date(now.getFullYear(), 0, 1); // 1er janvier
+
+              const allAnnualTransactions = await prisma.transaction.findMany({
+                where: {
+                  companyId,
+                  type: "INCOME",
+                  date: {
+                    gte: startOfYear,
+                    lte: now,
+                  },
+                },
+              });
+
+              // Filtrage selon les revenueKeywords si définis
+              const annualRevenueTransactions =
+                revenueKeywords.length > 0
+                  ? allAnnualTransactions.filter((t) => {
+                      if (!t.description) return false;
+                      const descriptionUpper = t.description.toUpperCase();
+                      return revenueKeywords.some((keyword) =>
+                        descriptionUpper.includes(keyword)
+                      );
+                    })
+                  : allAnnualTransactions;
+
+              const annualRevenue = annualRevenueTransactions.reduce(
+                (sum, t) => sum + Number(t.amount),
+                0
+              );
+
+              console.log(
+                `💰 CA Annuel : ${annualRevenue}€ (filtré: ${revenueKeywords.length > 0 ? "OUI" : "NON"}, ${annualRevenueTransactions.length} transactions)`
+              );
+
+              return {
+                annualRevenue,
+                revenueFiltered: revenueKeywords.length > 0,
+                revenueKeywords: revenueKeywords.length > 0 ? revenueKeywords : null,
+                transactionCount: annualRevenueTransactions.length,
+                period: {
+                  start: startOfYear.toISOString().split("T")[0],
+                  end: now.toISOString().split("T")[0],
+                },
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans getAnnualRevenue execute :", err);
+              console.error(
+                "Stack trace:",
+                err instanceof Error ? err.stack : "N/A"
+              );
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors du calcul du CA annuel"
+              );
             }
           },
         }),
