@@ -21,12 +21,10 @@ import { ArrowLeft } from "lucide-react";
 export default async function InvoicePage({
   params,
 }: {
-  params: Promise<{ invoiceId: string }> | { invoiceId: string };
+  params: Promise<{ invoiceId: string }>;
 }) {
-  // Gérer les params synchrones et asynchrones (Next.js 15+)
-  const resolvedParams =
-    typeof params === "object" && "then" in params ? await params : params;
-
+  // Dans Next.js 16, params est toujours une Promise
+  const resolvedParams = await params;
   const invoiceId = resolvedParams.invoiceId;
 
   if (!invoiceId) {
