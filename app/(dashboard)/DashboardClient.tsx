@@ -52,6 +52,45 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
    * Écoute les changements et rafraîchit automatiquement le Dashboard
    */
   useEffect(() => {
+    // Fonction de rafraîchissement
+    const triggerRefresh = (source: string) => {
+      console.log(`🔄 Rafraîchissement Dashboard déclenché par: ${source}`);
+      refreshData();
+    };
+    
+    // Méthode 1: BroadcastChannel pour communication inter-composants
+    let channel: BroadcastChannel | null = null;
+    const handleBroadcastMessage = (event: MessageEvent) => {
+      if (event.data?.type === "transaction-added" || event.data?.type === "transaction-updated") {
+        triggerRefresh("BroadcastChannel");
+      }
+    };
+    
+    try {
+      channel = new BroadcastChannel("dashboard-updates");
+      channel.addEventListener("message", handleBroadcastMessage);
+    } catch (err) {
+      console.warn("⚠️ BroadcastChannel non disponible:", err);
+    }
+    
+    // Méthode 2: window.postMessage (fallback)
+    const handlePostMessage = (event: MessageEvent) => {
+      // Vérifier que le message vient de notre application (sécurité)
+      if (event.data?.source === "ai-chat" && 
+          (event.data?.type === "transaction-added" || event.data?.type === "transaction-updated")) {
+        triggerRefresh("postMessage");
+      }
+    };
+    window.addEventListener("message", handlePostMessage);
+    
+    // Méthode 3: Événement personnalisé
+    const handleCustomEvent = (event: CustomEvent) => {
+      if (event.detail?.type === "transaction-added" || event.detail?.type === "transaction-updated") {
+        triggerRefresh("CustomEvent");
+      }
+    };
+    window.addEventListener("dashboard-refresh", handleCustomEvent as EventListener);
+
     // Rafraîchir quand la page redevient visible (utilisateur revient sur l'onglet)
     const handleVisibilityChange = () => {
       if (!document.hidden) {
@@ -64,20 +103,31 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       refreshData();
     };
 
-    // Polling toutes les 10 secondes pour vérifier les mises à jour
+    // Polling réduit à 3 secondes pour vérifier les mises à jour plus rapidement
     const interval = setInterval(() => {
       refreshData();
-    }, 10000);
+    }, 3000);
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);
 
     return () => {
+      // Nettoyer BroadcastChannel
+      if (channel) {
+        channel.removeEventListener("message", handleBroadcastMessage);
+        channel.close();
+      }
+      // Nettoyer postMessage
+      window.removeEventListener("message", handlePostMessage);
+      // Nettoyer CustomEvent
+      window.removeEventListener("dashboard-refresh", handleCustomEvent as EventListener);
+      // Nettoyer visibility et focus
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
+      // Nettoyer interval
       clearInterval(interval);
     };
-  }, []);
+  }, [refreshData]);
 
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat("fr-FR", {
