@@ -143,6 +143,6 @@ Pour toute question concernant la sécurité de Numera AI :
 
 ---
 
-*Document généré le : {new Date().toLocaleDateString("fr-FR")}*
+*Document généré le : 2024-12-11*
 *Version : 1.0*
 
