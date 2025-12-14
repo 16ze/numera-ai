@@ -1,6 +1,6 @@
 import { frFR } from "@clerk/localizations";
 import { ClerkProvider } from "@clerk/nextjs";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -18,17 +18,33 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Configuration de l'affichage mobile (Viewport)
+export const viewport: Viewport = {
+  themeColor: "#000000", // Noir pour ton thème
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false, // Empêche le zoom (sensation native)
+};
+
+// Configuration PWA Apple (Metadata)
 export const metadata: Metadata = {
   title: "Numera AI - CFO Virtuel",
   description: "Gérez votre comptabilité et vos finances avec intelligence artificielle",
+  manifest: "/manifest.webmanifest", // Lien vers le manifeste
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent", // La barre du haut transparente/noire
+    title: "Numera AI",
+  },
   icons: {
     icon: [
-      { url: '/favicon.ico' },
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: "/favicon.ico" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
     apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
   },
 };

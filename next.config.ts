@@ -20,7 +20,10 @@ const pwaConfig = withPWA({
   dest: "public",
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
-  disable: process.env.NODE_ENV === "development", // Désactivé en développement
+  // Désactiver en dev pour éviter les bugs de cache pendant que tu codes
+  disable: process.env.NODE_ENV === "development",
+  register: true,
+  skipWaiting: true,
 });
 
 export default pwaConfig(nextConfig);
