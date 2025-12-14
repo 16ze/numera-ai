@@ -27,7 +27,6 @@ interface DashboardClientProps {
 export function DashboardClient({ initialData }: DashboardClientProps) {
   const [data, setData] = useState<DashboardData>(initialData);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const router = useRouter();
 
   /**
    * Rafraîchit les données du Dashboard
