@@ -29,6 +29,10 @@ export type ClientWithStats = {
   // Statistiques agrégées
   totalInvoiced: number; // Total TTC facturé à ce client
   invoiceCount: number; // Nombre de factures pour ce client
+  // Statut des factures pour la couleur du badge
+  hasOverdueInvoices: boolean; // Au moins une facture en retard
+  hasUpcomingDueInvoices: boolean; // Au moins une facture bientôt à l'échéance (7 jours)
+  allInvoicesPaid: boolean; // Toutes les factures sont payées
 };
 
 /**
@@ -81,6 +85,12 @@ export async function getClients(): Promise<ClientWithStats[]> {
           include: {
             rows: true, // Inclure les lignes pour calculer les totaux
           },
+          select: {
+            id: true,
+            status: true,
+            dueDate: true,
+            rows: true, // Pour calculer les totaux
+          },
         },
       },
       orderBy: {
@@ -89,6 +99,11 @@ export async function getClients(): Promise<ClientWithStats[]> {
     });
 
     // 3. Calcul des statistiques pour chaque client
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sevenDaysFromNow = new Date(today);
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+
     const clientsWithStats: ClientWithStats[] = clients.map((client) => {
       // Calcul du total facturé (TTC) : somme de tous les montants TTC des factures
       const totalInvoiced = client.invoices.reduce((total, invoice) => {
@@ -104,6 +119,31 @@ export async function getClients(): Promise<ClientWithStats[]> {
       // Nombre de factures
       const invoiceCount = client.invoices.length;
 
+      // Analyse du statut des factures pour déterminer la couleur du badge
+      let hasOverdueInvoices = false;
+      let hasUpcomingDueInvoices = false;
+      let allInvoicesPaid = true;
+
+      for (const invoice of client.invoices) {
+        if (invoice.status !== "PAID") {
+          allInvoicesPaid = false;
+
+          if (invoice.dueDate) {
+            const dueDate = new Date(invoice.dueDate);
+            dueDate.setHours(0, 0, 0, 0);
+
+            // Facture en retard (dueDate < aujourd'hui)
+            if (dueDate < today) {
+              hasOverdueInvoices = true;
+            }
+            // Facture bientôt à l'échéance (dans les 7 prochains jours)
+            else if (dueDate <= sevenDaysFromNow) {
+              hasUpcomingDueInvoices = true;
+            }
+          }
+        }
+      }
+
       return {
         id: client.id,
         name: client.name,
@@ -116,6 +156,9 @@ export async function getClients(): Promise<ClientWithStats[]> {
         updatedAt: client.updatedAt,
         totalInvoiced: Math.round(totalInvoiced * 100) / 100, // Arrondi à 2 décimales
         invoiceCount,
+        hasOverdueInvoices,
+        hasUpcomingDueInvoices,
+        allInvoicesPaid,
       };
     });
 

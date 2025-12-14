@@ -268,7 +268,17 @@ export function ClientsPageClient({
                   <TableCell className="text-right">
                     {client.invoiceCount > 0 ? (
                       <div className="flex flex-col items-end">
-                        <Badge className="bg-green-500 hover:bg-green-500/80 text-white mb-1">
+                        <Badge
+                          className={`mb-1 text-white ${
+                            client.hasOverdueInvoices
+                              ? "bg-red-500 hover:bg-red-600"
+                              : client.hasUpcomingDueInvoices
+                              ? "bg-orange-500 hover:bg-orange-600"
+                              : client.allInvoicesPaid
+                              ? "bg-green-500 hover:bg-green-600"
+                              : "bg-green-500 hover:bg-green-600"
+                          }`}
+                        >
                           {formatMoney(client.totalInvoiced)}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
@@ -327,6 +337,7 @@ export function ClientsPageClient({
                 id: selectedClient.id,
                 name: selectedClient.name,
                 email: selectedClient.email,
+                phone: selectedClient.phone,
                 address: selectedClient.address,
                 siret: selectedClient.siret,
                 vatIntra: selectedClient.vatIntra,
