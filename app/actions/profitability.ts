@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/app/lib/auth-helper";
 import { prisma } from "@/app/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { openai } from "@ai-sdk/openai";
+import { generateText } from "ai";
 
 /**
  * Résultat du calcul de prix d'un service
@@ -421,8 +422,6 @@ ANALYSE DEMANDÉE :
 Ton : Bienveillant, professionnel, concret. Utilise des exemples chiffrés. Sois encourageant mais réaliste.`;
 
     // Utilisation de l'API OpenAI via le SDK AI
-    const { generateText } = await import("ai");
-    
     const { text: analysis } = await generateText({
       model: openai("gpt-4o"),
       system: "Tu es un expert comptable bienveillant et expérimenté. Tu aides les entrepreneurs à fixer leurs prix de manière réaliste et rentable. Tu donnes des conseils concrets, chiffrés et actionnables.",
