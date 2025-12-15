@@ -122,6 +122,8 @@ model Company {
   clients      Client[]
   invoices     Invoice[]
   transactions Transaction[]
+  costProfile  CostProfile?
+  services     ServiceDefinition[]
 
   @@index([userId])
   @@index([siret])
@@ -303,4 +305,48 @@ model Integration {
   @@index([userId])
   @@index([provider])
   @@map("integrations")
+}
+
+/**
+ * Profil de coûts de l'entreprise
+ * Permet de calculer le coût horaire réel en tenant compte des charges fixes, salaire, vacances, etc.
+ */
+model CostProfile {
+  id                  String   @id @default(uuid())
+  companyId           String   @unique // Une entreprise a un seul profil de coûts
+  monthlyFixedCosts   Float    @default(0) // Total Loyer, Électricité, Assurance, etc. (€/mois)
+  desiredMonthlySalary Float    @default(0) // Salaire net visé (€/mois)
+  socialChargesRate   Float    @default(22.0) // % de charges sociales (ex: 22% auto-entrepreneur, 45% salarié)
+  workingDaysPerMonth Int      @default(20) // Jours travaillés par mois (ex: 20 jours)
+  dailyHours          Int      @default(7) // Heures par jour (ex: 7h)
+  vacationWeeks       Int      @default(5) // Semaines de congés par an (pour calculer le taux horaire réel)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("cost_profiles")
+}
+
+/**
+ * Définition d'un service proposé par l'entreprise
+ * Permet de calculer le prix de vente en fonction du coût horaire et des matériaux
+ */
+model ServiceDefinition {
+  id             String   @id @default(uuid())
+  companyId      String
+  name           String // Nom du service (ex: 'Prestation Standard', 'Coupe + Brushing')
+  durationMinutes Int      // Temps passé en minutes (ex: 60, 90)
+  materialCost   Float    @default(0) // Coût des produits utilisés (shampoing, bois, api...) en €
+  platformFees  Float    @default(0) // % de commission plateforme (ex: Booking 15%, Uber 25%)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("service_definitions")
 }
