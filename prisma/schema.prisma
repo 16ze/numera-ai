@@ -165,6 +165,8 @@ model Invoice {
   status        InvoiceStatus @default(DRAFT)
   paymentTerms  String        @default("30 jours") // Conditions de paiement (ex: "30 jours")
   legalMentions String? // Mentions légales spécifiques (optionnel)
+  paymentLink   String? // URL vers la page de paiement Stripe
+  stripeSessionId String? // ID technique de la session Stripe Checkout
   companyId     String // Entreprise émettrice
   clientId      String // Client destinataire
   createdAt     DateTime      @default(now())
