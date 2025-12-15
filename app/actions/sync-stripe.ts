@@ -94,15 +94,25 @@ export async function syncStripeTransactions(): Promise<SyncResult> {
         }
 
         // Conversion du montant (Stripe est en centimes)
+        // balanceTransactions.amount est toujours positif, on utilise le type pour déterminer
         const amountInEuros = Math.abs(stripeTx.amount) / 100;
 
-        // Détermination du type : si montant > 0 = INCOME, sinon EXPENSE
-        // Dans Stripe, les montants sont positifs pour les entrées, négatifs pour les sorties
-        // Mais balanceTransactions.amount est toujours positif, on utilise net pour déterminer
-        const isIncome = stripeTx.net > 0;
-        const transactionType: TransactionType = isIncome
-          ? TransactionType.INCOME
-          : TransactionType.EXPENSE;
+        // Détermination du type selon le type de transaction Stripe
+        // Les types comme 'charge', 'payment', 'transfer' sont des INCOME
+        // Les types comme 'payout', 'refund', 'adjustment' peuvent être des EXPENSE
+        // Les frais Stripe sont toujours des EXPENSE
+        let transactionType: TransactionType;
+        if (
+          stripeTx.type === "stripe_fee" ||
+          stripeTx.type === "payout" ||
+          stripeTx.type === "refund" ||
+          stripeTx.type === "adjustment"
+        ) {
+          transactionType = TransactionType.EXPENSE;
+        } else {
+          // Par défaut, les autres types (charge, payment, transfer, etc.) sont des INCOME
+          transactionType = TransactionType.INCOME;
+        }
 
         // Détermination de la catégorie
         let category: TransactionCategory = TransactionCategory.AUTRE;
