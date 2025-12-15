@@ -12,6 +12,7 @@ import {
   ListOrdered,
   Settings,
   Users,
+  Calculator,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -40,6 +41,11 @@ const navigationItems = [
     name: "Clients",
     href: "/clients",
     icon: Users,
+  },
+  {
+    name: "Rentabilité",
+    href: "/profitability",
+    icon: Calculator,
   },
   {
     name: "Paramètres",
