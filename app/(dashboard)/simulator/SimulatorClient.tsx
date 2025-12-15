@@ -151,7 +151,13 @@ export function SimulatorClient({
    * Calcul de la rentabilité
    */
   const handleCalculate = async () => {
-    if (!selectedRecipeId || !recipeName.trim()) {
+    // Si pas de recette sauvegardée, on ne peut pas calculer
+    if (!selectedRecipeId) {
+      setCalculation(null);
+      return;
+    }
+
+    if (!recipeName.trim()) {
       return;
     }
 
@@ -169,6 +175,7 @@ export function SimulatorClient({
           ? error.message
           : "Erreur lors du calcul"
       );
+      setCalculation(null);
     } finally {
       setIsCalculating(false);
     }
@@ -224,6 +231,7 @@ export function SimulatorClient({
       });
       toast.success("✅ Recette sauvegardée");
       setSelectedRecipeId(result.serviceRecipeId);
+      // Le calcul se déclenchera automatiquement via useEffect
     } catch (error) {
       console.error("Erreur sauvegarde recette:", error);
       toast.error(
