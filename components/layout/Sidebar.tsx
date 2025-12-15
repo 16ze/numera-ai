@@ -13,6 +13,7 @@ import {
   Settings,
   Users,
   Calculator,
+  Beaker,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,6 +47,11 @@ const navigationItems = [
     name: "Rentabilité",
     href: "/profitability",
     icon: Calculator,
+  },
+  {
+    name: "Simulateur",
+    href: "/simulator",
+    icon: Beaker,
   },
   {
     name: "Paramètres",
