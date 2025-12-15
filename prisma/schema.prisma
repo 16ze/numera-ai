@@ -58,6 +58,14 @@ enum TransactionStatus {
   COMPLETED // Complétée
 }
 
+/**
+ * Provider d'intégration externe
+ */
+enum IntegrationProvider {
+  STRIPE // Stripe
+  PAYPAL // PayPal
+}
+
 // ============================================
 // MODELS
 // ============================================
@@ -80,6 +88,7 @@ model User {
   companies        Company[]
   assistantThreads AssistantThread[]
   bankAccounts     BankAccount[] // Comptes bancaires connectés via Plaid
+  integrations     Integration[] // Intégrations externes (Stripe, PayPal, etc.)
 
   @@index([email])
   @@index([clerkUserId]) // Index pour recherche rapide par Clerk ID
@@ -209,6 +218,7 @@ model Transaction {
   category    TransactionCategory // Catégorie comptable
   status      TransactionStatus   @default(PENDING)
   receiptUrl  String? // URL de la photo du ticket (pour OCR futur)
+  stripeId    String? @unique // ID de la transaction Stripe (pour dédoublonner)
   companyId   String // Entreprise propriétaire
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
@@ -221,6 +231,7 @@ model Transaction {
   @@index([type])
   @@index([category])
   @@index([status])
+  @@index([stripeId])
   @@map("transactions")
 }
 
@@ -267,4 +278,27 @@ model BankAccount {
   @@index([userId])
   @@index([itemId])
   @@map("bank_accounts")
+}
+
+/**
+ * Intégration avec des services externes (Stripe, PayPal, etc.)
+ * Permet la synchronisation automatique des transactions
+ */
+model Integration {
+  id          String              @id @default(uuid())
+  userId      String // Utilisateur propriétaire
+  provider    IntegrationProvider // STRIPE, PAYPAL, etc.
+  apiKey      String // Clé API (à chiffrer en production)
+  accountId   String? // ID du compte externe (ex: account ID Stripe)
+  lastSyncedAt DateTime? // Dernière synchronisation
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider]) // Un seul compte par provider par utilisateur
+  @@index([userId])
+  @@index([provider])
+  @@map("integrations")
 }

@@ -17,6 +17,7 @@ import {
   Building2,
   ChevronRight,
   FileDown,
+  Link as LinkIcon,
   Receipt,
   Settings,
   TrendingUp,
@@ -189,6 +190,28 @@ export default async function SettingsPage() {
                   </h3>
                   <p className="text-sm text-slate-600 mt-1">
                     Configurez le taux de taxes pour estimer vos charges
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-slate-400" />
+              </div>
+            </CardContent>
+          </Link>
+        </Card>
+
+        {/* Carte Intégrations */}
+        <Card className="hover:border-indigo-300 transition-colors cursor-pointer">
+          <Link href="/settings/integrations" className="block">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-indigo-100">
+                  <LinkIcon className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-slate-900">
+                    Intégrations
+                  </h3>
+                  <p className="text-sm text-slate-600 mt-1">
+                    Connectez Stripe pour importer vos transactions automatiquement
                   </p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-slate-400" />
