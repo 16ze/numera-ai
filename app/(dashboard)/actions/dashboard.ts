@@ -341,7 +341,20 @@ export async function getDashboardData(): Promise<DashboardData> {
     }
 
     // Récupération des prévisions de trésorerie
-    const cashFlowForecast = await getCashFlowForecast();
+    // Récupération des prévisions de trésorerie (avec gestion d'erreur pour éviter de casser le dashboard)
+    let cashFlowForecast: CashFlowForecast;
+    try {
+      cashFlowForecast = await getCashFlowForecast();
+    } catch (forecastError) {
+      console.error("Erreur lors de la récupération des prévisions:", forecastError);
+      // On retourne des données vides pour les prévisions plutôt que de faire échouer tout le dashboard
+      cashFlowForecast = {
+        forecastData: [],
+        currentBalance: 0,
+        burnRate: 0,
+        hasEnoughData: false,
+      };
+    }
 
     return {
       totalRevenue,
@@ -361,7 +374,25 @@ export async function getDashboardData(): Promise<DashboardData> {
       "Erreur lors de la récupération des données du dashboard:",
       error
     );
-    throw error;
+    // Au lieu de throw, on retourne des données par défaut pour éviter le 500
+    return {
+      totalRevenue: 0,
+      totalExpenses: 0,
+      netIncome: 0,
+      annualRevenue: 0,
+      taxAmount: 0,
+      netAvailable: 0,
+      taxRate: 22.0,
+      recentTransactions: [],
+      chartData: [],
+      historyData: [],
+      cashFlowForecast: {
+        forecastData: [],
+        currentBalance: 0,
+        burnRate: 0,
+        hasEnoughData: false,
+      },
+    };
   }
   // Note: On ne déconnecte pas Prisma Client en Next.js car il est réutilisé entre les requêtes
 }
