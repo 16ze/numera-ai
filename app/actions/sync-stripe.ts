@@ -99,6 +99,11 @@ export async function syncStripeTransactions(): Promise<SyncResult> {
 
     console.log(`📊 Total: ${allTransactions.length} transactions Stripe récupérées`);
 
+    // Variables pour le traitement
+    let syncedCount = 0;
+    let skippedCount = 0;
+    const errors: string[] = [];
+
     // Si aucune balance transaction, essayer de récupérer les charges directement
     if (allTransactions.length === 0) {
       console.warn("⚠️ Aucune balance transaction trouvée. Tentative de récupération via charges...");
@@ -166,11 +171,7 @@ export async function syncStripeTransactions(): Promise<SyncResult> {
       }
     }
 
-    // 5. Traitement de chaque transaction
-    let syncedCount = 0;
-    let skippedCount = 0;
-    const errors: string[] = [];
-
+    // 5. Traitement de chaque balanceTransaction récupérée
     for (const stripeTx of allTransactions) {
       try {
         // Vérification si la transaction existe déjà (dédoublonner via stripe_id)
