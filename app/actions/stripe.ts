@@ -36,24 +36,47 @@ export async function syncStripeData() {
     });
 
     // 3. Récupérer les transactions (Balance Transactions)
-    // On demande les 10 dernières pour tester
-    console.log("📡 Appel à l'API Stripe...");
-    const balanceTransactions = await stripe.balanceTransactions.list({
-      limit: 10,
-    });
+    // On récupère jusqu'à 100 transactions pour avoir toutes les données
+    console.log("📡 Appel à l'API Stripe balanceTransactions.list()...");
+    
+    let allTransactions: Stripe.BalanceTransaction[] = [];
+    let hasMore = true;
+    let startingAfter: string | undefined = undefined;
 
-    console.log(`📦 Stripe a renvoyé ${balanceTransactions.data.length} transactions.`);
+    // Pagination pour récupérer toutes les transactions
+    while (hasMore && allTransactions.length < 100) {
+      const response = await stripe.balanceTransactions.list({
+        limit: 100,
+        starting_after: startingAfter,
+      });
 
-    if (balanceTransactions.data.length === 0) {
-        console.warn("⚠️ Aucune transaction trouvée chez Stripe. Vérifiez si le paiement est bien 'capturé' et dispo dans le solde.");
-        return { success: true, count: 0 };
+      allTransactions = [...allTransactions, ...response.data];
+      hasMore = response.has_more;
+      
+      if (response.data.length > 0) {
+        startingAfter = response.data[response.data.length - 1].id;
+      }
+
+      console.log(`📦 Récupéré ${allTransactions.length} transactions (hasMore: ${hasMore})`);
+    }
+
+    console.log(`📦 Total: ${allTransactions.length} transactions Stripe récupérées`);
+
+    if (allTransactions.length === 0) {
+        console.warn("⚠️ Aucune transaction trouvée chez Stripe.");
+        console.warn("💡 Vérifications:");
+        console.warn("   - La clé API est-elle correcte ?");
+        console.warn("   - Y a-t-il des paiements dans votre compte Stripe ?");
+        console.warn("   - Les paiements sont-ils bien 'capturés' ?");
+        return { success: true, count: 0, message: "Aucune transaction trouvée" };
     }
 
     let addedCount = 0;
+    let skippedCount = 0;
 
     // 4. Boucle sur les transactions
-    for (const txn of balanceTransactions.data) {
-      console.log(`🔍 Traitement transaction ${txn.id} - Montant: ${txn.amount} cts`);
+    for (const txn of allTransactions) {
+      console.log(`🔍 Traitement transaction ${txn.id} - Type: ${txn.type}, Montant: ${txn.amount} cts, Description: ${txn.description || 'N/A'}`);
 
       // Vérifier si elle existe déjà via stripeId (dédoublonner)
       const existing = await prisma.transaction.findUnique({
@@ -100,12 +123,15 @@ export async function syncStripeData() {
             stripeId: txn.id, // Pour dédoublonner
           }
         });
-        console.log("✅ Transaction créée en base !");
+        console.log(`✅ Transaction créée: ${txn.id} - ${amountInEuros}€ (${transactionType})`);
         addedCount++;
       } else {
-        console.log("Status: Déjà existante.");
+        console.log(`⏭️ Transaction ${txn.id} déjà existante, ignorée.`);
+        skippedCount++;
       }
     }
+
+    console.log(`📊 Résumé: ${addedCount} ajoutées, ${skippedCount} déjà existantes`);
 
     await prisma.integration.update({
         where: { id: integration.id },
@@ -114,7 +140,14 @@ export async function syncStripeData() {
 
     revalidatePath('/');
     revalidatePath('/transactions');
-    return { success: true, count: addedCount };
+    
+    return { 
+      success: true, 
+      count: addedCount,
+      skipped: skippedCount,
+      total: allTransactions.length,
+      message: `${addedCount} transaction(s) importée(s) sur ${allTransactions.length} trouvée(s)`
+    };
 
   } catch (error: any) {
     console.error("❌ ERREUR CRITIQUE:", error);
