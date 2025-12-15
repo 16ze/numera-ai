@@ -12,24 +12,41 @@ export default async function ProfitabilityPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
 
-  // Récupération des données initiales
-  const costProfile = await getCostProfile();
-  const services = await getServices();
+  try {
+    // Récupération des données initiales
+    const costProfile = await getCostProfile();
+    const services = await getServices();
 
-  return (
-    <div className="flex-1 space-y-6 p-8">
-      <div>
-        <h1 className="text-3xl font-bold">Simulateur de Rentabilité</h1>
-        <p className="text-slate-500 mt-2">
-          Calculez le prix de vente optimal de vos services en fonction de vos
-          coûts réels
-        </p>
+    return (
+      <div className="flex-1 space-y-6 p-8">
+        <div>
+          <h1 className="text-3xl font-bold">Simulateur de Rentabilité</h1>
+          <p className="text-slate-500 mt-2">
+            Calculez le prix de vente optimal de vos services en fonction de vos
+            coûts réels
+          </p>
+        </div>
+
+        <ProfitabilitySimulator
+          initialCostProfile={costProfile}
+          initialServices={services || []}
+        />
       </div>
-
-      <ProfitabilitySimulator
-        initialCostProfile={costProfile}
-        initialServices={services}
-      />
-    </div>
-  );
+    );
+  } catch (error) {
+    console.error("Erreur lors du chargement de la page rentabilité:", error);
+    return (
+      <div className="flex-1 space-y-6 p-8">
+        <div>
+          <h1 className="text-3xl font-bold">Simulateur de Rentabilité</h1>
+          <p className="text-red-500 mt-2">
+            Erreur lors du chargement. Veuillez rafraîchir la page.
+          </p>
+          <p className="text-sm text-slate-500 mt-1">
+            {error instanceof Error ? error.message : "Erreur inconnue"}
+          </p>
+        </div>
+      </div>
+    );
+  }
 }

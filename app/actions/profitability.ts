@@ -7,9 +7,9 @@
 
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { prisma } from "@/app/lib/prisma";
-import { revalidatePath } from "next/cache";
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { revalidatePath } from "next/cache";
 
 /**
  * Résultat du calcul de prix d'un service
@@ -18,16 +18,16 @@ export interface ServicePriceCalculation {
   // Coûts de base
   hourlyCost: number; // Coût horaire chargé (€/h)
   serviceCost: number; // Coût de revient du service (€)
-  
+
   // Prix calculés
   minimumPrice: number; // Prix minimum conseillé (€)
   recommendedPrice: number; // Prix recommandé avec marge (€)
-  
+
   // Métriques
   clientsNeededPerMonth: number; // Nombre de clients nécessaires par mois pour atteindre l'objectif
   monthlyHoursNeeded: number; // Heures de travail nécessaires par mois
   isRealistic: boolean; // Si le nombre de clients est réaliste (< 150h/mois)
-  
+
   // Détails du calcul
   breakdown: {
     laborCost: number; // Coût main d'œuvre (durée * coût horaire)
@@ -95,8 +95,7 @@ export async function calculateServicePrice(
     // 4.1. Calcul du salaire brut (salaire net + charges sociales)
     const socialChargesAmount =
       costProfile.desiredMonthlySalary * (costProfile.socialChargesRate / 100);
-    const grossSalary =
-      costProfile.desiredMonthlySalary + socialChargesAmount;
+    const grossSalary = costProfile.desiredMonthlySalary + socialChargesAmount;
 
     // 4.2. Coût total mensuel (salaire brut + charges fixes)
     const totalMonthlyCost = grossSalary + costProfile.monthlyFixedCosts;
@@ -107,8 +106,7 @@ export async function calculateServicePrice(
     const workingWeeksPerYear = weeksPerYear - costProfile.vacationWeeks;
     const workingDaysPerYear =
       workingWeeksPerYear * (costProfile.workingDaysPerMonth / (52 / 12));
-    const workingHoursPerYear =
-      workingDaysPerYear * costProfile.dailyHours;
+    const workingHoursPerYear = workingDaysPerYear * costProfile.dailyHours;
     const workingHoursPerMonth = workingHoursPerYear / 12;
 
     // 4.4. Coût horaire chargé
@@ -134,8 +132,7 @@ export async function calculateServicePrice(
     const priceWithMargin = serviceCost + marginAmount;
 
     // 6.2. Frais de plateforme (si applicable)
-    const platformFeesAmount =
-      priceWithMargin * (service.platformFees / 100);
+    const platformFeesAmount = priceWithMargin * (service.platformFees / 100);
     const priceAfterPlatformFees = priceWithMargin + platformFeesAmount;
 
     // 6.3. Estimation des taxes (TVA/URSSAF)
@@ -424,7 +421,8 @@ Ton : Bienveillant, professionnel, concret. Utilise des exemples chiffrés. Sois
     // Utilisation de l'API OpenAI via le SDK AI
     const { text: analysis } = await generateText({
       model: openai("gpt-4o"),
-      system: "Tu es un expert comptable bienveillant et expérimenté. Tu aides les entrepreneurs à fixer leurs prix de manière réaliste et rentable. Tu donnes des conseils concrets, chiffrés et actionnables.",
+      system:
+        "Tu es un expert comptable bienveillant et expérimenté. Tu aides les entrepreneurs à fixer leurs prix de manière réaliste et rentable. Tu donnes des conseils concrets, chiffrés et actionnables.",
       prompt: prompt,
       temperature: 0.7,
       maxTokens: 1000,
