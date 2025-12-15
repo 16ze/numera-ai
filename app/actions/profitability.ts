@@ -8,7 +8,7 @@
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { prisma } from "@/app/lib/prisma";
 import { revalidatePath } from "next/cache";
-import OpenAI from "openai";
+import { openai } from "@ai-sdk/openai";
 
 /**
  * Résultat du calcul de prix d'un service
@@ -372,12 +372,9 @@ export async function analyzeProfitability(
 ): Promise<string> {
   try {
     // Vérification de la clé API OpenAI
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
+    if (!process.env.OPENAI_API_KEY) {
       throw new Error("Clé API OpenAI non configurée");
     }
-
-    const openai = new OpenAI({ apiKey });
 
     // Construction du prompt pour l'IA
     const prompt = `Agis comme un expert comptable bienveillant et expérimenté. Analyse cette simulation de prix pour un entrepreneur.
@@ -423,24 +420,16 @@ ANALYSE DEMANDÉE :
 
 Ton : Bienveillant, professionnel, concret. Utilise des exemples chiffrés. Sois encourageant mais réaliste.`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Tu es un expert comptable bienveillant et expérimenté. Tu aides les entrepreneurs à fixer leurs prix de manière réaliste et rentable. Tu donnes des conseils concrets, chiffrés et actionnables.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+    // Utilisation de l'API OpenAI via le SDK AI
+    const { generateText } = await import("ai");
+    
+    const { text: analysis } = await generateText({
+      model: openai("gpt-4o"),
+      system: "Tu es un expert comptable bienveillant et expérimenté. Tu aides les entrepreneurs à fixer leurs prix de manière réaliste et rentable. Tu donnes des conseils concrets, chiffrés et actionnables.",
+      prompt: prompt,
       temperature: 0.7,
-      max_tokens: 1000,
+      maxTokens: 1000,
     });
-
-    const analysis = completion.choices[0]?.message?.content;
 
     if (!analysis) {
       throw new Error("L'IA n'a pas pu générer d'analyse");
