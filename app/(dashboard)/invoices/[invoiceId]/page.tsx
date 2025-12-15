@@ -21,12 +21,16 @@ import { notFound, redirect } from "next/navigation";
  */
 export default async function InvoicePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ invoiceId: string }>;
+  searchParams: Promise<{ status?: string }>;
 }) {
-  // Dans Next.js 16, params est toujours une Promise
+  // Dans Next.js 16, params et searchParams sont toujours des Promises
   const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
   const invoiceId = resolvedParams.invoiceId;
+  const paymentSuccess = resolvedSearchParams.status === "success";
 
   if (!invoiceId) {
     notFound();
@@ -114,6 +118,7 @@ export default async function InvoicePage({
             invoiceId={invoiceId}
             paymentLink={invoice.paymentLink}
             invoiceStatus={invoice.status}
+            paymentSuccess={paymentSuccess}
           />
           <InvoiceActions
             invoiceId={invoiceId}

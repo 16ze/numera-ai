@@ -5,30 +5,29 @@
  * Gère aussi le retour de paiement avec toast/confetti
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { generatePaymentLink, markInvoiceAsPaid } from "@/app/actions/payments";
 import { CreditCard, Loader2, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 interface PaymentButtonProps {
   invoiceId: string;
   paymentLink: string | null;
   invoiceStatus: string;
+  paymentSuccess?: boolean; // Passé depuis le Server Component
 }
 
 export function PaymentButton({
   invoiceId,
   paymentLink,
   invoiceStatus,
+  paymentSuccess = false,
 }: PaymentButtonProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const paymentSuccess = searchParams.get("status") === "success";
 
   // Gestion du retour de paiement réussi
   useEffect(() => {
