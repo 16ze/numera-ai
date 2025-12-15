@@ -99,23 +99,70 @@ export async function syncStripeTransactions(): Promise<SyncResult> {
 
     console.log(`📊 Total: ${allTransactions.length} transactions Stripe récupérées`);
 
+    // Si aucune balance transaction, essayer de récupérer les charges directement
     if (allTransactions.length === 0) {
-      console.warn("⚠️ Aucune transaction trouvée chez Stripe.");
-      console.warn("💡 Vérifications:");
-      console.warn("   - La clé API est-elle correcte ? (sk_test_... ou sk_live_...)");
-      console.warn("   - Y a-t-il des paiements dans votre compte Stripe ?");
-      console.warn("   - Les paiements sont-ils bien 'capturés' ?");
-      console.warn("   - Pour les clés de test, créez un paiement de test dans Stripe Dashboard");
+      console.warn("⚠️ Aucune balance transaction trouvée. Tentative de récupération via charges...");
       
-      // Essayer aussi de récupérer les charges pour debug
       try {
-        const charges = await stripe.charges.list({ limit: 5 });
-        console.log(`🔍 Debug: ${charges.data.length} charge(s) trouvée(s) dans le compte`);
+        const charges = await stripe.charges.list({ limit: 100 });
+        console.log(`🔍 ${charges.data.length} charge(s) trouvée(s) dans le compte`);
+        
         if (charges.data.length > 0) {
-          console.log(`   Exemple: Charge ${charges.data[0].id} - ${charges.data[0].amount / 100}€`);
+          // Convertir les charges en balanceTransactions pour traitement uniforme
+          for (const charge of charges.data) {
+            // Créer un objet similaire à BalanceTransaction
+            const fakeBalanceTx = {
+              id: charge.id,
+              amount: charge.amount,
+              created: charge.created,
+              description: charge.description || `Charge ${charge.id}`,
+              type: 'charge' as const,
+              // Pour les charges, on peut récupérer le balance transaction associé
+            };
+            
+            // Essayer de récupérer la balance transaction réelle
+            try {
+              const balanceTx = await stripe.balanceTransactions.retrieve(charge.balance_transaction as string);
+              allTransactions.push(balanceTx);
+            } catch (err) {
+              // Si on ne peut pas récupérer la balance transaction, on utilise la charge directement
+              console.log(`⚠️ Impossible de récupérer balance transaction pour charge ${charge.id}, utilisation directe`);
+              // On ne peut pas utiliser fakeBalanceTx car il n'a pas toutes les propriétés
+              // On va plutôt créer la transaction directement depuis la charge
+              const existing = await prisma.transaction.findUnique({
+                where: { stripeId: charge.id },
+              });
+              
+              if (!existing) {
+                const amountInEuros = Math.abs(charge.amount) / 100;
+                await prisma.transaction.create({
+                  data: {
+                    companyId: company.id,
+                    date: new Date(charge.created * 1000),
+                    amount: amountInEuros,
+                    description: charge.description || `Charge Stripe ${charge.id}`,
+                    type: TransactionType.INCOME,
+                    category: TransactionCategory.PRESTATION,
+                    status: "COMPLETED",
+                    stripeId: charge.id,
+                  },
+                });
+                syncedCount++;
+                console.log(`✅ Charge ${charge.id} importée directement: ${amountInEuros}€`);
+              }
+            }
+          }
         }
       } catch (chargeError) {
         console.error("❌ Erreur lors de la récupération des charges:", chargeError);
+      }
+      
+      if (allTransactions.length === 0) {
+        console.warn("💡 Vérifications:");
+        console.warn("   - La clé API est-elle correcte ? (sk_test_... ou sk_live_...)");
+        console.warn("   - Y a-t-il des paiements dans votre compte Stripe ?");
+        console.warn("   - Les paiements sont-ils bien 'capturés' ?");
+        console.warn("   - Pour les clés de test, créez un paiement de test dans Stripe Dashboard");
       }
     }
 
