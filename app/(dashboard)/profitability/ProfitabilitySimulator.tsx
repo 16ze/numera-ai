@@ -108,11 +108,16 @@ export function ProfitabilitySimulator({
   }, [costProfile]);
 
   // Calcul automatique du prix quand les données changent
+  // Note: Ne se déclenche que si un service existe (selectedServiceId non null)
   useEffect(() => {
     if (selectedServiceId && service.name && service.durationMinutes > 0) {
       handleCalculatePrice();
+    } else {
+      // Réinitialiser le calcul si pas de service valide
+      setCalculation(null);
     }
-  }, [service, costProfile, marginPercent[0]]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedServiceId, service, costProfile, marginPercent[0]]);
 
   /**
    * Sauvegarde du profil de coûts
@@ -151,6 +156,7 @@ export function ProfitabilitySimulator({
       });
       toast.success("✅ Service sauvegardé");
       setSelectedServiceId(result.serviceId);
+      // Le calcul se déclenchera automatiquement via useEffect
     } catch (error) {
       console.error("Erreur sauvegarde service:", error);
       toast.error(
@@ -167,7 +173,13 @@ export function ProfitabilitySimulator({
    * Calcul du prix du service
    */
   const handleCalculatePrice = async () => {
-    if (!selectedServiceId || !service.name) {
+    // Si pas de serviceId, on ne peut pas calculer (il faut d'abord sauvegarder le service)
+    if (!selectedServiceId) {
+      toast.error("Veuillez d'abord sauvegarder votre service");
+      return;
+    }
+
+    if (!service.name || service.durationMinutes <= 0) {
       return;
     }
 
