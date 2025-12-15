@@ -8,7 +8,7 @@ import { getCurrentUser } from "@/app/lib/auth-helper";
 import { prisma } from "@/app/lib/prisma";
 import { InvoiceActions } from "@/components/invoices/InvoiceActions";
 import { PrintButton } from "@/components/invoices/PrintButton";
-import { PaymentButton } from "@/components/invoices/PaymentButton";
+import { PaymentControl } from "@/components/invoices/PaymentControl";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { ArrowLeft } from "lucide-react";
@@ -114,11 +114,9 @@ export default async function InvoicePage({
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div className="flex items-center gap-4 flex-wrap">
-          <PaymentButton
+          <PaymentControl
             invoiceId={invoiceId}
-            paymentLink={invoice.paymentLink}
-            invoiceStatus={invoice.status}
-            paymentSuccess={paymentSuccess}
+            initialPaymentLink={invoice.paymentLink}
           />
           <InvoiceActions
             invoiceId={invoiceId}
