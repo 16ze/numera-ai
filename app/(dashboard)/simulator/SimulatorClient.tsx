@@ -18,13 +18,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+// Note: Select component sera installé via shadcn
 import {
   calculateServiceProfitability,
   upsertResource,
@@ -140,6 +134,7 @@ export function SimulatorClient({
     if (selectedRecipeId && recipeName) {
       handleCalculate();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     selectedRecipeId,
     recipeName,
@@ -191,9 +186,8 @@ export function SimulatorClient({
       await upsertResource(type, data);
       toast.success("✅ Ressource sauvegardée");
       // Recharger les ressources
-      const resources = await import("@/app/actions/simulator").then((m) =>
-        m.getResources()
-      );
+      const { getResources } = await import("@/app/actions/simulator");
+      const resources = await getResources();
       setSupplies(resources.supplies);
       setEquipment(resources.equipment);
       setOverheads(resources.overheads);
@@ -404,11 +398,25 @@ export function SimulatorClient({
 
                 return (
                   <div
-                    key={index}
+                    key={`${selected.supplyId}-${index}`}
                     className="flex items-center gap-2 p-2 border rounded"
                   >
                     <span className="flex-1 text-sm">
-                      {supply.name} ({selected.quantityUsed} {supply.unit})
+                      {supply.name} (
+                      <Input
+                        type="number"
+                        value={selected.quantityUsed}
+                        onChange={(e) => {
+                          const newSupplies = [...selectedSupplies];
+                          newSupplies[index].quantityUsed =
+                            parseFloat(e.target.value) || 0;
+                          setSelectedSupplies(newSupplies);
+                        }}
+                        className="w-20 h-8 inline-block"
+                        min="0"
+                        step="0.1"
+                      />{" "}
+                      {supply.unit})
                     </span>
                     <span className="text-xs text-slate-500">
                       {costForQuantity.toFixed(2)} €
@@ -427,32 +435,36 @@ export function SimulatorClient({
                   </div>
                 );
               })}
-              <Select
-                onValueChange={(supplyId) => {
-                  const supply = supplies.find((s) => s.id === supplyId);
-                  if (supply) {
-                    setSelectedSupplies([
-                      ...selectedSupplies,
-                      { supplyId, quantityUsed: 1 },
-                    ]);
+              <select
+                onChange={(e) => {
+                  const supplyId = e.target.value;
+                  if (supplyId) {
+                    const supply = supplies.find((s) => s.id === supplyId);
+                    if (supply) {
+                      setSelectedSupplies([
+                        ...selectedSupplies,
+                        { supplyId, quantityUsed: 1 },
+                      ]);
+                      e.target.value = ""; // Reset le select
+                    }
                   }
                 }}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                defaultValue=""
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Ajouter un consommable" />
-                </SelectTrigger>
-                <SelectContent>
-                  {supplies
-                    .filter(
-                      (s) => !selectedSupplies.some((sel) => sel.supplyId === s.id)
-                    )
-                    .map((supply) => (
-                      <SelectItem key={supply.id} value={supply.id}>
-                        {supply.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+                <option value="" disabled>
+                  Ajouter un consommable
+                </option>
+                {supplies
+                  .filter(
+                    (s) => !selectedSupplies.some((sel) => sel.supplyId === s.id)
+                  )
+                  .map((supply) => (
+                    <option key={supply.id} value={supply.id}>
+                      {supply.name}
+                    </option>
+                  ))}
+              </select>
             </div>
           </div>
 
@@ -811,20 +823,16 @@ function ResourceForm({
             })
           }
         />
-        <Select
+        <select
           value={formData.category || "FIXED"}
-          onValueChange={(value) =>
-            setFormData({ ...formData, category: value })
+          onChange={(e) =>
+            setFormData({ ...formData, category: e.target.value })
           }
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
         >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="FIXED">Fixe (ex: Loyer)</SelectItem>
-            <SelectItem value="URSSAF_PERCENT">% du CA (ex: URSSAF)</SelectItem>
-          </SelectContent>
-        </Select>
+          <option value="FIXED">Fixe (ex: Loyer)</option>
+          <option value="URSSAF_PERCENT">% du CA (ex: URSSAF)</option>
+        </select>
         <Button type="submit" disabled={isSaving} size="sm" className="w-full">
           <Plus className="mr-2 h-4 w-4" />
           Ajouter
