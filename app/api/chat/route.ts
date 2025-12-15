@@ -6,6 +6,7 @@ import {
   sendReminderEmail,
 } from "@/app/actions/reminders";
 import { sendInvoiceEmail } from "@/app/actions/send-invoice-email";
+import { connectStripe, getIntegrations, syncStripeTransactions } from "@/app/actions/integrations";
 import { getCashFlowForecast } from "@/app/actions/forecast";
 import { prisma } from "@/app/lib/prisma";
 import { openai } from "@ai-sdk/openai";
@@ -288,6 +289,15 @@ export async function POST(req: Request) {
       - Si l'utilisateur demande "quelles factures sont en retard" ou "relance les factures", commence par getOverdueInvoices.
       - IMPORTANT : Le client doit avoir une adresse email configurée pour pouvoir recevoir la relance.
       - Présente clairement les factures en retard avec : client, montant, jours de retard.
+
+      INTÉGRATIONS EXTERNES (STRIPE) :
+      - Tu PEUX aider l'utilisateur à connecter et synchroniser son compte Stripe.
+      - Pour connecter Stripe : utilise l'outil connectStripe avec la clé API (Restricted Key).
+      - Pour synchroniser les transactions Stripe : utilise l'outil syncStripeTransactions.
+      - Pour vérifier l'état des intégrations : utilise l'outil getIntegrations.
+      - Les transactions Stripe sont automatiquement importées avec le bon type (INCOME/EXPENSE) et catégorie.
+      - Si l'utilisateur demande "connecte Stripe", "synchronise mes paiements Stripe", ou "importe mes transactions Stripe", utilise ces outils.
+      - IMPORTANT : La clé API doit être une Restricted Key avec permissions balance:read et charges:read.
 
       Devise : Euros (€).`,
 
@@ -1745,6 +1755,106 @@ export async function POST(req: Request) {
                 err instanceof Error
                   ? err.message
                   : "Erreur lors du calcul des prévisions de trésorerie"
+              );
+            }
+          },
+        }),
+
+        getIntegrations: tool({
+          description:
+            "Récupère la liste des intégrations externes connectées (Stripe, PayPal, etc.). Utilise cet outil pour vérifier si Stripe est connecté ou pour voir l'état des intégrations.",
+          inputSchema: z.object({}),
+          execute: async () => {
+            console.log("🛠️ Outil 'getIntegrations' en cours...");
+
+            try {
+              const integrations = await getIntegrations();
+
+              return {
+                integrations: integrations.map((i) => ({
+                  provider: i.provider,
+                  isConnected: i.isConnected,
+                  accountId: i.accountId,
+                  lastSyncedAt: i.lastSyncedAt
+                    ? new Date(i.lastSyncedAt).toISOString()
+                    : null,
+                })),
+                count: integrations.length,
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans getIntegrations:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la récupération des intégrations"
+              );
+            }
+          },
+        }),
+
+        connectStripe: tool({
+          description:
+            "Connecte un compte Stripe en utilisant une clé API (Restricted Key). Utilise cet outil quand l'utilisateur demande de connecter Stripe ou fournit une clé API Stripe. IMPORTANT : La clé doit être une Restricted Key avec permissions balance:read et charges:read.",
+          inputSchema: z.object({
+            apiKey: z
+              .string()
+              .min(1, "La clé API est requise")
+              .describe(
+                "Clé API Stripe (Restricted Key). Format: sk_test_... ou sk_live_..."
+              ),
+          }),
+          execute: async ({ apiKey }) => {
+            console.log("🛠️ Outil 'connectStripe' en cours...");
+
+            try {
+              const result = await connectStripe(apiKey);
+
+              console.log(`✅ Stripe connecté: ${result.integrationId}`);
+
+              return {
+                success: true,
+                integrationId: result.integrationId,
+                message: "Stripe connecté avec succès",
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans connectStripe:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la connexion à Stripe"
+              );
+            }
+          },
+        }),
+
+        syncStripeTransactions: tool({
+          description:
+            "Synchronise les transactions Stripe et les importe dans la base de données. Utilise cet outil quand l'utilisateur demande de synchroniser Stripe, importer ses transactions Stripe, ou récupérer ses paiements Stripe. Les transactions sont automatiquement dédoublonnées et classées (INCOME/EXPENSE).",
+          inputSchema: z.object({}),
+          execute: async () => {
+            console.log("🛠️ Outil 'syncStripeTransactions' en cours...");
+
+            try {
+              const result = await syncStripeTransactions();
+
+              console.log(
+                `✅ Synchronisation terminée: ${result.syncedCount} importées, ${result.skippedCount} ignorées`
+              );
+
+              return {
+                success: true,
+                syncedCount: result.syncedCount,
+                skippedCount: result.skippedCount,
+                totalProcessed: result.syncedCount + result.skippedCount,
+                errors: result.errors,
+                message: `${result.syncedCount} transaction(s) importée(s)${result.skippedCount > 0 ? `, ${result.skippedCount} déjà existante(s)` : ""}`,
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans syncStripeTransactions:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la synchronisation Stripe"
               );
             }
           },
