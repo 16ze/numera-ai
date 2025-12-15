@@ -93,20 +93,21 @@ export async function generatePaymentLink(
 
     // 6. Préparation des line_items pour Stripe Checkout
     const lineItems = invoice.rows.map((row) => {
-      const lineTotal = Number(row.quantity) * Number(row.unitPrice);
-      const vatAmount = lineTotal * (Number(row.vatRate) / 100);
-      const lineTotalTTC = lineTotal + vatAmount;
+      const unitPrice = Number(row.unitPrice);
+      const vatRate = Number(row.vatRate) / 100;
+      const unitPriceHT = unitPrice;
+      const unitPriceTTC = unitPriceHT * (1 + vatRate); // Prix unitaire TTC
 
       return {
         price_data: {
           currency: "eur",
           product_data: {
             name: row.description,
-            description: `Facture ${invoice.number}`,
+            description: `Facture ${invoice.number}${row.vatRate > 0 ? ` - TVA ${row.vatRate}%` : ""}`,
           },
-          unit_amount: Math.round(lineTotalTTC * 100), // Conversion en centimes
+          unit_amount: Math.round(unitPriceTTC * 100), // Prix unitaire TTC en centimes
         },
-        quantity: 1,
+        quantity: Number(row.quantity), // Utiliser la quantité réelle
       };
     });
 
@@ -128,9 +129,7 @@ export async function generatePaymentLink(
     // 7. Récupération de l'URL de base de l'application
     const baseUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
     // 8. Création de la session Stripe Checkout
     console.log(`💳 Création session Stripe Checkout pour facture ${invoiceId}...`);
