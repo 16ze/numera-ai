@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { connectStripe, disconnectStripe, syncStripeTransactions } from "@/app/actions/integrations";
+import { connectStripe, disconnectStripe, syncStripeTransactions, getIntegrations } from "@/app/actions/integrations";
 import type { IntegrationWithStatus } from "@/app/actions/integrations";
 import { IntegrationProvider } from "@prisma/client";
 import { CheckCircle2, XCircle, RefreshCw, Loader2 } from "lucide-react";
@@ -103,15 +103,6 @@ export function IntegrationsClient({ initialIntegrations }: IntegrationsClientPr
     } finally {
       setIsSyncing(false);
     }
-  };
-
-  // Fonction helper pour recharger les intégrations (à implémenter côté serveur si besoin)
-  const getIntegrations = async () => {
-    const response = await fetch("/api/integrations");
-    if (response.ok) {
-      return await response.json();
-    }
-    return integrations;
   };
 
   return (
