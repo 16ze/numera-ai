@@ -8,6 +8,7 @@
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { prisma } from "@/app/lib/prisma";
 import { revalidatePath } from "next/cache";
+import OpenAI from "openai";
 
 /**
  * Résultat du calcul de prix d'un service
@@ -340,5 +341,118 @@ export async function getServices() {
   } catch (error) {
     console.error("Erreur lors de la récupération des services:", error);
     return [];
+  }
+}
+
+/**
+ * Analyse la rentabilité avec l'IA (GPT-4o)
+ * Agit comme un expert comptable bienveillant pour donner des conseils
+ *
+ * @param calculation - Résultat du calcul de prix
+ * @param costProfile - Profil de coûts
+ * @param service - Définition du service
+ * @returns {Promise<string>} Analyse textuelle de l'IA
+ */
+export async function analyzeProfitability(
+  calculation: ServicePriceCalculation,
+  costProfile: {
+    monthlyFixedCosts: number;
+    desiredMonthlySalary: number;
+    socialChargesRate: number;
+    workingDaysPerMonth: number;
+    dailyHours: number;
+    vacationWeeks: number;
+  },
+  service: {
+    name: string;
+    durationMinutes: number;
+    materialCost: number;
+    platformFees: number;
+  }
+): Promise<string> {
+  try {
+    // Vérification de la clé API OpenAI
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error("Clé API OpenAI non configurée");
+    }
+
+    const openai = new OpenAI({ apiKey });
+
+    // Construction du prompt pour l'IA
+    const prompt = `Agis comme un expert comptable bienveillant et expérimenté. Analyse cette simulation de prix pour un entrepreneur.
+
+CONTEXTE :
+- Service : ${service.name}
+- Durée : ${service.durationMinutes} minutes
+- Coût matériel : ${service.materialCost.toFixed(2)} €
+- Frais plateforme : ${service.platformFees}%
+
+PROFIL DE COÛTS :
+- Charges fixes mensuelles : ${costProfile.monthlyFixedCosts.toFixed(2)} €
+- Salaire net souhaité : ${costProfile.desiredMonthlySalary.toFixed(2)} €/mois
+- Charges sociales : ${costProfile.socialChargesRate}%
+- Jours travaillés/mois : ${costProfile.workingDaysPerMonth}
+- Heures/jour : ${costProfile.dailyHours}
+- Semaines de congés/an : ${costProfile.vacationWeeks}
+
+RÉSULTATS DU CALCUL :
+- Coût horaire chargé : ${calculation.hourlyCost.toFixed(2)} €/h
+- Coût de revient du service : ${calculation.serviceCost.toFixed(2)} €
+- Prix minimum conseillé : ${calculation.minimumPrice.toFixed(2)} €
+- Prix recommandé : ${calculation.recommendedPrice.toFixed(2)} €
+- Clients nécessaires/mois : ${calculation.clientsNeededPerMonth}
+- Heures de travail/mois : ${calculation.monthlyHoursNeeded.toFixed(1)}h
+- Réaliste ? ${calculation.isRealistic ? "Oui" : "Non (risque de burnout)"}
+
+DÉCOMPOSITION :
+- Main d'œuvre : ${calculation.breakdown.laborCost.toFixed(2)} €
+- Matériel : ${calculation.breakdown.materialCost.toFixed(2)} €
+- Frais plateforme : ${calculation.breakdown.platformFees.toFixed(2)} €
+- Marge : ${calculation.breakdown.margin.toFixed(2)} €
+- Taxes estimées : ${calculation.breakdown.taxes.toFixed(2)} €
+
+ANALYSE DEMANDÉE :
+1. Est-ce que le prix de vente suggéré (${calculation.recommendedPrice.toFixed(2)} €) est réaliste par rapport au marché ?
+2. Si le nombre de clients requis par mois (${calculation.clientsNeededPerMonth}) est trop élevé (plus de 150h de travail = ${calculation.monthlyHoursNeeded.toFixed(1)}h), alerte l'utilisateur qu'il va au burnout.
+3. Donne 3 conseils concrets pour optimiser la rentabilité :
+   - Augmenter le prix ? De combien ?
+   - Réduire les frais ? Lesquels ?
+   - Optimiser le temps de prestation ?
+   - Autres suggestions pertinentes
+
+Ton : Bienveillant, professionnel, concret. Utilise des exemples chiffrés. Sois encourageant mais réaliste.`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Tu es un expert comptable bienveillant et expérimenté. Tu aides les entrepreneurs à fixer leurs prix de manière réaliste et rentable. Tu donnes des conseils concrets, chiffrés et actionnables.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+    });
+
+    const analysis = completion.choices[0]?.message?.content;
+
+    if (!analysis) {
+      throw new Error("L'IA n'a pas pu générer d'analyse");
+    }
+
+    return analysis;
+  } catch (error) {
+    console.error("Erreur lors de l'analyse IA:", error);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Erreur lors de l'analyse de la rentabilité"
+    );
   }
 }

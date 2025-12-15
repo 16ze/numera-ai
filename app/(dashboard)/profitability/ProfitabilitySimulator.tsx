@@ -15,6 +15,7 @@ import {
   calculateServicePrice,
   upsertCostProfile,
   upsertServiceDefinition,
+  analyzeProfitability,
   type ServicePriceCalculation,
 } from "@/app/actions/profitability";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
@@ -177,6 +178,8 @@ export function ProfitabilitySimulator({
         marginPercent[0]
       );
       setCalculation(result);
+      // Réinitialiser l'analyse IA quand le calcul change
+      setAiAnalysis(null);
     } catch (error) {
       console.error("Erreur calcul prix:", error);
       toast.error(
@@ -186,6 +189,35 @@ export function ProfitabilitySimulator({
       );
     } finally {
       setIsCalculating(false);
+    }
+  };
+
+  /**
+   * Analyse IA de la rentabilité
+   */
+  const handleAnalyzeProfitability = async () => {
+    if (!calculation) {
+      toast.error("Veuillez d'abord calculer le prix du service");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const analysis = await analyzeProfitability(
+        calculation,
+        costProfile,
+        service
+      );
+      setAiAnalysis(analysis);
+    } catch (error) {
+      console.error("Erreur analyse IA:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de l'analyse IA"
+      );
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -561,6 +593,69 @@ export function ProfitabilitySimulator({
           )}
         </CardContent>
       </Card>
+
+      {/* CARTE ANALYSE IA (en dessous du simulateur) */}
+      {calculation && (
+        <Card className="lg:col-span-3 mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5" />
+              L'avis de l'Expert IA
+            </CardTitle>
+            <CardDescription>
+              Analyse approfondie de votre rentabilité par notre expert comptable IA
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!aiAnalysis ? (
+              <div className="text-center py-8">
+                <Button
+                  onClick={handleAnalyzeProfitability}
+                  disabled={isAnalyzing}
+                  size="lg"
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Analyse en cours...
+                    </>
+                  ) : (
+                    <>
+                      🤖 Analyser ma rentabilité
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                  <div className="prose prose-sm max-w-none">
+                    <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
+                      {aiAnalysis}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleAnalyzeProfitability}
+                  disabled={isAnalyzing}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Réanalyse...
+                    </>
+                  ) : (
+                    "🔄 Réanalyser"
+                  )}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
