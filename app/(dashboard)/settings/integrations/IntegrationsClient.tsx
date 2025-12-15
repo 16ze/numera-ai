@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { connectStripe, disconnectStripe, syncStripeTransactions, getIntegrations } from "@/app/actions/integrations";
+import { connectStripe, disconnectStripe, syncStripeTransactions } from "@/app/actions/integrations";
 import type { IntegrationWithStatus } from "@/app/actions/integrations";
 import { IntegrationProvider } from "@prisma/client";
 import { CheckCircle2, XCircle, RefreshCw, Loader2 } from "lucide-react";
@@ -47,8 +47,11 @@ export function IntegrationsClient({ initialIntegrations }: IntegrationsClientPr
       setStripeApiKey("");
       
       // Recharger les intégrations
-      const updatedIntegrations = await getIntegrations();
-      setIntegrations(updatedIntegrations);
+      const response = await fetch("/api/integrations");
+      if (response.ok) {
+        const updatedIntegrations = await response.json();
+        setIntegrations(updatedIntegrations);
+      }
     } catch (error) {
       console.error("Erreur connexion Stripe:", error);
       toast.error(
@@ -73,8 +76,11 @@ export function IntegrationsClient({ initialIntegrations }: IntegrationsClientPr
       toast.success("Stripe déconnecté");
       
       // Recharger les intégrations
-      const updatedIntegrations = await getIntegrations();
-      setIntegrations(updatedIntegrations);
+      const response = await fetch("/api/integrations");
+      if (response.ok) {
+        const updatedIntegrations = await response.json();
+        setIntegrations(updatedIntegrations);
+      }
     } catch (error) {
       console.error("Erreur déconnexion Stripe:", error);
       toast.error(
