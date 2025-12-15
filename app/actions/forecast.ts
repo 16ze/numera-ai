@@ -271,6 +271,12 @@ export async function getCashFlowForecast(): Promise<CashFlowForecast> {
     };
   } catch (error) {
     console.error("❌ Erreur lors du calcul des prévisions:", error);
-    throw new Error("Erreur lors du calcul des prévisions de trésorerie");
+    // Retourner des données par défaut au lieu de throw pour éviter de casser le dashboard
+    return {
+      forecastData: [],
+      currentBalance: 0,
+      burnRate: 0,
+      hasEnoughData: false,
+    };
   }
 }

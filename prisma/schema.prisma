@@ -66,6 +66,14 @@ enum IntegrationProvider {
   PAYPAL // PayPal
 }
 
+/**
+ * Type de charge indirecte
+ */
+enum OverheadCategory {
+  FIXED // Charge fixe mensuelle (ex: Loyer, Électricité)
+  URSSAF_PERCENT // Charge en % du CA (ex: URSSAF)
+}
+
 // ============================================
 // MODELS
 // ============================================
@@ -124,6 +132,10 @@ model Company {
   transactions Transaction[]
   costProfile  CostProfile?
   services     ServiceDefinition[]
+  supplies     Supply[]
+  equipment    Equipment[]
+  overheads    Overhead[]
+  serviceRecipes ServiceRecipe[]
 
   @@index([userId])
   @@index([siret])
@@ -349,4 +361,133 @@ model ServiceDefinition {
 
   @@index([companyId])
   @@map("service_definitions")
+}
+
+/**
+ * Consommables (Supplies) - Produits utilisés dans les prestations
+ * Ex: Shampooing, Crème, Produits de beauté
+ */
+model Supply {
+  id            String   @id @default(uuid())
+  companyId     String
+  name          String // Nom du produit (ex: "Shampooing L'Oréal")
+  supplier      String? // Fournisseur (ex: "L'Oréal")
+  purchasePrice Float    // Prix d'achat total (ex: 20€)
+  totalQuantity Float    // Quantité totale (ex: 1000)
+  unit          String   @default("ml") // Unité (ex: "ml", "g", "pièce")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  serviceSupplies ServiceSupply[]
+
+  @@index([companyId])
+  @@map("supplies")
+}
+
+/**
+ * Matériel amortissable (Equipment) - Machines et équipements
+ * Ex: Lampe UV, Appareil de massage, Sèche-cheveux professionnel
+ */
+model Equipment {
+  id            String   @id @default(uuid())
+  companyId     String
+  name          String // Nom de l'équipement (ex: "Lampe UV")
+  supplier      String? // Fournisseur
+  purchasePrice Float    // Prix d'achat (ex: 200€)
+  lifespanMonths Int     // Durée de vie en mois (ex: 24 mois)
+  weeklyUses    Int      // Nombre d'utilisations par semaine (ex: 20 prestations/semaine)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  serviceEquipment ServiceEquipment[]
+
+  @@index([companyId])
+  @@map("equipment")
+}
+
+/**
+ * Charges Indirectes (Overhead) - Coûts fixes ou variables
+ * Ex: Loyer, Électricité, Logiciel, URSSAF
+ */
+model Overhead {
+  id          String           @id @default(uuid())
+  companyId   String
+  name        String // Nom de la charge (ex: "Loyer", "URSSAF")
+  monthlyCost Float  // Coût mensuel (pour FIXED) ou % du CA (pour URSSAF_PERCENT)
+  category    OverheadCategory @default(FIXED)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("overheads")
+}
+
+/**
+ * Recette de Service (ServiceRecipe) - Définition complète d'une prestation
+ * Contient les consommables, matériel et temps de main d'œuvre nécessaires
+ */
+model ServiceRecipe {
+  id                String   @id @default(uuid())
+  companyId         String
+  name              String // Nom du service (ex: "Coupe + Brushing")
+  laborTimeMinutes  Int      // Temps de main d'œuvre en minutes
+  laborHourlyCost   Float    // Coût horaire de la main d'œuvre (€/h)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  suppliesUsed    ServiceSupply[]
+  equipmentUsed   ServiceEquipment[]
+
+  @@index([companyId])
+  @@map("service_recipes")
+}
+
+/**
+ * Table de liaison : Consommables utilisés dans une recette de service
+ */
+model ServiceSupply {
+  id              String        @id @default(uuid())
+  serviceRecipeId String
+  supplyId        String
+  quantityUsed    Float         // Quantité utilisée (ex: 5ml de shampooing)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  serviceRecipe ServiceRecipe @relation(fields: [serviceRecipeId], references: [id], onDelete: Cascade)
+  supply        Supply        @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceRecipeId, supplyId]) // Un consommable ne peut être ajouté qu'une fois par service
+  @@index([serviceRecipeId])
+  @@index([supplyId])
+  @@map("service_supplies")
+}
+
+/**
+ * Table de liaison : Matériel utilisé dans une recette de service
+ */
+model ServiceEquipment {
+  id              String        @id @default(uuid())
+  serviceRecipeId String
+  equipmentId     String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  serviceRecipe ServiceRecipe @relation(fields: [serviceRecipeId], references: [id], onDelete: Cascade)
+  equipment     Equipment     @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceRecipeId, equipmentId]) // Un équipement ne peut être ajouté qu'une fois par service
+  @@index([serviceRecipeId])
+  @@index([equipmentId])
+  @@map("service_equipment")
 }
