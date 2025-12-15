@@ -61,10 +61,10 @@ export function ProfitabilitySimulator({
 
   // État Zone 2 : Service
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
-    initialServices[0]?.id || null
+    (initialServices && initialServices.length > 0 && initialServices[0]?.id) || null
   );
   const [service, setService] = useState<ServiceDefinition>(
-    initialServices[0] || {
+    (initialServices && initialServices.length > 0 && initialServices[0]) || {
       name: "",
       durationMinutes: 60,
       materialCost: 0,
