@@ -324,9 +324,6 @@ export async function POST(req: Request) {
       - Pour voir les ressources : utilise l'outil getResources (consommables, matériel, charges).
       - Pour voir les recettes : utilise l'outil getServiceRecipes.
       - Si l'utilisateur demande "coût de revient", "prix minimum", "rentabilité de ma prestation", "combien ça me coûte vraiment", utilise calculateServiceProfitability.
-      - Pour voir les services disponibles : utilise l'outil getServices.
-      - Pour voir le profil de coûts configuré : utilise l'outil getCostProfile.
-      - Si l'utilisateur demande "quel prix pour mon service", "combien je dois facturer", "calculer le prix", utilise calculateServicePrice.
 
       SIMULATEUR DE RENTABILITÉ AVANCÉ (Simulator) :
       - Tu PEUX aider l'utilisateur à calculer le coût de revient précis de ses prestations.
@@ -336,7 +333,6 @@ export async function POST(req: Request) {
       - Pour voir les ressources disponibles : utilise l'outil getResources (consommables, matériel, charges).
       - Pour voir les recettes disponibles : utilise l'outil getServiceRecipes.
       - Si l'utilisateur demande "coût de revient", "break-even", "rentabilité de ma prestation", "combien ça me coûte vraiment", utilise calculateServiceProfitability.
-      - IMPORTANT : La clé API doit être une Restricted Key avec permissions balance:read et charges:read.
 
       Devise : Euros (€).`,
 
