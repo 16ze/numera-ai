@@ -14,10 +14,16 @@ import {
   getServices,
 } from "@/app/actions/profitability";
 import {
+  calculateGlobalProfitability,
   calculateServiceProfitability,
+  deleteResource,
+  deleteServiceRecipe,
   getResources,
   getServiceRecipes,
+  upsertResource,
+  upsertServiceRecipe,
 } from "@/app/actions/simulator";
+import { getProfitabilityAdvice } from "@/app/actions/advisor";
 import { prisma } from "@/app/lib/prisma";
 import { openai } from "@ai-sdk/openai";
 import { currentUser } from "@clerk/nextjs/server";
@@ -316,14 +322,34 @@ export async function POST(req: Request) {
       - L'outil retourne : prix recommandé, prix minimum, nombre de clients nécessaires/mois, heures de travail/mois, et alerte si risque de burnout (>150h/mois).
       - Si l'utilisateur demande "quel prix pour mon service", "calcule le prix de vente", "combien de clients par mois", utilise calculateServicePrice.
 
-      SIMULATEUR AVANCÉ (Simulator) :
-      - Tu PEUX aider l'utilisateur à calculer le coût de revient précis d'une prestation.
-      - Pour calculer le coût de revient : utilise l'outil calculateServiceProfitability avec l'ID de la recette de service.
+      SIMULATEUR AVANCÉ / RENTABILITÉ (Profitability) :
+      - Tu PEUX aider l'utilisateur à gérer complètement son module de rentabilité.
+      
+      📊 CALCULS :
+      - Pour calculer le coût de revient d'une prestation : utilise calculateServiceProfitability avec l'ID de la recette.
+      - Pour calculer la rentabilité globale de toutes les prestations : utilise calculateGlobalProfitability.
       - Optionnel : fournis un prix de vente pour calculer la marge nette et le pourcentage.
-      - L'outil retourne le détail de tous les coûts : consommables, matériel (amortissement), main d'œuvre, charges fixes.
-      - Pour voir les ressources : utilise l'outil getResources (consommables, matériel, charges).
-      - Pour voir les recettes : utilise l'outil getServiceRecipes.
-      - Si l'utilisateur demande "coût de revient", "prix minimum", "rentabilité de ma prestation", "combien ça me coûte vraiment", utilise calculateServiceProfitability.
+      
+      📋 CONSULTATION :
+      - Pour voir les ressources : utilise getResources (consommables, matériel, charges).
+      - Pour voir les recettes : utilise getServiceRecipes.
+      
+      ✏️ GESTION :
+      - Pour créer/modifier une ressource : utilise upsertResource (type: supply/equipment/overhead).
+      - Pour supprimer une ressource : utilise deleteResource.
+      - Pour créer/modifier une recette : utilise upsertServiceRecipe.
+      - Pour supprimer une recette : utilise deleteServiceRecipe.
+      
+      🤖 CONSEIL BUSINESS IA :
+      - Pour obtenir un conseil stratégique : utilise getProfitabilityAdvice avec les données de calcul.
+      - Retourne : note sur 10, analyse franche, 3 actions concrètes.
+      
+      💡 EXEMPLES DE QUESTIONS :
+      - "Calcule le coût de revient de ma prestation X" → calculateServiceProfitability
+      - "Ajoute un consommable Shampooing à 20€" → upsertResource (type: supply)
+      - "Crée une nouvelle prestation Coupe 60min" → upsertServiceRecipe
+      - "Quelle est ma rentabilité globale ?" → calculateGlobalProfitability
+      - "Donne-moi un conseil pour améliorer ma rentabilité" → getProfitabilityAdvice
 
       SIMULATEUR DE RENTABILITÉ AVANCÉ (Simulator) :
       - Tu PEUX aider l'utilisateur à calculer le coût de revient précis de ses prestations.
