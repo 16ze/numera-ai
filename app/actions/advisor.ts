@@ -131,3 +131,157 @@ CONSEIL :`;
   }
 }
 
+/**
+ * Interface pour les données de simulation de rentabilité
+ */
+export interface SimulationData {
+  sellingPrice: number;
+  totalCost: number;
+  breakdown: {
+    suppliesCost: number;
+    equipmentCost: number;
+    laborCost: number;
+    overheadCost: number;
+  };
+  currentMargin?: number;
+  marginPercent?: number;
+}
+
+/**
+ * Interface pour le résultat du conseil de rentabilité
+ */
+export interface ProfitabilityAdvice {
+  score: number; // Note sur 10
+  analysis: string; // Analyse franche
+  actions: string[]; // 3 actions concrètes
+}
+
+/**
+ * Obtient un conseil business personnalisé basé sur l'analyse de rentabilité
+ * Utilise OpenAI GPT-4o pour analyser la structure de coûts et donner des conseils stratégiques
+ *
+ * @param data - Données de simulation de rentabilité
+ * @returns {Promise<ProfitabilityAdvice>} Le conseil généré par l'IA
+ * @throws {Error} Si l'utilisateur n'est pas connecté ou en cas d'erreur
+ */
+export async function getProfitabilityAdvice(
+  data: SimulationData
+): Promise<ProfitabilityAdvice> {
+  try {
+    console.log("🤖 Génération du conseil business via OpenAI...");
+
+    // Préparation du prompt pour GPT-4o
+    const prompt = `Tu es un Business Coach expert pour entrepreneurs. Analyse cette structure de coût d'une prestation de service.
+
+📊 DONNÉES DE RENTABILITÉ :
+- Prix de Vente: ${data.sellingPrice.toFixed(2)} €
+- Coût de Revient: ${data.totalCost.toFixed(2)} €
+- Marge actuelle: ${data.currentMargin !== undefined ? data.currentMargin.toFixed(2) + " €" : "Non calculée"} (${data.marginPercent !== undefined ? data.marginPercent.toFixed(1) + "%" : "N/A"})
+
+💰 DÉTAIL DES COÛTS :
+- Consommables (Matière): ${data.breakdown.suppliesCost.toFixed(2)} €
+- Matériel (Amortissement): ${data.breakdown.equipmentCost.toFixed(2)} €
+- Main d'œuvre: ${data.breakdown.laborCost.toFixed(2)} €
+- Charges fixes: ${data.breakdown.overheadCost.toFixed(2)} €
+
+🎯 TON RÔLE :
+Tu dois analyser cette structure de coût et donner un conseil business stratégique.
+
+📝 FORMAT DE RÉPONSE (JSON strict) :
+{
+  "score": <nombre entre 0 et 10>,
+  "analysis": "<analyse franche en 2-3 phrases. Sois direct et critique si nécessaire. Ex: 'Tu passes trop de temps' ou 'Tes produits sont trop chers' ou 'Bravo, ta structure est solide'>",
+  "actions": [
+    "<action concrète 1. Ex: 'Augmente ton prix de 5€'>",
+    "<action concrète 2. Ex: 'Négocie tes consommables avec ton fournisseur'>",
+    "<action concrète 3. Ex: 'Réduis la durée de 15min'>"
+  ]
+}
+
+🔍 CRITÈRES D'ANALYSE :
+- Si marge < 0 : Score 0-3, analyse critique, actions urgentes
+- Si marge 0-10% : Score 4-6, analyse préoccupante, actions d'optimisation
+- Si marge 10-20% : Score 7-8, analyse positive mais améliorable
+- Si marge > 20% : Score 9-10, analyse très positive, actions de croissance
+
+💡 ACTIONS CONCRÈTES :
+- Doivent être ACTIONNABLES (ex: "Augmente de 5€", pas "Augmente le prix")
+- Doivent être SPÉCIFIQUES (montants, durées, pourcentages)
+- Doivent être PRIORITAIRES (les 3 plus impactantes)
+
+Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
+
+    const { text } = await generateText({
+      model: openai("gpt-4o"),
+      prompt,
+      temperature: 0.7,
+      maxTokens: 500,
+    });
+
+    console.log("✅ Conseil généré:", text);
+
+    // Parser la réponse JSON
+    try {
+      // Nettoyer le texte pour extraire le JSON (enlever markdown si présent)
+      let jsonText = text.trim();
+      if (jsonText.startsWith("```json")) {
+        jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?/g, "");
+      } else if (jsonText.startsWith("```")) {
+        jsonText = jsonText.replace(/```\n?/g, "");
+      }
+
+      const advice: ProfitabilityAdvice = JSON.parse(jsonText);
+
+      // Validation des données
+      if (
+        typeof advice.score !== "number" ||
+        advice.score < 0 ||
+        advice.score > 10
+      ) {
+        throw new Error("Score invalide");
+      }
+
+      if (
+        !Array.isArray(advice.actions) ||
+        advice.actions.length !== 3
+      ) {
+        throw new Error("Actions invalides");
+      }
+
+      if (typeof advice.analysis !== "string" || advice.analysis.length === 0) {
+        throw new Error("Analyse invalide");
+      }
+
+      return advice;
+    } catch (parseError) {
+      console.error("❌ Erreur lors du parsing JSON:", parseError);
+      console.error("Texte reçu:", text);
+      // Retourner un conseil par défaut en cas d'erreur de parsing
+      return {
+        score: 5,
+        analysis:
+          "Je n'ai pas pu analyser précisément votre structure de coûts. Vérifiez que tous les champs sont correctement remplis.",
+        actions: [
+          "Vérifiez que tous vos coûts sont bien renseignés",
+          "Assurez-vous d'avoir configuré un prix de vente",
+          "Contactez le support si le problème persiste",
+        ],
+      };
+    }
+  } catch (error) {
+    console.error("❌ Erreur lors de la génération du conseil:", error);
+
+    // Conseil par défaut en cas d'erreur
+    return {
+      score: 5,
+      analysis:
+        "Une erreur est survenue lors de l'analyse. Veuillez réessayer.",
+      actions: [
+        "Vérifiez votre connexion internet",
+        "Réessayez dans quelques instants",
+        "Contactez le support si le problème persiste",
+      ],
+    };
+  }
+}
+

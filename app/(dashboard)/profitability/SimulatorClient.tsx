@@ -14,6 +14,7 @@ import {
   upsertServiceRecipe,
   type ServiceProfitabilityResult,
 } from "@/app/actions/simulator";
+import { AIAdvisor } from "@/components/profitability/AIAdvisor";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -1555,6 +1556,13 @@ export function SimulatorClient({
                           sellingPrice={calculation.sellingPrice}
                         />
                       )}
+
+                    {/* Conseiller Business IA */}
+                    {calculation && (
+                      <div className="mt-6">
+                        <AIAdvisor calculation={calculation} />
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (

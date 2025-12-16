@@ -1,52 +1,35 @@
 /**
- * Page du Simulateur de Rentabilité
- * Permet de calculer le prix de vente recommandé en fonction des coûts
+ * Page de Rentabilité
+ * Simulateur avancé pour calculer le coût de revient précis d'une prestation
  */
 
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { redirect } from "next/navigation";
-import { getCostProfile, getServices } from "@/app/actions/profitability";
-import { ProfitabilitySimulator } from "./ProfitabilitySimulator";
+import { getResources, getServiceRecipes } from "@/app/actions/simulator";
+import { SimulatorClient } from "./SimulatorClient";
 
 export default async function ProfitabilityPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
 
-  try {
-    // Récupération des données initiales
-    const costProfile = await getCostProfile();
-    const services = await getServices();
+  // Récupération des données initiales
+  const resources = await getResources();
+  const serviceRecipes = await getServiceRecipes();
 
-    return (
-      <div className="flex-1 space-y-6 p-8">
-        <div>
-          <h1 className="text-3xl font-bold">Simulateur de Rentabilité</h1>
-          <p className="text-slate-500 mt-2">
-            Calculez le prix de vente optimal de vos services en fonction de vos
-            coûts réels
-          </p>
-        </div>
+  return (
+    <div className="flex-1 space-y-6 p-8">
+      <div>
+        <h1 className="text-3xl font-bold">Rentabilité</h1>
+        <p className="text-slate-500 mt-2">
+          Calculez le coût de revient précis de vos prestations en tenant compte
+          de tous les coûts (consommables, matériel, main d'œuvre, charges)
+        </p>
+      </div>
 
-        <ProfitabilitySimulator
-          initialCostProfile={costProfile}
-          initialServices={services || []}
-        />
-      </div>
-    );
-  } catch (error) {
-    console.error("Erreur lors du chargement de la page rentabilité:", error);
-    return (
-      <div className="flex-1 space-y-6 p-8">
-        <div>
-          <h1 className="text-3xl font-bold">Simulateur de Rentabilité</h1>
-          <p className="text-red-500 mt-2">
-            Erreur lors du chargement. Veuillez rafraîchir la page.
-          </p>
-          <p className="text-sm text-slate-500 mt-1">
-            {error instanceof Error ? error.message : "Erreur inconnue"}
-          </p>
-        </div>
-      </div>
-    );
-  }
+      <SimulatorClient
+        initialResources={resources}
+        initialServiceRecipes={serviceRecipes}
+      />
+    </div>
+  );
 }

@@ -1,6 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import "react-circular-progressbar/dist/styles.css";
  
 @layer base {
   :root {
