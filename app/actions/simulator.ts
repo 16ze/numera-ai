@@ -301,6 +301,105 @@ export async function getServiceRecipes() {
 }
 
 /**
+ * Calcule la rentabilité globale de toutes les prestations
+ * @param sellingPrices - Objet avec les prix de vente par recette ID { [recipeId]: price }
+ * @returns Résultat agrégé de toutes les prestations
+ */
+export async function calculateGlobalProfitability(sellingPrices?: {
+  [recipeId: string]: number;
+}) {
+  try {
+    const user = await getCurrentUser();
+    const company = user.companies[0];
+
+    if (!company) {
+      throw new Error("Aucune entreprise trouvée");
+    }
+
+    // Récupérer toutes les recettes
+    const recipes = await prisma.serviceRecipe.findMany({
+      where: { companyId: company.id },
+      include: {
+        suppliesUsed: {
+          include: {
+            supply: true,
+          },
+        },
+        equipmentUsed: {
+          include: {
+            equipment: true,
+          },
+        },
+      },
+    });
+
+    if (recipes.length === 0) {
+      return {
+        totalCost: 0,
+        totalRevenue: 0,
+        totalMargin: 0,
+        averageMarginPercent: 0,
+        recipesCount: 0,
+        breakdown: [],
+      };
+    }
+
+    let totalCost = 0;
+    let totalRevenue = 0;
+    const breakdown: Array<{
+      recipeId: string;
+      recipeName: string;
+      cost: number;
+      revenue: number;
+      margin: number;
+      marginPercent: number;
+    }> = [];
+
+    // Calculer pour chaque recette
+    for (const recipe of recipes) {
+      const recipeResult = await calculateServiceProfitability(
+        recipe.id,
+        sellingPrices?.[recipe.id]
+      );
+
+      totalCost += recipeResult.totalCost;
+      if (recipeResult.sellingPrice) {
+        totalRevenue += recipeResult.sellingPrice;
+      }
+
+      breakdown.push({
+        recipeId: recipe.id,
+        recipeName: recipe.name,
+        cost: recipeResult.totalCost,
+        revenue: recipeResult.sellingPrice || 0,
+        margin: recipeResult.netMargin || -recipeResult.totalCost,
+        marginPercent: recipeResult.marginPercent || 0,
+      });
+    }
+
+    const totalMargin = totalRevenue - totalCost;
+    const averageMarginPercent =
+      totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
+
+    return {
+      totalCost: Math.round(totalCost * 100) / 100,
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      totalMargin: Math.round(totalMargin * 100) / 100,
+      averageMarginPercent: Math.round(averageMarginPercent * 100) / 100,
+      recipesCount: recipes.length,
+      breakdown,
+    };
+  } catch (error) {
+    console.error("Erreur lors du calcul global:", error);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Erreur lors du calcul de rentabilité globale"
+    );
+  }
+}
+
+/**
  * Crée ou met à jour une ressource (Supply, Equipment, Overhead)
  */
 export async function upsertResource(

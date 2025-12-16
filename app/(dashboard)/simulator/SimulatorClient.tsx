@@ -6,6 +6,7 @@
  */
 
 import {
+  calculateGlobalProfitability,
   calculateServiceProfitability,
   deleteResource,
   deleteServiceRecipe,
@@ -148,11 +149,27 @@ export function SimulatorClient({
   const [sellingPrice, setSellingPrice] = useState<number>(0);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [globalCalculation, setGlobalCalculation] = useState<any>(null);
+  const [showGlobalView, setShowGlobalView] = useState(false);
+  const [showPerServiceView, setShowPerServiceView] = useState(false);
+  const [perServiceCalculations, setPerServiceCalculations] = useState<
+    Array<{
+      recipeId: string;
+      recipeName: string;
+      calculation: ServiceProfitabilityResult | null;
+      sellingPrice?: number;
+      error?: string | null;
+    }>
+  >([]);
 
   // Calcul automatique quand les données changent
   useEffect(() => {
-    if (selectedRecipeId && recipeName) {
+    // Ne calculer que si on a une recette sauvegardée (avec ID) ou si on est en train de créer une nouvelle recette avec un nom
+    if (selectedRecipeId && recipeName.trim()) {
       handleCalculate();
+    } else if (!selectedRecipeId && recipeName.trim()) {
+      // Nouvelle recette en cours de création - ne pas calculer encore
+      setCalculation(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -197,6 +214,20 @@ export function SimulatorClient({
     } finally {
       setIsCalculating(false);
     }
+  };
+
+  /**
+   * Création d'une nouvelle recette
+   */
+  const handleNewRecipe = () => {
+    setSelectedRecipeId(null);
+    setRecipeName("");
+    setLaborTimeMinutes([60]);
+    setLaborHourlyCost([25]);
+    setSelectedSupplies([]);
+    setSelectedEquipment([]);
+    setSellingPrice(0);
+    setCalculation(null);
   };
 
   /**
@@ -470,64 +501,541 @@ export function SimulatorClient({
 
               {/* ONGLET 2 : RECETTE */}
               <TabsContent value="recipe" className="space-y-6 mt-6">
-                {/* Sélection/Liste des recettes */}
-                {serviceRecipes.length > 0 && (
-                  <div className="space-y-2 border rounded-lg p-3 bg-slate-50">
-                    <Label className="text-sm font-semibold text-slate-700 mb-2 block">
-                      Recettes existantes
-                    </Label>
-                    {serviceRecipes.map((recipe) => (
-                      <div
-                        key={recipe.id}
-                        className={`flex items-center justify-between p-2 bg-white rounded border ${
-                          selectedRecipeId === recipe.id
-                            ? "border-blue-500 bg-blue-50"
-                            : ""
-                        }`}
-                      >
-                        <button
+                {/* Vue par prestation */}
+                {showPerServiceView && perServiceCalculations.length > 0 && (
+                  <Card className="border-2 border-purple-200 bg-purple-50/50">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <ChefHat className="h-5 w-5" />
+                          Rentabilité par Prestation (
+                          {perServiceCalculations.length})
+                        </CardTitle>
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="sm"
                           onClick={() => {
-                            setSelectedRecipeId(recipe.id);
-                            setRecipeName(recipe.name);
-                            setLaborTimeMinutes([recipe.laborTimeMinutes]);
-                            setLaborHourlyCost([recipe.laborHourlyCost]);
-                            setSelectedSupplies(
-                              recipe.suppliesUsed.map((s) => ({
-                                supplyId: s.supply.id,
-                                quantityUsed: s.quantityUsed,
-                              }))
-                            );
-                            setSelectedEquipment(
-                              recipe.equipmentUsed.map((e) => e.equipment.id)
-                            );
+                            setShowPerServiceView(false);
+                            setPerServiceCalculations([]);
                           }}
-                          className="flex-1 text-left"
                         >
-                          <div className="font-medium text-sm">
-                            {recipe.name}
-                          </div>
+                          Fermer
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {perServiceCalculations.map((item) => {
+                          // Gérer le cas où le calcul a échoué
+                          if (item.error || !item.calculation) {
+                            return (
+                              <Card
+                                key={item.recipeId}
+                                className="border-2 border-red-200 bg-red-50"
+                              >
+                                <CardHeader className="pb-2">
+                                  <CardTitle className="text-base">
+                                    {item.recipeName}
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                  <div className="text-sm text-red-700">
+                                    ⚠️ {item.error || "Erreur lors du calcul"}
+                                  </div>
+                                  <div className="text-xs text-red-600 mt-2">
+                                    Vérifiez que toutes les ressources sont
+                                    configurées correctement.
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            );
+                          }
+
+                          const calc = item.calculation;
+                          const marginPercent = calc.marginPercent || 0;
+                          const isProfitable =
+                            calc.netMargin !== undefined && calc.netMargin >= 0;
+                          const isHighMargin = marginPercent > 20;
+
+                          return (
+                            <Card
+                              key={item.recipeId}
+                              className="border-2 hover:border-purple-400 transition-colors"
+                            >
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-base flex items-center justify-between">
+                                  <span className="truncate">
+                                    {item.recipeName}
+                                  </span>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      const recipe = serviceRecipes.find(
+                                        (r) => r.id === item.recipeId
+                                      );
+                                      if (recipe) {
+                                        setSelectedRecipeId(recipe.id);
+                                        setRecipeName(recipe.name);
+                                        setLaborTimeMinutes([
+                                          recipe.laborTimeMinutes,
+                                        ]);
+                                        setLaborHourlyCost([
+                                          recipe.laborHourlyCost,
+                                        ]);
+                                        setSelectedSupplies(
+                                          recipe.suppliesUsed.map((s) => ({
+                                            supplyId: s.supply.id,
+                                            quantityUsed: s.quantityUsed,
+                                          }))
+                                        );
+                                        setSelectedEquipment(
+                                          recipe.equipmentUsed.map(
+                                            (e) => e.equipment.id
+                                          )
+                                        );
+                                        setShowPerServiceView(false);
+                                      }
+                                    }}
+                                    className="h-6 w-6"
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-3">
+                                {/* Coût de revient */}
+                                <div className="bg-slate-50 rounded p-2 border border-slate-200">
+                                  <div className="text-xs text-slate-500 mb-1">
+                                    Coût de revient
+                                  </div>
+                                  <div className="text-lg font-bold text-slate-700">
+                                    {calc.totalCost.toFixed(2)} €
+                                  </div>
+                                </div>
+
+                                {/* Détail des coûts */}
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-600">
+                                      💧 Consommables
+                                    </span>
+                                    <span className="font-medium">
+                                      {calc.suppliesCost.toFixed(2)} €
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-600">
+                                      ⚡ Matériel
+                                    </span>
+                                    <span className="font-medium">
+                                      {calc.equipmentCost.toFixed(2)} €
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-600">
+                                      🔧 Main d'œuvre
+                                    </span>
+                                    <span className="font-medium">
+                                      {calc.laborCost.toFixed(2)} €
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-600">
+                                      🏠 Charges
+                                    </span>
+                                    <span className="font-medium">
+                                      {calc.overheadCost.toFixed(2)} €
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Marge si prix de vente configuré */}
+                                {calc.sellingPrice !== undefined &&
+                                  calc.netMargin !== undefined && (
+                                    <div
+                                      className={`rounded-lg p-3 border-2 ${
+                                        !isProfitable
+                                          ? "bg-red-50 border-red-200"
+                                          : isHighMargin
+                                            ? "bg-green-50 border-green-200"
+                                            : "bg-orange-50 border-orange-200"
+                                      }`}
+                                    >
+                                      <div className="text-xs text-slate-600 mb-1">
+                                        Prix de vente
+                                      </div>
+                                      <div className="text-base font-bold text-slate-700 mb-2">
+                                        {calc.sellingPrice.toFixed(2)} €
+                                      </div>
+                                      <div className="flex items-center justify-between">
+                                        <span
+                                          className={`text-xs font-semibold ${
+                                            !isProfitable
+                                              ? "text-red-700"
+                                              : isHighMargin
+                                                ? "text-green-700"
+                                                : "text-orange-700"
+                                          }`}
+                                        >
+                                          {!isProfitable
+                                            ? "❌ PERTE"
+                                            : "✅ Marge"}
+                                        </span>
+                                        <span
+                                          className={`text-lg font-extrabold ${
+                                            !isProfitable
+                                              ? "text-red-600"
+                                              : isHighMargin
+                                                ? "text-green-600"
+                                                : "text-orange-600"
+                                          }`}
+                                        >
+                                          {calc.netMargin >= 0 ? "+" : ""}
+                                          {calc.netMargin.toFixed(2)} €
+                                        </span>
+                                      </div>
+                                      <div
+                                        className={`text-xs font-medium mt-1 ${
+                                          !isProfitable
+                                            ? "text-red-600"
+                                            : isHighMargin
+                                              ? "text-green-600"
+                                              : "text-orange-600"
+                                        }`}
+                                      >
+                                        Marge: {marginPercent.toFixed(1)}%
+                                      </div>
+                                    </div>
+                                  )}
+
+                                {/* Message si pas de prix configuré */}
+                                {calc.sellingPrice === undefined && (
+                                  <div className="bg-blue-50 border border-blue-200 rounded p-2 text-xs text-blue-700 text-center">
+                                    Configurez un prix de vente pour voir la
+                                    marge
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Vue globale de toutes les prestations */}
+                {showGlobalView && globalCalculation && (
+                  <Card className="border-2 border-blue-200 bg-blue-50/50">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Receipt className="h-5 w-5" />
+                          Vue Globale - {globalCalculation.recipesCount}{" "}
+                          Prestation
+                          {globalCalculation.recipesCount > 1 ? "s" : ""}
+                        </CardTitle>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setShowGlobalView(false);
+                            setGlobalCalculation(null);
+                          }}
+                        >
+                          Fermer
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="bg-white rounded-lg p-3 border">
                           <div className="text-xs text-slate-500">
-                            {recipe.laborTimeMinutes} min -{" "}
-                            {recipe.laborHourlyCost} €/h
+                            Coût Total
                           </div>
-                        </button>
-                        <div className="flex gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteRecipe(recipe.id)}
-                            disabled={isSaving}
-                            className="h-8 w-8 text-red-600 hover:text-red-700"
+                          <div className="text-xl font-bold text-slate-700">
+                            {globalCalculation.totalCost.toFixed(2)} €
+                          </div>
+                        </div>
+                        <div className="bg-white rounded-lg p-3 border">
+                          <div className="text-xs text-slate-500">
+                            Revenu Total
+                          </div>
+                          <div className="text-xl font-bold text-blue-600">
+                            {globalCalculation.totalRevenue.toFixed(2)} €
+                          </div>
+                        </div>
+                        <div
+                          className={`rounded-lg p-3 border ${
+                            globalCalculation.totalMargin >= 0
+                              ? "bg-green-50 border-green-200"
+                              : "bg-red-50 border-red-200"
+                          }`}
+                        >
+                          <div className="text-xs text-slate-500">
+                            Marge Totale
+                          </div>
+                          <div
+                            className={`text-xl font-bold ${
+                              globalCalculation.totalMargin >= 0
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                            {globalCalculation.totalMargin >= 0 ? "+" : ""}
+                            {globalCalculation.totalMargin.toFixed(2)} €
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <div className="bg-white rounded-lg p-3 border">
+                        <div className="text-sm font-semibold text-slate-700 mb-2">
+                          Marge moyenne :{" "}
+                          {globalCalculation.averageMarginPercent.toFixed(1)}%
+                        </div>
+                      </div>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        <div className="text-sm font-semibold text-slate-700">
+                          Détail par prestation :
+                        </div>
+                        {globalCalculation.breakdown.map((item: any) => (
+                          <div
+                            key={item.recipeId}
+                            className="bg-white rounded p-2 border text-sm"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">
+                                {item.recipeName}
+                              </span>
+                              <div className="flex gap-4 text-xs">
+                                <span className="text-slate-600">
+                                  Coût: {item.cost.toFixed(2)} €
+                                </span>
+                                {item.revenue > 0 && (
+                                  <>
+                                    <span className="text-blue-600">
+                                      Prix: {item.revenue.toFixed(2)} €
+                                    </span>
+                                    <span
+                                      className={
+                                        item.margin >= 0
+                                          ? "text-green-600"
+                                          : "text-red-600"
+                                      }
+                                    >
+                                      Marge: {item.margin >= 0 ? "+" : ""}
+                                      {item.margin.toFixed(2)} € (
+                                      {item.marginPercent.toFixed(1)}%)
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
+                {/* Sélection/Liste des recettes */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold text-slate-700">
+                      Mes Prestations ({serviceRecipes.length})
+                    </Label>
+                    <div className="flex gap-2">
+                      {serviceRecipes.length > 0 && (
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              setIsCalculating(true);
+                              try {
+                                // Calculer la rentabilité de chaque prestation
+                                // Utiliser Promise.allSettled pour gérer les erreurs individuelles
+                                const results = await Promise.allSettled(
+                                  serviceRecipes.map(async (recipe) => {
+                                    try {
+                                      const calc =
+                                        await calculateServiceProfitability(
+                                          recipe.id
+                                        );
+                                      return {
+                                        recipeId: recipe.id,
+                                        recipeName: recipe.name,
+                                        calculation: calc,
+                                        error: null,
+                                      };
+                                    } catch (error) {
+                                      // Si une prestation échoue, on la retourne avec l'erreur
+                                      return {
+                                        recipeId: recipe.id,
+                                        recipeName: recipe.name,
+                                        calculation: null,
+                                        error:
+                                          error instanceof Error
+                                            ? error.message
+                                            : "Erreur lors du calcul",
+                                      };
+                                    }
+                                  })
+                                );
+
+                                // Filtrer les résultats réussis et gérer les erreurs
+                                const calculations = results
+                                  .map((result) => {
+                                    if (result.status === "fulfilled") {
+                                      return result.value;
+                                    } else {
+                                      return {
+                                        recipeId: "error",
+                                        recipeName: "Erreur",
+                                        calculation: null,
+                                        error:
+                                          result.reason?.message ||
+                                          "Erreur inconnue",
+                                      };
+                                    }
+                                  })
+                                  .filter(
+                                    (item) =>
+                                      item.calculation !== null || item.error
+                                  );
+
+                                // Afficher un avertissement si certaines prestations ont échoué
+                                const failed = calculations.filter(
+                                  (item) => item.error
+                                );
+                                if (failed.length > 0) {
+                                  toast.error(
+                                    `${failed.length} prestation(s) n'ont pas pu être calculée(s)`
+                                  );
+                                }
+
+                                setPerServiceCalculations(calculations);
+                                setShowPerServiceView(true);
+                                setShowGlobalView(false);
+                              } catch (error) {
+                                console.error("Erreur lors du calcul:", error);
+                                toast.error(
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Erreur lors du calcul"
+                                );
+                              } finally {
+                                setIsCalculating(false);
+                              }
+                            }}
+                            className="h-8"
+                          >
+                            <ChefHat className="mr-2 h-4 w-4" />
+                            Par prestation
+                          </Button>
+                          {serviceRecipes.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                setIsCalculating(true);
+                                try {
+                                  const result =
+                                    await calculateGlobalProfitability();
+                                  setGlobalCalculation(result);
+                                  setShowGlobalView(true);
+                                  setShowPerServiceView(false);
+                                } catch (error) {
+                                  toast.error(
+                                    error instanceof Error
+                                      ? error.message
+                                      : "Erreur lors du calcul global"
+                                  );
+                                } finally {
+                                  setIsCalculating(false);
+                                }
+                              }}
+                              className="h-8"
+                            >
+                              <Receipt className="mr-2 h-4 w-4" />
+                              Vue globale
+                            </Button>
+                          )}
+                        </>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNewRecipe}
+                        className="h-8"
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nouvelle prestation
+                      </Button>
+                    </div>
+                  </div>
+                  {serviceRecipes.length > 0 && (
+                    <div className="space-y-2 border rounded-lg p-3 bg-slate-50 max-h-64 overflow-y-auto">
+                      {serviceRecipes.map((recipe) => (
+                        <div
+                          key={recipe.id}
+                          className={`flex items-center justify-between p-2 bg-white rounded border transition-colors ${
+                            selectedRecipeId === recipe.id
+                              ? "border-blue-500 bg-blue-50"
+                              : "hover:border-blue-300"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedRecipeId(recipe.id);
+                              setRecipeName(recipe.name);
+                              setLaborTimeMinutes([recipe.laborTimeMinutes]);
+                              setLaborHourlyCost([recipe.laborHourlyCost]);
+                              setSelectedSupplies(
+                                recipe.suppliesUsed.map((s) => ({
+                                  supplyId: s.supply.id,
+                                  quantityUsed: s.quantityUsed,
+                                }))
+                              );
+                              setSelectedEquipment(
+                                recipe.equipmentUsed.map((e) => e.equipment.id)
+                              );
+                              setSellingPrice(0);
+                              setCalculation(null);
+                            }}
+                            className="flex-1 text-left"
+                          >
+                            <div className="font-medium text-sm">
+                              {recipe.name}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {recipe.laborTimeMinutes} min -{" "}
+                              {recipe.laborHourlyCost} €/h
+                            </div>
+                          </button>
+                          <div className="flex gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteRecipe(recipe.id)}
+                              disabled={isSaving}
+                              className="h-8 w-8 text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {/* Nom du service */}
                 <div className="space-y-2">
@@ -747,24 +1255,43 @@ export function SimulatorClient({
                   </div>
                 </div>
 
-                <Button
-                  onClick={handleSaveRecipe}
-                  disabled={isSaving || !recipeName.trim()}
-                  className="w-full h-11"
-                  size="lg"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sauvegarde...
-                    </>
-                  ) : (
-                    <>
-                      <Receipt className="mr-2 h-4 w-4" />
-                      Sauvegarder la recette
-                    </>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSaveRecipe}
+                    disabled={isSaving || !recipeName.trim()}
+                    className="flex-1 h-11"
+                    size="lg"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sauvegarde...
+                      </>
+                    ) : selectedRecipeId ? (
+                      <>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Modifier la prestation
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Créer la prestation
+                      </>
+                    )}
+                  </Button>
+                  {selectedRecipeId && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleNewRecipe}
+                      className="h-11"
+                      size="lg"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Nouvelle
+                    </Button>
                   )}
-                </Button>
+                </div>
               </TabsContent>
 
               {/* ONGLET 3 : CHARGES */}
