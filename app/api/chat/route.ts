@@ -351,15 +351,6 @@ export async function POST(req: Request) {
       - "Quelle est ma rentabilité globale ?" → calculateGlobalProfitability
       - "Donne-moi un conseil pour améliorer ma rentabilité" → getProfitabilityAdvice
 
-      SIMULATEUR DE RENTABILITÉ AVANCÉ (Simulator) :
-      - Tu PEUX aider l'utilisateur à calculer le coût de revient précis de ses prestations.
-      - Pour calculer la rentabilité d'une recette : utilise l'outil calculateServiceProfitability avec l'ID de la recette.
-      - L'outil calcule tous les coûts : consommables, matériel (amortissement), main d'œuvre, charges fixes.
-      - Si un prix de vente est fourni, l'outil calcule aussi la marge nette et le pourcentage.
-      - Pour voir les ressources disponibles : utilise l'outil getResources (consommables, matériel, charges).
-      - Pour voir les recettes disponibles : utilise l'outil getServiceRecipes.
-      - Si l'utilisateur demande "coût de revient", "break-even", "rentabilité de ma prestation", "combien ça me coûte vraiment", utilise calculateServiceProfitability.
-
       Devise : Euros (€).`,
 
       tools: {
