@@ -99,38 +99,42 @@ export async function calculateServiceProfitability(
     // 3. CALCUL DU COÛT DES CONSOMMABLES
     // ============================================
     let suppliesCost = 0;
-    const suppliesBreakdown = serviceRecipe.suppliesUsed.map((serviceSupply) => {
-      const supply = serviceSupply.supply;
-      const unitCost = supply.purchasePrice / supply.totalQuantity; // Coût unitaire
-      const totalCost = unitCost * serviceSupply.quantityUsed; // Coût pour cette quantité
+    const suppliesBreakdown = serviceRecipe.suppliesUsed.map(
+      (serviceSupply) => {
+        const supply = serviceSupply.supply;
+        const unitCost = supply.purchasePrice / supply.totalQuantity; // Coût unitaire
+        const totalCost = unitCost * serviceSupply.quantityUsed; // Coût pour cette quantité
 
-      suppliesCost += totalCost;
+        suppliesCost += totalCost;
 
-      return {
-        name: supply.name,
-        quantityUsed: serviceSupply.quantityUsed,
-        unitCost: Math.round(unitCost * 10000) / 10000, // 4 décimales
-        totalCost: Math.round(totalCost * 100) / 100,
-      };
-    });
+        return {
+          name: supply.name,
+          quantityUsed: serviceSupply.quantityUsed,
+          unitCost: Math.round(unitCost * 10000) / 10000, // 4 décimales
+          totalCost: Math.round(totalCost * 100) / 100,
+        };
+      }
+    );
 
     // 4. CALCUL DU COÛT D'AMORTISSEMENT DU MATÉRIEL
     // ============================================
     let equipmentCost = 0;
-    const equipmentBreakdown = serviceRecipe.equipmentUsed.map((serviceEquipment) => {
-      const equipment = serviceEquipment.equipment;
-      // Coût par prestation = Prix / (Durée de vie en mois * 4.33 semaines/mois * Utilisations/semaine)
-      const costPerService =
-        equipment.purchasePrice /
-        (equipment.lifespanMonths * 4.33 * equipment.weeklyUses);
+    const equipmentBreakdown = serviceRecipe.equipmentUsed.map(
+      (serviceEquipment) => {
+        const equipment = serviceEquipment.equipment;
+        // Coût par prestation = Prix / (Durée de vie en mois * 4.33 semaines/mois * Utilisations/semaine)
+        const costPerService =
+          equipment.purchasePrice /
+          (equipment.lifespanMonths * 4.33 * equipment.weeklyUses);
 
-      equipmentCost += costPerService;
+        equipmentCost += costPerService;
 
-      return {
-        name: equipment.name,
-        costPerService: Math.round(costPerService * 100) / 100,
-      };
-    });
+        return {
+          name: equipment.name,
+          costPerService: Math.round(costPerService * 100) / 100,
+        };
+      }
+    );
 
     // 5. CALCUL DU COÛT DE LA MAIN D'ŒUVRE
     // ============================================
@@ -199,9 +203,12 @@ export async function calculateServiceProfitability(
         },
       },
       sellingPrice,
-      netMargin: netMargin !== undefined ? Math.round(netMargin * 100) / 100 : undefined,
+      netMargin:
+        netMargin !== undefined ? Math.round(netMargin * 100) / 100 : undefined,
       marginPercent:
-        marginPercent !== undefined ? Math.round(marginPercent * 100) / 100 : undefined,
+        marginPercent !== undefined
+          ? Math.round(marginPercent * 100) / 100
+          : undefined,
     };
   } catch (error) {
     console.error("Erreur lors du calcul de rentabilité:", error);
@@ -482,6 +489,120 @@ export async function upsertServiceRecipe(data: {
       error instanceof Error
         ? error.message
         : "Erreur lors de la sauvegarde de la recette"
+    );
+  }
+}
+
+/**
+ * Supprime une ressource (Supply, Equipment, Overhead)
+ */
+export async function deleteResource(
+  type: "supply" | "equipment" | "overhead",
+  id: string
+) {
+  try {
+    const user = await getCurrentUser();
+    const company = user.companies[0];
+
+    if (!company) {
+      throw new Error("Aucune entreprise trouvée");
+    }
+
+    // Vérifier que la ressource appartient à l'entreprise
+    if (type === "supply") {
+      const supply = await prisma.supply.findUnique({
+        where: { id },
+      });
+      if (!supply || supply.companyId !== company.id) {
+        throw new Error("Ressource non trouvée ou non autorisée");
+      }
+      // Supprimer les relations dans ServiceSupply
+      await prisma.serviceSupply.deleteMany({
+        where: { supplyId: id },
+      });
+      await prisma.supply.delete({
+        where: { id },
+      });
+    } else if (type === "equipment") {
+      const equipment = await prisma.equipment.findUnique({
+        where: { id },
+      });
+      if (!equipment || equipment.companyId !== company.id) {
+        throw new Error("Ressource non trouvée ou non autorisée");
+      }
+      // Supprimer les relations dans ServiceEquipment
+      await prisma.serviceEquipment.deleteMany({
+        where: { equipmentId: id },
+      });
+      await prisma.equipment.delete({
+        where: { id },
+      });
+    } else if (type === "overhead") {
+      const overhead = await prisma.overhead.findUnique({
+        where: { id },
+      });
+      if (!overhead || overhead.companyId !== company.id) {
+        throw new Error("Ressource non trouvée ou non autorisée");
+      }
+      await prisma.overhead.delete({
+        where: { id },
+      });
+    }
+
+    revalidatePath("/simulator");
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur lors de la suppression de la ressource:", error);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Erreur lors de la suppression de la ressource"
+    );
+  }
+}
+
+/**
+ * Supprime une recette de service
+ */
+export async function deleteServiceRecipe(id: string) {
+  try {
+    const user = await getCurrentUser();
+    const company = user.companies[0];
+
+    if (!company) {
+      throw new Error("Aucune entreprise trouvée");
+    }
+
+    // Vérifier que la recette appartient à l'entreprise
+    const serviceRecipe = await prisma.serviceRecipe.findUnique({
+      where: { id },
+    });
+
+    if (!serviceRecipe || serviceRecipe.companyId !== company.id) {
+      throw new Error("Recette non trouvée ou non autorisée");
+    }
+
+    // Supprimer les relations
+    await prisma.serviceSupply.deleteMany({
+      where: { serviceRecipeId: id },
+    });
+    await prisma.serviceEquipment.deleteMany({
+      where: { serviceRecipeId: id },
+    });
+
+    // Supprimer la recette
+    await prisma.serviceRecipe.delete({
+      where: { id },
+    });
+
+    revalidatePath("/simulator");
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur lors de la suppression de la recette:", error);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Erreur lors de la suppression de la recette"
     );
   }
 }
