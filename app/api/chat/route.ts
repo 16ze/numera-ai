@@ -8,6 +8,16 @@ import {
 import { sendInvoiceEmail } from "@/app/actions/send-invoice-email";
 import { connectStripe, getIntegrations, syncStripeTransactions } from "@/app/actions/integrations";
 import { getCashFlowForecast } from "@/app/actions/forecast";
+import {
+  calculateServicePrice,
+  getCostProfile,
+  getServices,
+} from "@/app/actions/profitability";
+import {
+  calculateServiceProfitability,
+  getResources,
+  getServiceRecipes,
+} from "@/app/actions/simulator";
 import { prisma } from "@/app/lib/prisma";
 import { openai } from "@ai-sdk/openai";
 import { currentUser } from "@clerk/nextjs/server";
@@ -297,6 +307,40 @@ export async function POST(req: Request) {
       - Pour vérifier l'état des intégrations : utilise l'outil getIntegrations.
       - Les transactions Stripe sont automatiquement importées avec le bon type (INCOME/EXPENSE) et catégorie.
       - Si l'utilisateur demande "connecte Stripe", "synchronise mes paiements Stripe", ou "importe mes transactions Stripe", utilise ces outils.
+
+      CALCUL DE RENTABILITÉ (Profitability) :
+      - Tu PEUX aider l'utilisateur à calculer le prix de vente optimal de ses services.
+      - Pour calculer un prix : utilise l'outil calculateServicePrice avec l'ID du service et une marge souhaitée (défaut: 20%).
+      - Pour voir le profil de coûts : utilise l'outil getCostProfile (charges fixes, salaire, vacances, etc.).
+      - Pour voir les services configurés : utilise l'outil getServices.
+      - L'outil retourne : prix recommandé, prix minimum, nombre de clients nécessaires/mois, heures de travail/mois, et alerte si risque de burnout (>150h/mois).
+      - Si l'utilisateur demande "quel prix pour mon service", "calcule le prix de vente", "combien de clients par mois", utilise calculateServicePrice.
+
+      SIMULATEUR AVANCÉ (Simulator) :
+      - Tu PEUX aider l'utilisateur à calculer le coût de revient précis d'une prestation.
+      - Pour calculer le coût de revient : utilise l'outil calculateServiceProfitability avec l'ID de la recette de service.
+      - Optionnel : fournis un prix de vente pour calculer la marge nette et le pourcentage.
+      - L'outil retourne le détail de tous les coûts : consommables, matériel (amortissement), main d'œuvre, charges fixes.
+      - Pour voir les ressources : utilise l'outil getResources (consommables, matériel, charges).
+      - Pour voir les recettes : utilise l'outil getServiceRecipes.
+      - Si l'utilisateur demande "coût de revient", "prix minimum", "rentabilité de ma prestation", "combien ça me coûte vraiment", utilise calculateServiceProfitability.
+
+      CALCUL DE RENTABILITÉ (Profitability) :
+      - Tu PEUX aider l'utilisateur à calculer le prix de vente optimal de ses services.
+      - Pour calculer un prix : utilise l'outil calculateServicePrice avec l'ID du service.
+      - L'outil retourne le prix recommandé, le nombre de clients nécessaires/mois, et alerte si risque de burnout (>150h/mois).
+      - Pour voir les services disponibles : utilise l'outil getServices.
+      - Pour voir le profil de coûts configuré : utilise l'outil getCostProfile.
+      - Si l'utilisateur demande "quel prix pour mon service", "combien je dois facturer", "calculer le prix", utilise calculateServicePrice.
+
+      SIMULATEUR DE RENTABILITÉ AVANCÉ (Simulator) :
+      - Tu PEUX aider l'utilisateur à calculer le coût de revient précis de ses prestations.
+      - Pour calculer la rentabilité d'une recette : utilise l'outil calculateServiceProfitability avec l'ID de la recette.
+      - L'outil calcule tous les coûts : consommables, matériel (amortissement), main d'œuvre, charges fixes.
+      - Si un prix de vente est fourni, l'outil calcule aussi la marge nette et le pourcentage.
+      - Pour voir les ressources disponibles : utilise l'outil getResources (consommables, matériel, charges).
+      - Pour voir les recettes disponibles : utilise l'outil getServiceRecipes.
+      - Si l'utilisateur demande "coût de revient", "break-even", "rentabilité de ma prestation", "combien ça me coûte vraiment", utilise calculateServiceProfitability.
       - IMPORTANT : La clé API doit être une Restricted Key avec permissions balance:read et charges:read.
 
       Devise : Euros (€).`,
@@ -1855,6 +1899,260 @@ export async function POST(req: Request) {
                 err instanceof Error
                   ? err.message
                   : "Erreur lors de la synchronisation Stripe"
+              );
+            }
+          },
+        }),
+
+        // ============================================
+        // OUTILS RENTABILITÉ (Profitability)
+        // ============================================
+
+        calculateServicePrice: tool({
+          description:
+            "Calcule le prix de vente recommandé pour un service en fonction des coûts (charges fixes, salaire, vacances, marge). Utilise cet outil quand l'utilisateur demande de calculer un prix de vente, fixer un prix, ou connaître le prix minimum pour un service. Retourne le prix recommandé, le nombre de clients nécessaires par mois, et alerte si risque de burnout (>150h/mois).",
+          inputSchema: z.object({
+            serviceId: z.string().describe("ID du service à calculer"),
+            marginPercent: z
+              .number()
+              .optional()
+              .describe("Marge de sécurité souhaitée en % (défaut: 20%)"),
+          }),
+          execute: async ({ serviceId, marginPercent = 20 }) => {
+            console.log(
+              `🛠️ Outil 'calculateServicePrice' en cours pour service ${serviceId}...`
+            );
+
+            try {
+              const result = await calculateServicePrice(serviceId, marginPercent);
+
+              return {
+                success: true,
+                hourlyCost: result.hourlyCost,
+                serviceCost: result.serviceCost,
+                minimumPrice: result.minimumPrice,
+                recommendedPrice: result.recommendedPrice,
+                clientsNeededPerMonth: result.clientsNeededPerMonth,
+                monthlyHoursNeeded: result.monthlyHoursNeeded,
+                isRealistic: result.isRealistic,
+                breakdown: result.breakdown,
+                message: `Prix recommandé : ${result.recommendedPrice.toFixed(2)} €. ${result.clientsNeededPerMonth} clients/mois nécessaires (${result.monthlyHoursNeeded.toFixed(1)}h). ${result.isRealistic ? "✅ Réaliste" : "⚠️ Risque de burnout (>150h/mois)"}`,
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans calculateServicePrice:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors du calcul du prix"
+              );
+            }
+          },
+        }),
+
+        getCostProfile: tool({
+          description:
+            "Récupère le profil de coûts de l'entreprise (charges fixes, salaire souhaité, charges sociales, jours/heures travaillés, vacances). Utilise cet outil pour connaître la configuration actuelle des coûts.",
+          inputSchema: z.object({}),
+          execute: async () => {
+            console.log("🛠️ Outil 'getCostProfile' en cours...");
+
+            try {
+              const profile = await getCostProfile();
+
+              if (!profile) {
+                return {
+                  success: false,
+                  message:
+                    "Aucun profil de coûts configuré. Configurez-le dans /profitability",
+                };
+              }
+
+              return {
+                success: true,
+                profile: {
+                  monthlyFixedCosts: profile.monthlyFixedCosts,
+                  desiredMonthlySalary: profile.desiredMonthlySalary,
+                  socialChargesRate: profile.socialChargesRate,
+                  workingDaysPerMonth: profile.workingDaysPerMonth,
+                  dailyHours: profile.dailyHours,
+                  vacationWeeks: profile.vacationWeeks,
+                },
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans getCostProfile:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la récupération du profil de coûts"
+              );
+            }
+          },
+        }),
+
+        getServices: tool({
+          description:
+            "Récupère la liste des services définis. Utilise cet outil pour voir quels services sont disponibles pour calculer leur prix.",
+          inputSchema: z.object({}),
+          execute: async () => {
+            console.log("🛠️ Outil 'getServices' en cours...");
+
+            try {
+              const services = await getServices();
+
+              return {
+                success: true,
+                services: services.map((s) => ({
+                  id: s.id,
+                  name: s.name,
+                  durationMinutes: s.durationMinutes,
+                  materialCost: s.materialCost,
+                  platformFees: s.platformFees,
+                })),
+                count: services.length,
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans getServices:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la récupération des services"
+              );
+            }
+          },
+        }),
+
+        // ============================================
+        // OUTILS SIMULATEUR AVANCÉ (Simulator)
+        // ============================================
+
+        calculateServiceProfitability: tool({
+          description:
+            "Calcule le coût de revient précis d'une prestation en tenant compte de tous les coûts (consommables, matériel amortissable, main d'œuvre, charges fixes). Utilise cet outil quand l'utilisateur demande de calculer le coût de revient d'un service, le break-even, ou la rentabilité d'une prestation. Retourne le détail de tous les coûts et la marge si un prix de vente est fourni.",
+          inputSchema: z.object({
+            serviceRecipeId: z
+              .string()
+              .describe("ID de la recette de service à calculer"),
+            sellingPrice: z
+              .number()
+              .optional()
+              .describe("Prix de vente envisagé (optionnel, pour calculer la marge)"),
+          }),
+          execute: async ({ serviceRecipeId, sellingPrice }) => {
+            console.log(
+              `🛠️ Outil 'calculateServiceProfitability' en cours pour recette ${serviceRecipeId}...`
+            );
+
+            try {
+              const result = await calculateServiceProfitability(
+                serviceRecipeId,
+                sellingPrice
+              );
+
+              return {
+                success: true,
+                suppliesCost: result.suppliesCost,
+                equipmentCost: result.equipmentCost,
+                laborCost: result.laborCost,
+                overheadCost: result.overheadCost,
+                totalCost: result.totalCost,
+                breakdown: result.breakdown,
+                sellingPrice: result.sellingPrice,
+                netMargin: result.netMargin,
+                marginPercent: result.marginPercent,
+                message: `Coût de revient total : ${result.totalCost.toFixed(2)} € (Consommables: ${result.suppliesCost.toFixed(2)} €, Matériel: ${result.equipmentCost.toFixed(2)} €, Main d'œuvre: ${result.laborCost.toFixed(2)} €, Charges: ${result.overheadCost.toFixed(2)} €)${result.netMargin !== undefined ? `. Marge : ${result.netMargin >= 0 ? "+" : ""}${result.netMargin.toFixed(2)} € (${result.marginPercent?.toFixed(1)}%)` : ""}`,
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans calculateServiceProfitability:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors du calcul de rentabilité"
+              );
+            }
+          },
+        }),
+
+        getResources: tool({
+          description:
+            "Récupère toutes les ressources de l'entreprise (consommables, matériel, charges). Utilise cet outil pour voir quelles ressources sont disponibles pour construire une recette de service.",
+          inputSchema: z.object({}),
+          execute: async () => {
+            console.log("🛠️ Outil 'getResources' en cours...");
+
+            try {
+              const resources = await getResources();
+
+              return {
+                success: true,
+                supplies: resources.supplies.map((s) => ({
+                  id: s.id,
+                  name: s.name,
+                  supplier: s.supplier,
+                  purchasePrice: s.purchasePrice,
+                  totalQuantity: s.totalQuantity,
+                  unit: s.unit,
+                  unitCost: s.purchasePrice / s.totalQuantity,
+                })),
+                equipment: resources.equipment.map((e) => ({
+                  id: e.id,
+                  name: e.name,
+                  purchasePrice: e.purchasePrice,
+                  lifespanMonths: e.lifespanMonths,
+                  weeklyUses: e.weeklyUses,
+                  costPerService:
+                    e.purchasePrice / (e.lifespanMonths * 4.33 * e.weeklyUses),
+                })),
+                overheads: resources.overheads.map((o) => ({
+                  id: o.id,
+                  name: o.name,
+                  monthlyCost: o.monthlyCost,
+                  category: o.category,
+                })),
+                counts: {
+                  supplies: resources.supplies.length,
+                  equipment: resources.equipment.length,
+                  overheads: resources.overheads.length,
+                },
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans getResources:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la récupération des ressources"
+              );
+            }
+          },
+        }),
+
+        getServiceRecipes: tool({
+          description:
+            "Récupère toutes les recettes de service définies. Utilise cet outil pour voir quelles recettes sont disponibles pour calculer leur rentabilité.",
+          inputSchema: z.object({}),
+          execute: async () => {
+            console.log("🛠️ Outil 'getServiceRecipes' en cours...");
+
+            try {
+              const recipes = await getServiceRecipes();
+
+              return {
+                success: true,
+                recipes: recipes.map((r) => ({
+                  id: r.id,
+                  name: r.name,
+                  laborTimeMinutes: r.laborTimeMinutes,
+                  laborHourlyCost: r.laborHourlyCost,
+                  suppliesCount: r.suppliesUsed.length,
+                  equipmentCount: r.equipmentUsed.length,
+                })),
+                count: recipes.length,
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans getServiceRecipes:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la récupération des recettes"
               );
             }
           },

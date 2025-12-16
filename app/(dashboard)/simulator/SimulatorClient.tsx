@@ -5,19 +5,25 @@
  * Interface en 3 colonnes : Ressources, Recette, Ticket de Caisse
  */
 
-import { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { useEffect, useState } from "react";
 // Note: Select component sera installé via shadcn
 import {
   calculateServiceProfitability,
@@ -25,19 +31,18 @@ import {
   upsertServiceRecipe,
   type ServiceProfitabilityResult,
 } from "@/app/actions/simulator";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import {
-  Package,
-  Wrench,
-  Home,
   ChefHat,
-  Receipt,
-  Plus,
-  Trash2,
+  Home,
   Loader2,
-  Calculator,
+  Package,
+  Plus,
+  Receipt,
+  Trash2,
+  Wrench,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 interface Supply {
   id: string;
@@ -95,8 +100,12 @@ export function SimulatorClient({
 }: SimulatorClientProps) {
   // État des ressources
   const [supplies, setSupplies] = useState<Supply[]>(initialResources.supplies);
-  const [equipment, setEquipment] = useState<Equipment[]>(initialResources.equipment);
-  const [overheads, setOverheads] = useState<Overhead[]>(initialResources.overheads);
+  const [equipment, setEquipment] = useState<Equipment[]>(
+    initialResources.equipment
+  );
+  const [overheads, setOverheads] = useState<Overhead[]>(
+    initialResources.overheads
+  );
 
   // État de la recette en cours
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(
@@ -124,7 +133,8 @@ export function SimulatorClient({
   );
 
   // État du résultat
-  const [calculation, setCalculation] = useState<ServiceProfitabilityResult | null>(null);
+  const [calculation, setCalculation] =
+    useState<ServiceProfitabilityResult | null>(null);
   const [sellingPrice, setSellingPrice] = useState<number>(0);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -171,9 +181,7 @@ export function SimulatorClient({
     } catch (error) {
       console.error("Erreur calcul:", error);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors du calcul"
+        error instanceof Error ? error.message : "Erreur lors du calcul"
       );
       setCalculation(null);
     } finally {
@@ -201,9 +209,7 @@ export function SimulatorClient({
     } catch (error) {
       console.error("Erreur sauvegarde:", error);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de la sauvegarde"
+        error instanceof Error ? error.message : "Erreur lors de la sauvegarde"
       );
     } finally {
       setIsSaving(false);
@@ -235,9 +241,7 @@ export function SimulatorClient({
     } catch (error) {
       console.error("Erreur sauvegarde recette:", error);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de la sauvegarde"
+        error instanceof Error ? error.message : "Erreur lors de la sauvegarde"
       );
     } finally {
       setIsSaving(false);
@@ -367,9 +371,7 @@ export function SimulatorClient({
 
           {/* Temps de main d'œuvre */}
           <div>
-            <Label>
-              Temps de main d'œuvre : {laborTimeMinutes[0]} minutes
-            </Label>
+            <Label>Temps de main d'œuvre : {laborTimeMinutes[0]} minutes</Label>
             <Slider
               value={laborTimeMinutes}
               onValueChange={setLaborTimeMinutes}
@@ -465,7 +467,8 @@ export function SimulatorClient({
                 </option>
                 {supplies
                   .filter(
-                    (s) => !selectedSupplies.some((sel) => sel.supplyId === s.id)
+                    (s) =>
+                      !selectedSupplies.some((sel) => sel.supplyId === s.id)
                   )
                   .map((supply) => (
                     <option key={supply.id} value={supply.id}>
@@ -599,9 +602,10 @@ export function SimulatorClient({
                     setSellingPrice(price);
                     // Recalculer avec le nouveau prix
                     if (selectedRecipeId && price > 0) {
-                      calculateServiceProfitability(selectedRecipeId, price).then(
-                        setCalculation
-                      );
+                      calculateServiceProfitability(
+                        selectedRecipeId,
+                        price
+                      ).then(setCalculation);
                     }
                   }}
                   placeholder="Ex: 50"
@@ -620,7 +624,9 @@ export function SimulatorClient({
                   >
                     <div className="flex justify-between items-center">
                       <span className="font-semibold">
-                        {calculation.netMargin >= 0 ? "✅ Marge nette" : "❌ PERTE"}
+                        {calculation.netMargin >= 0
+                          ? "✅ Marge nette"
+                          : "❌ PERTE"}
                       </span>
                       <span
                         className={`text-2xl font-bold ${
