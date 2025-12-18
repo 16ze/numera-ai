@@ -248,6 +248,14 @@ export function SimulatorClient({
       setSupplies(resources.supplies);
       setEquipment(resources.equipment);
       setOverheads(resources.overheads);
+      
+      // Recalculer automatiquement si une recette est sélectionnée
+      if (selectedRecipeId && recipeName.trim()) {
+        // Petit délai pour s'assurer que la BDD est à jour
+        setTimeout(() => {
+          handleCalculate();
+        }, 300);
+      }
     } catch (error) {
       console.error("Erreur sauvegarde:", error);
       toast.error(
@@ -279,6 +287,14 @@ export function SimulatorClient({
       setSupplies(resources.supplies);
       setEquipment(resources.equipment);
       setOverheads(resources.overheads);
+      
+      // Recalculer automatiquement si une recette est sélectionnée
+      if (selectedRecipeId && recipeName.trim()) {
+        // Petit délai pour s'assurer que la BDD est à jour
+        setTimeout(() => {
+          handleCalculate();
+        }, 300);
+      }
     } catch (error) {
       console.error("Erreur suppression:", error);
       toast.error(
