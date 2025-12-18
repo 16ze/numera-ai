@@ -32,12 +32,13 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-screen">
       {/* Sidebar Desktop - Cachée sur mobile */}
+      {/* Sidebar en overlay avec z-index élevé, ne pousse pas le contenu */}
       <div className="hidden md:block">
         <Sidebar />
       </div>
 
-      {/* Contenu principal */}
-      <div className="flex flex-1 flex-col md:ml-64 w-full">
+      {/* Contenu principal - Marge réduite pour sidebar compacte */}
+      <div className="flex flex-1 flex-col md:ml-20 w-full transition-all duration-300">
         {/* Header Desktop uniquement - Caché sur mobile */}
         <header className="sticky top-0 z-10 hidden md:flex h-16 items-center border-b bg-white px-6 print:hidden">
           {/* Spacer pour pousser l'avatar à droite */}
