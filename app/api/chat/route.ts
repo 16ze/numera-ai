@@ -24,6 +24,7 @@ import {
   upsertServiceRecipe,
 } from "@/app/actions/simulator";
 import { getProfitabilityAdvice } from "@/app/actions/advisor";
+import { getDocuments } from "@/app/actions/documents";
 import { prisma } from "@/app/lib/prisma";
 import { openai } from "@ai-sdk/openai";
 import { currentUser } from "@clerk/nextjs/server";
@@ -347,6 +348,14 @@ export async function POST(req: Request) {
       💡 EXEMPLES DE QUESTIONS :
       - "Calcule le coût de revient de ma prestation X" → calculateServiceProfitability
       - "Ajoute un consommable Shampooing à 20€" → upsertResource (type: supply)
+
+      DOCUMENTS ET CONTRATS (RAG) :
+      - Tu as accès aux documents stockés de l'entreprise (contrats, factures fournisseurs, courriers, PDF, images).
+      - Pour rechercher dans les documents : utilise l'outil searchDocuments avec des mots-clés.
+      - Si l'utilisateur mentionne un client spécifique (ex: "Le contrat Martin"), utilise le paramètre clientName pour filtrer.
+      - L'outil retourne : titre, type (PDF/IMAGE), résumé, client associé, date, extrait du texte (1000 premiers caractères), et URL.
+      - Si l'utilisateur pose une question sur un document (ex: "Qu'est-ce qui est écrit dans le contrat avec Martin ?", "Le contrat du 15 novembre"), utilise searchDocuments pour lire son contenu et répondre.
+      - Présente les résultats de manière claire : liste les documents trouvés avec leur résumé et l'extrait pertinent.
       - "Crée une nouvelle prestation Coupe 60min" → upsertServiceRecipe
       - "Quelle est ma rentabilité globale ?" → calculateGlobalProfitability
       - "Donne-moi un conseil pour améliorer ma rentabilité" → getProfitabilityAdvice
@@ -2161,6 +2170,118 @@ export async function POST(req: Request) {
                 err instanceof Error
                   ? err.message
                   : "Erreur lors de la récupération des recettes"
+              );
+            }
+          },
+        }),
+
+        searchDocuments: tool({
+          description:
+            "Recherche dans les documents stockés (PDF/Images) de l'entreprise. Utilise cet outil si l'utilisateur pose une question sur un document, un contrat, une facture fournisseur, ou un courrier. Tu peux filtrer par client si le nom est fourni.",
+          inputSchema: z.object({
+            keywords: z
+              .string()
+              .describe(
+                "Mots-clés à rechercher dans le nom ou le contenu du document"
+              ),
+            clientName: z
+              .string()
+              .optional()
+              .describe(
+                "Nom du client pour filtrer les documents (optionnel)"
+              ),
+          }),
+          execute: async ({ keywords, clientName }) => {
+            console.log("📄 Outil 'searchDocuments' en cours...");
+            console.log("🔍 Mots-clés:", keywords);
+            console.log("👤 Client:", clientName || "Tous");
+
+            try {
+              const user = await getCurrentUser();
+              const company = user.companies[0];
+
+              if (!company) {
+                return {
+                  success: false,
+                  message: "Aucune entreprise trouvée",
+                  documents: [],
+                };
+              }
+
+              // Si un nom de client est fourni, chercher d'abord l'ID du client
+              let clientId: string | undefined = undefined;
+              if (clientName) {
+                const client = await prisma.client.findFirst({
+                  where: {
+                    companyId: company.id,
+                    name: {
+                      contains: clientName,
+                      mode: "insensitive",
+                    },
+                  },
+                });
+                if (client) {
+                  clientId = client.id;
+                }
+              }
+
+              // Recherche dans les documents
+              const documents = await prisma.document.findMany({
+                where: {
+                  userId: user.id,
+                  ...(clientId && { clientId }),
+                  OR: [
+                    {
+                      name: {
+                        contains: keywords,
+                        mode: "insensitive",
+                      },
+                    },
+                    {
+                      extractedText: {
+                        contains: keywords,
+                        mode: "insensitive",
+                      },
+                    },
+                  ],
+                },
+                include: {
+                  client: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+                orderBy: {
+                  createdAt: "desc",
+                },
+                take: 10, // Limiter à 10 résultats
+              });
+
+              return {
+                success: true,
+                count: documents.length,
+                documents: documents.map((doc) => ({
+                  id: doc.id,
+                  titre: doc.name,
+                  type: doc.type,
+                  resume: doc.summary || "Aucun résumé disponible",
+                  client: doc.client?.name || null,
+                  date: doc.createdAt.toISOString().split("T")[0],
+                  extrait:
+                    doc.extractedText.length > 1000
+                      ? doc.extractedText.substring(0, 1000) + "..."
+                      : doc.extractedText,
+                  url: doc.url,
+                })),
+              };
+            } catch (err) {
+              console.error("❌ ERREUR dans searchDocuments:", err);
+              throw new Error(
+                err instanceof Error
+                  ? err.message
+                  : "Erreur lors de la recherche de documents"
               );
             }
           },

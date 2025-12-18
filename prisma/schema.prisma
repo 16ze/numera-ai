@@ -97,6 +97,7 @@ model User {
   assistantThreads AssistantThread[]
   bankAccounts     BankAccount[] // Comptes bancaires connectés via Plaid
   integrations     Integration[] // Intégrations externes (Stripe, PayPal, etc.)
+  documents        Document[] // Documents stockés
 
   @@index([email])
   @@index([clerkUserId]) // Index pour recherche rapide par Clerk ID
@@ -159,8 +160,9 @@ model Client {
   updatedAt DateTime @updatedAt
 
   // Relations
-  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  invoices Invoice[]
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoices  Invoice[]
+  documents Document[]
 
   @@index([companyId])
   @@index([email])
@@ -490,4 +492,30 @@ model ServiceEquipment {
   @@index([serviceRecipeId])
   @@index([equipmentId])
   @@map("service_equipment")
+}
+
+/**
+ * Document stocké (PDF/Image) avec extraction de texte pour l'IA
+ * Permet le stockage et la recherche dans les documents via RAG
+ */
+model Document {
+  id            String    @id @default(uuid())
+  userId        String // Utilisateur propriétaire
+  clientId      String? // Client associé (optionnel, pour lier un contrat à un client)
+  name          String // Nom du fichier
+  url           String // URL Supabase Storage
+  type          String // 'PDF' ou 'IMAGE'
+  extractedText String    @db.Text // Texte extrait du document (pour recherche)
+  summary       String? // Résumé généré par l'IA à l'upload
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([type])
+  @@map("documents")
 }

@@ -14,6 +14,7 @@ import {
   ListOrdered,
   Settings,
   Users,
+  FolderOpen,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -47,6 +48,11 @@ const navigationItems = [
     name: "Rentabilité",
     href: "/profitability",
     icon: Calculator,
+  },
+  {
+    name: "Documents",
+    href: "/documents",
+    icon: FolderOpen,
   },
   {
     name: "Paramètres",
