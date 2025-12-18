@@ -8,12 +8,12 @@
 
 import { cn } from "@/lib/utils";
 import {
+  Calculator,
   FileText,
   LayoutDashboard,
   ListOrdered,
   Settings,
   Users,
-  Calculator,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -104,7 +104,7 @@ export function Sidebar() {
               <span
                 className={cn(
                   "whitespace-nowrap overflow-hidden transition-all duration-300",
-                  "opacity-0 w-0 group-hover:opacity-100 group-hover:w-auto group-hover:ml-3"
+                  "max-w-0 opacity-0 group-hover:max-w-full group-hover:opacity-100 group-hover:ml-3"
                 )}
               >
                 {item.name}
@@ -122,8 +122,10 @@ export function Sidebar() {
               appearance={{
                 elements: {
                   avatarBox: "h-10 w-10 transition-all duration-300",
-                  userButtonTrigger: "focus:shadow-none transition-all duration-300",
-                  userButtonBox: "flex items-center justify-center group-hover:justify-start transition-all duration-300",
+                  userButtonTrigger:
+                    "focus:shadow-none transition-all duration-300",
+                  userButtonBox:
+                    "flex items-center justify-center group-hover:justify-start transition-all duration-300",
                 },
               }}
               afterSignOutUrl="/sign-in"
