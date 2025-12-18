@@ -16,13 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   FileText,
@@ -225,21 +219,17 @@ export function DocumentsPageClient({
               Lier à un client (optionnel)
             </Label>
             <Select
+              id="client-select"
               value={selectedClientId}
-              onValueChange={setSelectedClientId}
+              onChange={(e) => setSelectedClientId(e.target.value)}
               disabled={isUploading}
             >
-              <SelectTrigger id="client-select">
-                <SelectValue placeholder="Aucun client sélectionné" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Aucun client</SelectItem>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              <option value="">Aucun client</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
             </Select>
           </div>
 
