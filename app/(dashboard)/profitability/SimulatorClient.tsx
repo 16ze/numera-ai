@@ -1411,9 +1411,23 @@ export function SimulatorClient({
                           Consommables
                         </span>
                       </div>
-                      <span className="text-sm font-bold text-slate-900">
-                        {calculation.suppliesCost.toFixed(2)} €
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-slate-900">
+                          {calculation.suppliesCost.toFixed(2)} €
+                        </span>
+                        {calculation.suppliesCost === 0 && (
+                          <span 
+                            className="text-xs text-orange-600 cursor-help" 
+                            title={
+                              selectedSupplies.length === 0 
+                                ? "Aucun consommable ajouté à cette recette. Ajoutez des consommables dans l'onglet Recette et sauvegardez."
+                                : "Les consommables ne sont pas encore sauvegardés. Cliquez sur 'Sauvegarder la recette' pour les enregistrer."
+                            }
+                          >
+                            ⚠️
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center justify-between py-2 px-2 rounded-md hover:bg-slate-50 transition-colors">
                       <div className="flex items-center gap-3">
@@ -1587,11 +1601,20 @@ export function SimulatorClient({
                     <Receipt className="h-8 w-8 text-slate-400" />
                   </div>
                   <p className="text-sm font-medium text-slate-600">
-                    Configurez votre recette
+                    {selectedRecipeId
+                      ? "Calcul en cours..."
+                      : "Configurez votre recette"}
                   </p>
                   <p className="text-xs text-slate-500">
-                    pour voir le calcul de rentabilité
+                    {selectedRecipeId
+                      ? "Veuillez patienter"
+                      : "Ajoutez des ressources et créez une prestation pour voir le calcul"}
                   </p>
+                  {!selectedRecipeId && selectedSupplies.length > 0 && (
+                    <p className="text-xs text-orange-600 mt-2">
+                      💡 N'oubliez pas de sauvegarder votre recette après avoir ajouté des consommables
+                    </p>
+                  )}
                 </div>
               )}
             </CardContent>
