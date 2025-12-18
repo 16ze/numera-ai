@@ -9,7 +9,6 @@ import { getCurrentUser } from "@/app/lib/auth-helper";
 import { getSupabaseServerClient } from "@/app/lib/supabase-client";
 import { prisma } from "@/app/lib/prisma";
 import { revalidatePath } from "next/cache";
-import pdf from "pdf-parse";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
@@ -83,7 +82,9 @@ export async function uploadAndAnalyzeDocument(
     if (isPDF) {
       // Extraction texte depuis PDF avec pdf-parse
       try {
-        const pdfData = await pdf(buffer);
+        // Import dynamique pour éviter les problèmes d'import ESM/CommonJS
+        const pdfParse = (await import("pdf-parse")).default;
+        const pdfData = await pdfParse(buffer);
         extractedText = pdfData.text || "";
       } catch (pdfError) {
         console.error("Erreur lors de l'extraction PDF:", pdfError);

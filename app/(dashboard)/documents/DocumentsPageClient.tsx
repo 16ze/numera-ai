@@ -5,7 +5,11 @@
  * Gère l'upload, l'affichage et la suppression des documents
  */
 
-import { uploadAndAnalyzeDocument, deleteDocument } from "@/app/actions/documents";
+import {
+  deleteDocument,
+  uploadAndAnalyzeDocument,
+} from "@/app/actions/documents";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,17 +21,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import {
+  ExternalLink,
   FileText,
   Image as ImageIcon,
-  Upload,
-  Trash2,
-  ExternalLink,
   Loader2,
-  X,
+  Trash2,
+  Upload,
 } from "lucide-react";
-import { useState, useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 interface Document {
@@ -184,9 +186,7 @@ export function DocumentsPageClient({
     } catch (error) {
       console.error("Erreur suppression:", error);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de la suppression"
+        error instanceof Error ? error.message : "Erreur lors de la suppression"
       );
     }
   }, []);
@@ -215,9 +215,7 @@ export function DocumentsPageClient({
         <CardContent className="space-y-4">
           {/* Select pour lier à un client */}
           <div className="space-y-2">
-            <Label htmlFor="client-select">
-              Lier à un client (optionnel)
-            </Label>
+            <Label htmlFor="client-select">Lier à un client (optionnel)</Label>
             <Select
               id="client-select"
               value={selectedClientId}
