@@ -13,6 +13,38 @@ import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import OpenAI from "openai";
 
+// --- POLYFILL POUR PDF-PARSE ---
+// Permet d'éviter le crash DOMMatrix sur Node.js
+// pdf-parse utilise pdfjs-dist qui essaie d'utiliser DOMMatrix (API navigateur)
+// Ce polyfill fournit une implémentation minimale pour Node.js
+if (typeof window === "undefined" && typeof (global as any).DOMMatrix === "undefined") {
+  // @ts-ignore - Polyfill pour Node.js
+  (global as any).DOMMatrix = class DOMMatrix {
+    constructor() {
+      return this;
+    }
+    toFloat32Array() {
+      return new Float32Array([1, 0, 0, 1, 0, 0]);
+    }
+    translate() {
+      return this;
+    }
+    scale() {
+      return this;
+    }
+    rotate() {
+      return this;
+    }
+    multiply() {
+      return this;
+    }
+    inverse() {
+      return this;
+    }
+  };
+  console.log("✅ Polyfill DOMMatrix installé pour Node.js");
+}
+
 /**
  * Client OpenAI pour l'API Vision (extraction texte depuis images)
  */
