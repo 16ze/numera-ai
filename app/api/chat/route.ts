@@ -350,12 +350,15 @@ export async function POST(req: Request) {
       - "Ajoute un consommable Shampooing à 20€" → upsertResource (type: supply)
 
       DOCUMENTS ET CONTRATS (RAG) :
-      - Tu as accès aux documents stockés de l'entreprise (contrats, factures fournisseurs, courriers, PDF, images).
+      - Tu as accès à TOUS les documents stockés de l'entreprise (contrats, factures fournisseurs, courriers, PDF, images), quel que soit leur emplacement dans les dossiers.
+      - La recherche est GLOBALE : elle ignore complètement la structure de dossiers et cherche dans toute la base de données de l'utilisateur.
       - Pour rechercher dans les documents : utilise l'outil searchDocuments avec des mots-clés.
       - Si l'utilisateur mentionne un client spécifique (ex: "Le contrat Martin"), utilise le paramètre clientName pour filtrer.
-      - L'outil retourne : titre, type (PDF/IMAGE), résumé, client associé, date, extrait du texte (1000 premiers caractères), et URL.
+      - L'outil retourne : titre, type (PDF/IMAGE), résumé, client associé, date, dossier (chemin complet comme "Clients > 2024 > Martin" ou "À la racine"), extrait du texte (1000 premiers caractères), et URL.
+      - IMPORTANT : Quand tu cites un document trouvé, PRÉCISE TOUJOURS dans quel dossier il se trouve (ex: "Le contrat Martin se trouve dans le dossier 'Clients > 2024 > Martin'"). Cela aide l'utilisateur à le retrouver facilement.
       - Si l'utilisateur pose une question sur un document (ex: "Qu'est-ce qui est écrit dans le contrat avec Martin ?", "Le contrat du 15 novembre"), utilise searchDocuments pour lire son contenu et répondre.
-      - Présente les résultats de manière claire : liste les documents trouvés avec leur résumé et l'extrait pertinent.
+      - Présente les résultats de manière claire : liste les documents trouvés avec leur résumé, leur emplacement (dossier), et l'extrait pertinent.
+      - Exemple de réponse : "J'ai trouvé le contrat Martin dans le dossier 'Clients > 2024 > Martin'. Voici son contenu : [extrait]..."
       - "Crée une nouvelle prestation Coupe 60min" → upsertServiceRecipe
       - "Quelle est ma rentabilité globale ?" → calculateGlobalProfitability
       - "Donne-moi un conseil pour améliorer ma rentabilité" → getProfitabilityAdvice
@@ -2177,7 +2180,7 @@ export async function POST(req: Request) {
 
         searchDocuments: tool({
           description:
-            "Recherche dans les documents stockés (PDF/Images) de l'entreprise. Utilise cet outil si l'utilisateur pose une question sur un document, un contrat, une facture fournisseur, ou un courrier. Tu peux filtrer par client si le nom est fourni.",
+            "Recherche dans TOUS les documents stockés (PDF/Images) de l'entreprise, quel que soit leur emplacement dans les dossiers. Utilise cet outil si l'utilisateur pose une question sur un document, un contrat, une facture fournisseur, ou un courrier. Tu peux filtrer par client si le nom est fourni. La recherche est globale et ignore la structure de dossiers.",
           inputSchema: z.object({
             keywords: z
               .string()
@@ -2225,7 +2228,7 @@ export async function POST(req: Request) {
                 }
               }
 
-              // Recherche dans les documents
+              // Recherche dans TOUS les documents (pas de filtre par folderId)
               const documents = await prisma.document.findMany({
                 where: {
                   userId: user.id,
@@ -2252,6 +2255,19 @@ export async function POST(req: Request) {
                       name: true,
                     },
                   },
+                  folder: {
+                    include: {
+                      parent: {
+                        include: {
+                          parent: {
+                            include: {
+                              parent: true, // 4 niveaux max pour le chemin
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
                 },
                 orderBy: {
                   createdAt: "desc",
@@ -2259,22 +2275,43 @@ export async function POST(req: Request) {
                 take: 10, // Limiter à 10 résultats
               });
 
+              // Fonction helper pour construire le chemin du dossier
+              const buildFolderPath = (folder: any | null): string => {
+                if (!folder) return "À la racine";
+                
+                const path: string[] = [];
+                let current: any = folder;
+                
+                // Remonter la hiérarchie
+                while (current) {
+                  path.unshift(current.name);
+                  current = current.parent;
+                }
+                
+                return path.join(" > ");
+              };
+
               return {
                 success: true,
                 count: documents.length,
-                documents: documents.map((doc) => ({
-                  id: doc.id,
-                  titre: doc.name,
-                  type: doc.type,
-                  resume: doc.summary || "Aucun résumé disponible",
-                  client: doc.client?.name || null,
-                  date: doc.createdAt.toISOString().split("T")[0],
-                  extrait:
-                    doc.extractedText.length > 1000
-                      ? doc.extractedText.substring(0, 1000) + "..."
-                      : doc.extractedText,
-                  url: doc.url,
-                })),
+                documents: documents.map((doc) => {
+                  const folderPath = buildFolderPath(doc.folder);
+                  
+                  return {
+                    id: doc.id,
+                    titre: doc.name,
+                    type: doc.type,
+                    resume: doc.summary || "Aucun résumé disponible",
+                    client: doc.client?.name || null,
+                    date: doc.createdAt.toISOString().split("T")[0],
+                    dossier: folderPath,
+                    extrait:
+                      doc.extractedText.length > 1000
+                        ? doc.extractedText.substring(0, 1000) + "..."
+                        : doc.extractedText,
+                    url: doc.url,
+                  };
+                }),
               };
             } catch (err) {
               console.error("❌ ERREUR dans searchDocuments:", err);
