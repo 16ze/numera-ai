@@ -337,15 +337,23 @@ export function AIChatButton() {
         console.log("✅ Texte final généré:", textContent);
       }
     } catch (error) {
-      console.error("❌ Erreur:", error);
+      console.error("❌ Erreur lors de l'envoi du message:", error);
+      console.error("   Type:", error instanceof Error ? error.constructor.name : typeof error);
+      console.error("   Message:", error instanceof Error ? error.message : String(error));
+      console.error("   Stack:", error instanceof Error ? error.stack : "N/A");
+      
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : typeof error === 'string' 
+          ? error 
+          : JSON.stringify(error, null, 2);
+      
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content: `Erreur: ${
-            error instanceof Error ? error.message : "Erreur inconnue"
-          }`,
+          content: `❌ Erreur : ${errorMessage || "Erreur inconnue"}. Veuillez réessayer.`,
         },
       ]);
     } finally {
