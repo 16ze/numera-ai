@@ -57,6 +57,7 @@ import {
   Home,
   Move,
   Edit,
+  Download,
 } from "lucide-react";
 import { useCallback, useRef, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -486,7 +487,58 @@ export function DocumentsPageClient({
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          // Télécharger tous les documents du dossier (récursif)
+                          try {
+                            const { getFileSystem } = await import("@/app/actions/folders");
+                            const fs = await getFileSystem(folder.id);
+                            
+                            // Collecter tous les documents récursivement
+                            const allDocuments: Array<{ url: string; name: string }> = [];
+                            
+                            const collectDocuments = async (folderId: string | null) => {
+                              const currentFs = await getFileSystem(folderId);
+                              allDocuments.push(...currentFs.documents.map(d => ({ url: d.url, name: d.name })));
+                              
+                              // Récursif pour les sous-dossiers
+                              for (const subFolder of currentFs.folders) {
+                                await collectDocuments(subFolder.id);
+                              }
+                            };
+                            
+                            await collectDocuments(folder.id);
+                            
+                            if (allDocuments.length === 0) {
+                              toast.error("Ce dossier est vide");
+                              return;
+                            }
+                            
+                            // Télécharger chaque fichier
+                            for (const doc of allDocuments) {
+                              const link = document.createElement("a");
+                              link.href = doc.url;
+                              link.download = doc.name;
+                              link.style.display = "none";
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              // Petit délai entre les téléchargements
+                              await new Promise(resolve => setTimeout(resolve, 100));
+                            }
+                            
+                            toast.success(`✅ ${allDocuments.length} fichier(s) téléchargé(s)`);
+                          } catch (error) {
+                            console.error("Erreur téléchargement dossier:", error);
+                            toast.error("Erreur lors du téléchargement du dossier");
+                          }
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Télécharger le dossier
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => {
                           setRenameItem({
@@ -521,7 +573,8 @@ export function DocumentsPageClient({
           {fileSystem.documents.map((doc) => (
             <Card
               key={doc.id}
-              className="hover:shadow-md transition-all group"
+              className="hover:shadow-md transition-all group cursor-pointer"
+              onClick={() => window.open(doc.url, "_blank")}
             >
               <CardContent className="p-4 flex flex-col items-center text-center">
                 <div className="relative w-full">
@@ -536,16 +589,33 @@ export function DocumentsPageClient({
                         variant="ghost"
                         size="icon"
                         className="absolute top-0 right-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Empêcher l'ouverture du fichier
+                        }}
                       >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenuItem
                         onClick={() => window.open(doc.url, "_blank")}
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Ouvrir
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          // Télécharger le fichier
+                          const link = document.createElement("a");
+                          link.href = doc.url;
+                          link.download = doc.name;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Télécharger
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
