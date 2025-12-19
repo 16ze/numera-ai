@@ -2335,32 +2335,42 @@ export async function POST(req: Request) {
                     : doc.extractedText;
 
                   // Régénérer l'URL publique à partir du chemin du fichier pour garantir qu'elle est correcte
-                  // Le format de l'URL stockée est : userId/timestamp_filename.pdf
-                  // On extrait le chemin relatif depuis l'URL stockée
                   let documentUrl = doc.url;
                   
-                  // Si l'URL contient déjà le chemin complet Supabase, on l'utilise
-                  // Sinon, on régénère l'URL à partir du chemin relatif
-                  if (doc.url && !doc.url.startsWith("http")) {
-                    // L'URL stockée est un chemin relatif, on doit le reconstruire
-                    // Format attendu : userId/timestamp_filename.pdf
+                  try {
                     const supabase = getSupabaseServerClient();
+                    
+                    // Extraire le chemin relatif du fichier depuis l'URL stockée
+                    // Format attendu dans la BDD : URL complète Supabase ou chemin relatif userId/timestamp_filename.pdf
+                    let filePath: string;
+                    
+                    if (doc.url.includes("/storage/v1/object/public/documents/")) {
+                      // URL complète Supabase : extraire le chemin après /documents/
+                      const urlParts = doc.url.split("/storage/v1/object/public/documents/");
+                      if (urlParts.length > 1) {
+                        filePath = urlParts[1].split("?")[0]; // Retirer les query params
+                      } else {
+                        // Fallback : prendre les 2 derniers segments
+                        filePath = doc.url.split("/").slice(-2).join("/");
+                      }
+                    } else {
+                      // L'URL stockée est déjà un chemin relatif (userId/timestamp_filename.pdf)
+                      filePath = doc.url;
+                    }
+                    
+                    // Régénérer l'URL publique avec le chemin correct
                     const {
                       data: { publicUrl },
-                    } = supabase.storage.from("documents").getPublicUrl(doc.url);
-                    documentUrl = publicUrl || doc.url;
-                  } else if (doc.url && doc.url.includes("/storage/v1/object/public/documents/")) {
-                    // L'URL est déjà complète, on la garde
-                    documentUrl = doc.url;
-                  } else {
-                    // Fallback : essayer de reconstruire depuis le nom du fichier
-                    // Format : userId/timestamp_filename.pdf
-                    const fileName = doc.url.split("/").slice(-2).join("/");
-                    const supabase = getSupabaseServerClient();
-                    const {
-                      data: { publicUrl },
-                    } = supabase.storage.from("documents").getPublicUrl(fileName);
-                    documentUrl = publicUrl || doc.url;
+                    } = supabase.storage.from("documents").getPublicUrl(filePath);
+                    
+                    if (publicUrl) {
+                      documentUrl = publicUrl;
+                    } else {
+                      console.warn(`⚠️ Impossible de régénérer l'URL pour le document ${doc.id}, utilisation de l'URL stockée`);
+                    }
+                  } catch (urlError) {
+                    console.error(`❌ Erreur lors de la régénération de l'URL pour le document ${doc.id}:`, urlError);
+                    // En cas d'erreur, on garde l'URL stockée
                   }
 
                   return {
