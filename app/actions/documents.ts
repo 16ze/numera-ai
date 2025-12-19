@@ -12,7 +12,6 @@ import { revalidatePath } from "next/cache";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import OpenAI from "openai";
-import PDFParser from "pdf2json";
 
 /**
  * Client OpenAI pour l'API Vision (extraction texte depuis images)
@@ -51,11 +50,16 @@ async function extractText(file: File): Promise<string> {
       
       try {
         // Utilisation de pdf2json (robuste en environnement Node.js pur)
-        console.log("📥 Utilisation de pdf2json pour l'extraction...");
+        console.log("📥 Import dynamique de pdf2json...");
+        
+        // Import dynamique pour éviter les problèmes ESM/CommonJS
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const PDFParser = require("pdf2json");
+        console.log("✅ Module pdf2json importé");
 
         // Envelopper pdf2json dans une Promise (car il utilise des callbacks)
         const pdfText = await new Promise<string>((resolve, reject) => {
-          // Créer une instance de PDFParser (1 = mode texte brut)
+          // Créer une instance de PDFParser (null = pas de callback, 1 = mode texte brut)
           const pdfParser = new PDFParser(null, 1);
           
           // Gérer les erreurs de parsing
