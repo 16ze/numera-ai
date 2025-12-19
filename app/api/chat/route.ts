@@ -26,6 +26,7 @@ import {
 import { getProfitabilityAdvice } from "@/app/actions/advisor";
 import { getDocuments } from "@/app/actions/documents";
 import { prisma } from "@/app/lib/prisma";
+import { getCurrentUser } from "@/app/lib/auth-helper";
 import { openai } from "@ai-sdk/openai";
 import { currentUser } from "@clerk/nextjs/server";
 import {
