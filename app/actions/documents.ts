@@ -23,45 +23,82 @@ const openaiClient = new OpenAI({
 /**
  * Helper : Extrait le texte d'un fichier (PDF ou Image)
  * @param file - Le fichier à analyser
- * @returns Le texte extrait ou une chaîne vide en cas d'erreur
+ * @returns Le texte extrait ou un message d'erreur explicite
  */
 async function extractText(file: File): Promise<string> {
+  console.log("📄 ===== DÉBUT EXTRACTION TEXTE =====");
+  console.log(`📦 Nom du fichier: ${file.name}`);
+  console.log(`📏 Taille du fichier reçue: ${file.size} bytes (${(file.size / 1024).toFixed(2)} KB)`);
+  console.log(`🏷️ Type MIME détecté: ${file.type}`);
+
   try {
     // Conversion du fichier en Buffer
+    console.log("🔄 Conversion du fichier en Buffer...");
     const arrayBuffer = await file.arrayBuffer();
+    console.log(`✅ ArrayBuffer créé: ${arrayBuffer.byteLength} bytes`);
+    
     const buffer = Buffer.from(arrayBuffer);
+    console.log(`✅ Buffer créé: ${buffer.length} bytes`);
+    
     const fileType = file.type;
 
     // ============================================
     // EXTRACTION PDF
     // ============================================
     if (fileType === "application/pdf") {
+      console.log("📑 DÉBUT EXTRACTION PDF");
+      
       try {
-        // Import dynamique de pdf-parse pour éviter les problèmes ESM/CommonJS
+        // Import dynamique de pdf-parse
+        console.log("📥 Import dynamique de pdf-parse...");
         const pdfParse = (await import("pdf-parse")).default;
-        const pdfData = await pdfParse(buffer);
+        console.log("✅ pdf-parse importé avec succès");
 
+        // Appel à pdf-parse
+        console.log("🔍 Appel à pdf-parse(buffer)...");
+        const pdfData = await pdfParse(buffer);
+        console.log(`✅ PDF parsé. Nombre de pages: ${pdfData.numpages || 'N/A'}`);
+        console.log(`📝 Texte brut extrait: ${pdfData.text?.length || 0} caractères`);
+
+        // Vérification que le texte existe
         if (!pdfData || !pdfData.text) {
-          console.warn("⚠️ PDF parsé mais texte vide");
-          return "";
+          console.error("❌ PDF parsé mais pdfData.text est vide ou undefined");
+          throw new Error("PDF Parse: Texte vide - PDF peut-être scanné (OCR requis)");
         }
 
-        // Nettoyage du texte : retire les espaces multiples et les sauts de ligne excessifs
-        const cleanedText = pdfData.text
-          .replace(/\s+/g, " ") // Remplace tous les espaces multiples par un seul espace
-          .replace(/\n\s*\n/g, "\n\n") // Remplace les sauts de ligne multiples par deux max
+        const rawText = pdfData.text;
+        console.log(`📄 Texte brut (premiers 200 chars): ${rawText.substring(0, 200)}...`);
+
+        // Nettoyage du texte : remplace les sauts de ligne multiples par un seul
+        console.log("🧹 Nettoyage du texte...");
+        const cleanedText = rawText
+          .replace(/\n{3,}/g, "\n\n") // Remplace 3+ sauts de ligne par 2 max
+          .replace(/\r\n/g, "\n") // Normalise les retours chariot Windows
+          .replace(/\r/g, "\n") // Normalise les retours chariot Mac
           .trim();
 
-        console.log(`✅ Texte PDF extrait : ${cleanedText.length} caractères`);
+        console.log(`✅ Texte nettoyé: ${cleanedText.length} caractères`);
+
+        // CRUCIAL : Détection de PDF scanné (texte très court)
+        if (cleanedText.length < 50) {
+          console.warn(`⚠️ PDF Scanné détecté: seulement ${cleanedText.length} caractères extraits`);
+          throw new Error("PDF Scanné détecté (OCR requis) - Le PDF semble être une image scannée sans texte extractible");
+        }
+
+        console.log(`✅ Texte PDF extrait avec succès : ${cleanedText.length} caractères`);
         return cleanedText;
       } catch (pdfError) {
-        console.error("❌ ERREUR lors de l'extraction PDF:", pdfError);
-        console.error("Stack trace:", pdfError instanceof Error ? pdfError.stack : "N/A");
-        throw new Error(
-          `Erreur lors de l'extraction du texte du PDF : ${
-            pdfError instanceof Error ? pdfError.message : "Erreur inconnue"
-          }`
-        );
+        console.error("❌ ERREUR lors de l'extraction PDF:");
+        console.error("   Type:", pdfError instanceof Error ? pdfError.constructor.name : typeof pdfError);
+        console.error("   Message:", pdfError instanceof Error ? pdfError.message : String(pdfError));
+        console.error("   Stack:", pdfError instanceof Error ? pdfError.stack : "N/A");
+        
+        // Retourner un message d'erreur explicite
+        const errorMessage = pdfError instanceof Error 
+          ? pdfError.message 
+          : "Erreur inconnue lors de l'extraction PDF";
+        
+        throw new Error(`Erreur PDF Parse: ${errorMessage}`);
       }
     }
 
@@ -72,16 +109,23 @@ async function extractText(file: File): Promise<string> {
       fileType.startsWith("image/") &&
       ["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(fileType)
     ) {
+      console.log("🖼️ DÉBUT EXTRACTION IMAGE (OCR)");
+      
       try {
         // Normaliser le type MIME (OpenAI n'accepte que jpeg, pas jpg)
         const normalizedMimeType =
           fileType === "image/jpg" ? "image/jpeg" : fileType;
+        console.log(`🔄 Type MIME normalisé: ${normalizedMimeType}`);
 
         // Conversion du buffer en Base64
+        console.log("🔄 Conversion buffer en Base64...");
         const base64String = buffer.toString("base64");
+        console.log(`✅ Base64 créé: ${base64String.length} caractères`);
+        
         const dataUrl = `data:${normalizedMimeType};base64,${base64String}`;
+        console.log(`✅ Data URL créé: ${dataUrl.length} caractères`);
 
-        console.log("🤖 Appel OpenAI Vision API...");
+        console.log("🤖 Appel OpenAI Vision API (gpt-4o)...");
 
         // Appel à l'API OpenAI Vision
         const response = await openaiClient.chat.completions.create({
@@ -92,7 +136,7 @@ async function extractText(file: File): Promise<string> {
               content: [
                 {
                   type: "text",
-                  text: "Transcris tout le texte visible sur ce document de manière structurée. Retourne uniquement le texte, sans commentaire ni explication.",
+                  text: "Transcris TOUT le texte de cette image. Retourne uniquement le texte transcrit, sans commentaire ni explication.",
                 },
                 {
                   type: "image_url",
@@ -107,48 +151,48 @@ async function extractText(file: File): Promise<string> {
           max_tokens: 4000, // Limite pour éviter les coûts excessifs
         });
 
+        console.log("✅ Réponse OpenAI reçue");
         const extractedText =
           response.choices[0]?.message?.content?.trim() || "";
 
         if (!extractedText) {
-          console.warn("⚠️ Image analysée mais texte vide");
-          return "";
+          console.warn("⚠️ Image analysée mais texte vide dans la réponse");
+          throw new Error("OCR Vision: Aucun texte détecté dans l'image");
         }
 
         console.log(`✅ Texte Image extrait : ${extractedText.length} caractères`);
         return extractedText;
       } catch (visionError) {
-        console.error("❌ ERREUR lors de l'extraction Image:", visionError);
-        console.error(
-          "Type d'erreur:",
-          visionError instanceof Error ? visionError.constructor.name : typeof visionError
-        );
-        console.error(
-          "Message d'erreur:",
-          visionError instanceof Error ? visionError.message : String(visionError)
-        );
-        console.error(
-          "Stack trace:",
-          visionError instanceof Error ? visionError.stack : "N/A"
-        );
-        throw new Error(
-          `Erreur lors de l'extraction du texte de l'image : ${
-            visionError instanceof Error ? visionError.message : "Erreur inconnue"
-          }`
-        );
+        console.error("❌ ERREUR lors de l'extraction Image:");
+        console.error("   Type:", visionError instanceof Error ? visionError.constructor.name : typeof visionError);
+        console.error("   Message:", visionError instanceof Error ? visionError.message : String(visionError));
+        console.error("   Stack:", visionError instanceof Error ? visionError.stack : "N/A");
+        
+        // Retourner un message d'erreur explicite
+        const errorMessage = visionError instanceof Error 
+          ? visionError.message 
+          : "Erreur inconnue lors de l'extraction image";
+        
+        throw new Error(`Erreur OCR Vision: ${errorMessage}`);
       }
     }
 
     // Type de fichier non supporté
-    throw new Error(`Type de fichier non supporté : ${fileType}`);
+    console.error(`❌ Type de fichier non supporté: ${fileType}`);
+    throw new Error(`Type de fichier non supporté: ${fileType}. Formats acceptés: PDF, JPEG, PNG, WebP`);
   } catch (error) {
-    console.error("❌ ERREUR GLOBALE dans extractText:", error);
-    console.error(
-      "Stack trace:",
-      error instanceof Error ? error.stack : "N/A"
-    );
-    // Retourner une chaîne vide plutôt que de planter complètement
-    return "";
+    console.error("❌ ERREUR GLOBALE dans extractText:");
+    console.error("   Type:", error instanceof Error ? error.constructor.name : typeof error);
+    console.error("   Message:", error instanceof Error ? error.message : String(error));
+    console.error("   Stack:", error instanceof Error ? error.stack : "N/A");
+    console.log("📄 ===== FIN EXTRACTION TEXTE (ERREUR) =====");
+    
+    // Retourner le message d'erreur précis au lieu d'une chaîne vide
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "Erreur inconnue lors de l'extraction";
+    
+    return `[ERREUR EXTRACTION: ${errorMessage}]`;
   }
 }
 
@@ -230,14 +274,21 @@ export async function uploadAndAnalyzeDocument(
     let extractedText = "";
     try {
       extractedText = await extractText(file);
-      if (!extractedText || extractedText.trim().length === 0) {
+      
+      // Vérifier si c'est un message d'erreur
+      if (extractedText.startsWith("[ERREUR EXTRACTION:")) {
+        console.warn("⚠️ Extraction échouée, message d'erreur retourné");
+        // On garde le message d'erreur tel quel pour debugging
+      } else if (!extractedText || extractedText.trim().length === 0) {
         console.warn("⚠️ Aucun texte extrait du document");
-        extractedText = "[Aucun texte extrait de ce document]";
+        extractedText = "[ERREUR EXTRACTION: Aucun texte extrait - Document peut-être vide ou corrompu]";
+      } else {
+        console.log(`✅ Extraction réussie: ${extractedText.length} caractères`);
       }
     } catch (extractError) {
-      console.error("❌ Erreur extraction texte:", extractError);
-      // On continue même si l'extraction échoue, mais on enregistre un message d'erreur
-      extractedText = `[Erreur lors de l'extraction du texte : ${
+      console.error("❌ Erreur extraction texte (catch):", extractError);
+      // Message d'erreur précis pour debugging
+      extractedText = `[ERREUR EXTRACTION: ${
         extractError instanceof Error ? extractError.message : "Erreur inconnue"
       }]`;
     }
