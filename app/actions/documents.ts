@@ -19,7 +19,8 @@ import { openai } from "@ai-sdk/openai";
  */
 export async function uploadAndAnalyzeDocument(
   formData: FormData,
-  clientId?: string
+  clientId?: string,
+  folderId?: string | null
 ) {
   try {
     // 1. Récupération de l'utilisateur connecté
@@ -154,11 +155,26 @@ export async function uploadAndAnalyzeDocument(
       }
     }
 
+    // 10b. Vérification du folderId si fourni
+    let validFolderId: string | null = null;
+    if (folderId) {
+      const folder = await prisma.folder.findFirst({
+        where: {
+          id: folderId,
+          userId: user.id,
+        },
+      });
+      if (folder) {
+        validFolderId = folderId;
+      }
+    }
+
     // 11. Sauvegarde dans la base de données
     const document = await prisma.document.create({
       data: {
         userId: user.id,
         clientId: validClientId,
+        folderId: validFolderId,
         name: file.name,
         url: publicUrl,
         type: isPDF ? "PDF" : "IMAGE",
@@ -231,7 +247,8 @@ export async function deleteDocument(documentId: string) {
 }
 
 /**
- * Récupère tous les documents de l'utilisateur
+ * Récupère tous les documents de l'utilisateur (à la racine uniquement)
+ * @deprecated Utilisez getFileSystem() à la place pour la navigation par dossiers
  */
 export async function getDocuments() {
   try {
@@ -240,6 +257,7 @@ export async function getDocuments() {
     const documents = await prisma.document.findMany({
       where: {
         userId: user.id,
+        folderId: null, // Seulement les documents à la racine
       },
       include: {
         client: {

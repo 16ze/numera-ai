@@ -98,6 +98,7 @@ model User {
   bankAccounts     BankAccount[] // Comptes bancaires connectés via Plaid
   integrations     Integration[] // Intégrations externes (Stripe, PayPal, etc.)
   documents        Document[] // Documents stockés
+  folders          Folder[] // Dossiers pour organiser les documents
 
   @@index([email])
   @@index([clerkUserId]) // Index pour recherche rapide par Clerk ID
@@ -495,6 +496,29 @@ model ServiceEquipment {
 }
 
 /**
+ * Dossier pour organiser les documents (système hiérarchique)
+ * Permet de créer une structure de dossiers et sous-dossiers
+ */
+model Folder {
+  id        String   @id @default(uuid())
+  name      String // Nom du dossier
+  userId    String // Utilisateur propriétaire
+  parentId  String? // Dossier parent (null = racine)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children Folder[]  @relation("FolderHierarchy")
+  documents Document[]
+
+  @@index([userId])
+  @@index([parentId])
+  @@map("folders")
+}
+
+/**
  * Document stocké (PDF/Image) avec extraction de texte pour l'IA
  * Permet le stockage et la recherche dans les documents via RAG
  */
@@ -502,6 +526,7 @@ model Document {
   id            String    @id @default(uuid())
   userId        String // Utilisateur propriétaire
   clientId      String? // Client associé (optionnel, pour lier un contrat à un client)
+  folderId      String? // Dossier contenant le document (null = racine)
   name          String // Nom du fichier
   url           String // URL Supabase Storage
   type          String // 'PDF' ou 'IMAGE'
@@ -513,9 +538,11 @@ model Document {
   // Relations
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   client Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  folder Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([clientId])
+  @@index([folderId])
   @@index([type])
   @@map("documents")
 }

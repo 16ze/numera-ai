@@ -1,14 +1,25 @@
-import { getDocuments } from "@/app/actions/documents";
+import { getFileSystem } from "@/app/actions/folders";
 import { getClients } from "@/app/actions/clients";
 import { DocumentsPageClient } from "./DocumentsPageClient";
 
 /**
- * Page de gestion des Documents
- * Affiche les documents stockés et permet l'upload avec extraction de texte
+ * Page de gestion des Documents - Explorateur de fichiers
+ * Affiche les documents et dossiers avec navigation hiérarchique
  */
-export default async function DocumentsPage() {
-  const documents = await getDocuments();
+export default async function DocumentsPage({
+  searchParams,
+}: {
+  searchParams: { folderId?: string };
+}) {
+  const folderId = searchParams.folderId || null;
+  const fileSystem = await getFileSystem(folderId);
   const clients = await getClients();
 
-  return <DocumentsPageClient initialDocuments={documents} clients={clients} />;
+  return (
+    <DocumentsPageClient
+      initialFileSystem={fileSystem}
+      clients={clients}
+      currentFolderId={folderId}
+    />
+  );
 }
