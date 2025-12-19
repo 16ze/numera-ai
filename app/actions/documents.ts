@@ -83,12 +83,31 @@ async function extractText(file: File): Promise<string> {
       try {
         // Import dynamique de pdf-parse
         console.log("📥 Import dynamique de pdf-parse...");
-        const pdfParse = (await import("pdf-parse")).default;
-        console.log("✅ pdf-parse importé avec succès");
+        const pdfModule = await import("pdf-parse");
+        console.log("✅ Module pdf-parse importé");
 
-        // Appel à pdf-parse
+        // FIX CRITIQUE : Gestion de l'import CommonJS/ESM
+        // Parfois pdf est la fonction, parfois il est dans pdf.default
+        let parser: any = pdfModule.default || pdfModule;
+        
+        // On vérifie si 'parser' est bien la fonction, sinon on cherche dans .default
+        if (typeof parser !== 'function' && typeof parser.default === 'function') {
+          console.log("🔧 Correction de l'import PDF (utilisation de .default)");
+          parser = parser.default;
+        }
+
+        // Si après ça ce n'est toujours pas une fonction, on lance une erreur explicite
+        if (typeof parser !== 'function') {
+          console.error(`❌ Type de parser reçu: ${typeof parser}`);
+          console.error(`❌ Structure du module:`, Object.keys(pdfModule));
+          throw new Error(`La librairie pdf-parse n'a pas pu être chargée correctement. Type reçu: ${typeof parser}`);
+        }
+
+        console.log("✅ Parser PDF validé (fonction détectée)");
+
+        // Exécution de l'extraction
         console.log("🔍 Appel à pdf-parse(buffer)...");
-        const pdfData = await pdfParse(buffer);
+        const pdfData = await parser(buffer);
         console.log(`✅ PDF parsé. Nombre de pages: ${pdfData.numpages || 'N/A'}`);
         console.log(`📝 Texte brut extrait: ${pdfData.text?.length || 0} caractères`);
 
@@ -104,9 +123,7 @@ async function extractText(file: File): Promise<string> {
         // Nettoyage du texte : remplace les sauts de ligne multiples par un seul
         console.log("🧹 Nettoyage du texte...");
         const cleanedText = rawText
-          .replace(/\n{3,}/g, "\n\n") // Remplace 3+ sauts de ligne par 2 max
-          .replace(/\r\n/g, "\n") // Normalise les retours chariot Windows
-          .replace(/\r/g, "\n") // Normalise les retours chariot Mac
+          .replace(/\n\n+/g, '\n') // Retire les sauts de ligne excessifs
           .trim();
 
         console.log(`✅ Texte nettoyé: ${cleanedText.length} caractères`);
@@ -114,7 +131,7 @@ async function extractText(file: File): Promise<string> {
         // CRUCIAL : Détection de PDF scanné (texte très court)
         if (cleanedText.length < 50) {
           console.warn(`⚠️ PDF Scanné détecté: seulement ${cleanedText.length} caractères extraits`);
-          throw new Error("PDF Scanné détecté (OCR requis) - Le PDF semble être une image scannée sans texte extractible");
+          return "[PDF Scanné - Texte non sélectionnable. Le contenu n'a pas pu être lu directement.]";
         }
 
         console.log(`✅ Texte PDF extrait avec succès : ${cleanedText.length} caractères`);
@@ -168,7 +185,7 @@ async function extractText(file: File): Promise<string> {
               content: [
                 {
                   type: "text",
-                  text: "Transcris TOUT le texte de cette image. Retourne uniquement le texte transcrit, sans commentaire ni explication.",
+                  text: "Transcris tout le texte visible sur ce document de manière fidèle et structurée.",
                 },
                 {
                   type: "image_url",
