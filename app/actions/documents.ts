@@ -81,52 +81,76 @@ async function extractText(file: File): Promise<string> {
       console.log("📑 DÉBUT EXTRACTION PDF");
       
       try {
-        // Import dynamique de pdf-parse (v2 utilise la classe PDFParse)
-        console.log("📥 Import dynamique de pdf-parse...");
-        const pdfModule = await import("pdf-parse");
-        console.log("✅ Module pdf-parse importé");
+        // FIX CRITIQUE : pdf-parse v2 utilise des workers incompatibles avec Next.js Server Actions
+        // On utilise pdf2json à la place, qui fonctionne sans worker et est déjà installé
+        console.log("📥 Import dynamique de pdf2json...");
+        
+        // Import dynamique avec require pour CommonJS
+        const PDFParser = (await import("pdf2json")).default || require("pdf2json");
+        console.log("✅ Module pdf2json importé");
 
-        // FIX CRITIQUE : La nouvelle version de pdf-parse utilise une classe PDFParse
-        // Il faut importer PDFParse et créer une instance
-        let PDFParseClass: any = pdfModule.PDFParse || pdfModule.default?.PDFParse || pdfModule.default;
+        // Créer une instance de PDFParser
+        console.log("🔍 Création instance PDFParser avec buffer...");
+        const pdfParser = new PDFParser(null, 1); // null = pas de callback, 1 = verbosity
         
-        // Si c'est un objet avec PDFParse dedans
-        if (!PDFParseClass && typeof pdfModule === 'object') {
-          PDFParseClass = pdfModule.PDFParse;
-        }
-        
-        // Si c'est toujours undefined, chercher dans default
-        if (!PDFParseClass && pdfModule.default) {
-          PDFParseClass = pdfModule.default.PDFParse || pdfModule.default;
-        }
+        // Promesse pour attendre la fin du parsing
+        const parsePromise = new Promise<{ text: string; numpages: number }>((resolve, reject) => {
+          let extractedText = "";
+          let pageCount = 0;
 
-        // Vérifier que PDFParse est bien une classe/fonction constructible
-        if (!PDFParseClass || (typeof PDFParseClass !== 'function' && typeof PDFParseClass !== 'object')) {
-          console.error(`❌ PDFParse non trouvé dans le module`);
-          console.error(`❌ Structure du module:`, Object.keys(pdfModule));
-          console.error(`❌ Type de pdfModule.default:`, typeof pdfModule.default);
-          throw new Error(`La classe PDFParse n'a pas pu être chargée depuis pdf-parse`);
-        }
+          // Écouter les événements de parsing
+          pdfParser.on("pdfParser_dataError", (errData: any) => {
+            console.error("❌ Erreur parsing PDF:", errData);
+            reject(new Error(`Erreur parsing PDF: ${errData.parserError || "Erreur inconnue"}`));
+          });
 
-        console.log("✅ Classe PDFParse détectée");
+          pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+            try {
+              console.log("✅ PDF parsé avec succès");
+              pageCount = pdfData.Pages?.length || 0;
+              console.log(`📄 Nombre de pages: ${pageCount}`);
 
-        // Créer une instance de PDFParse avec le buffer
-        console.log("🔍 Création instance PDFParse avec buffer...");
-        const parser = new PDFParseClass({ data: buffer });
+              // Extraire le texte de toutes les pages
+              if (pdfData.Pages && pdfData.Pages.length > 0) {
+                extractedText = pdfData.Pages.map((page: any) => {
+                  if (page.Texts && page.Texts.length > 0) {
+                    return page.Texts.map((text: any) => {
+                      // Les textes sont dans un format spécial avec R (runs)
+                      if (text.R && text.R.length > 0) {
+                        return text.R.map((r: any) => decodeURIComponent(r.T || "")).join("");
+                      }
+                      return "";
+                    }).join(" ");
+                  }
+                  return "";
+                }).join("\n");
+              }
+
+              console.log(`📝 Texte brut extrait: ${extractedText.length} caractères`);
+              resolve({ text: extractedText, numpages: pageCount });
+            } catch (parseError) {
+              console.error("❌ Erreur lors de l'extraction du texte:", parseError);
+              reject(parseError);
+            }
+          });
+
+          // Lancer le parsing
+          try {
+            pdfParser.parseBuffer(buffer);
+          } catch (parseError) {
+            reject(parseError);
+          }
+        });
+
+        // Attendre la fin du parsing
+        const result = await parsePromise;
         
-        // Extraire le texte avec getText()
-        console.log("📖 Appel à parser.getText()...");
-        const result = await parser.getText();
-        
-        // Nettoyer l'instance
-        await parser.destroy();
-        
-        console.log(`✅ PDF parsé. Nombre de pages: ${result.total || 'N/A'}`);
+        console.log(`✅ PDF parsé. Nombre de pages: ${result.numpages}`);
         console.log(`📝 Texte brut extrait: ${result.text?.length || 0} caractères`);
 
         // Vérification que le texte existe
-        if (!result || !result.text) {
-          console.error("❌ PDF parsé mais result.text est vide ou undefined");
+        if (!result || !result.text || result.text.trim().length === 0) {
+          console.error("❌ PDF parsé mais texte vide");
           throw new Error("PDF Parse: Texte vide - PDF peut-être scanné (OCR requis)");
         }
 
