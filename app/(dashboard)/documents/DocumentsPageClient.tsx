@@ -440,6 +440,60 @@ export function DocumentsPageClient({
         disabled={isUploading}
       />
 
+      {/* Zone de drop pour la racine (si on est dans un dossier) */}
+      {currentFolderId && (
+        <div
+          className={`mb-4 p-4 rounded-lg border-2 border-dashed transition-all ${
+            dragOverFolderId === "ROOT"
+              ? "border-blue-500 bg-blue-50"
+              : "border-slate-200 bg-slate-50"
+          }`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (draggedItemId && draggedItemType === "doc") {
+              setDragOverFolderId("ROOT");
+            }
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDragOverFolderId(null);
+          }}
+          onDrop={async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDragOverFolderId(null);
+
+            if (draggedItemId && draggedItemType === "doc") {
+              try {
+                await moveItem(draggedItemId, "doc", null);
+                toast.success("✅ Fichier déplacé vers la racine");
+                await loadFileSystem(currentFolderId);
+                router.refresh();
+              } catch (error) {
+                console.error("Erreur déplacement:", error);
+                toast.error(
+                  error instanceof Error
+                    ? error.message
+                    : "Erreur lors du déplacement"
+                );
+              }
+            }
+
+            setDraggedItemId(null);
+            setDraggedItemType(null);
+          }}
+        >
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Home className="h-4 w-4" />
+            <span>
+              Glissez un fichier ici pour le déplacer vers la racine
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Grille de fichiers et dossiers */}
       {fileSystem.folders.length === 0 &&
       fileSystem.documents.length === 0 ? (
