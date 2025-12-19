@@ -9,9 +9,10 @@ import { DocumentsPageClient } from "./DocumentsPageClient";
 export default async function DocumentsPage({
   searchParams,
 }: {
-  searchParams: { folderId?: string };
+  searchParams: Promise<{ folderId?: string }>;
 }) {
-  const folderId = searchParams.folderId || null;
+  const params = await searchParams;
+  const folderId = params.folderId || null;
   const fileSystem = await getFileSystem(folderId);
   const clients = await getClients();
 
