@@ -278,41 +278,65 @@ export function AIChatButton() {
                 break;
 
               case "error":
-                // Extraction détaillée de l'erreur
-                const errorMessage = 
-                  event.error?.message || 
-                  event.error?.toString() || 
-                  (typeof event.error === 'string' ? event.error : null) ||
-                  event.message ||
-                  JSON.stringify(event, null, 2);
+                // Extraction détaillée de l'erreur - gérer tous les cas possibles
+                let errorMessage = "Erreur inconnue lors de la génération de la réponse";
+                
+                try {
+                  // Essayer d'extraire le message d'erreur de différentes façons
+                  if (event.error) {
+                    if (typeof event.error === 'string') {
+                      errorMessage = event.error;
+                    } else if (event.error.message) {
+                      errorMessage = event.error.message;
+                    } else if (typeof event.error.toString === 'function') {
+                      errorMessage = event.error.toString();
+                    } else {
+                      errorMessage = JSON.stringify(event.error);
+                    }
+                  } else if (event.message) {
+                    errorMessage = event.message;
+                  } else if (typeof event === 'object' && Object.keys(event).length === 0) {
+                    // Cas spécial : événement vide {}
+                    errorMessage = "Erreur de communication avec le serveur. Le serveur a peut-être rencontré une erreur interne.";
+                  } else {
+                    // Essayer de sérialiser tout l'événement
+                    errorMessage = JSON.stringify(event, null, 2);
+                  }
+                } catch (parseErr) {
+                  // Si même la sérialisation échoue, utiliser un message par défaut
+                  errorMessage = "Erreur lors du traitement de la réponse du serveur";
+                }
                 
                 console.error("❌ Erreur du stream:", {
                   event,
+                  eventType: typeof event,
+                  eventKeys: Object.keys(event || {}),
                   error: event.error,
                   message: event.message,
                   errorMessage,
-                  fullEvent: JSON.stringify(event, null, 2)
+                  fullEvent: JSON.stringify(event, null, 2),
+                  stringifiedEvent: String(event)
                 });
                 
-                // Afficher l'erreur à l'utilisateur au lieu de throw
+                // Afficher l'erreur à l'utilisateur
                 setMessages((prev) => {
                   const updated = [...prev];
                   const lastMsg = updated[updated.length - 1];
                   if (lastMsg && lastMsg.role === "assistant") {
-                    lastMsg.content = `❌ Erreur lors de la génération de la réponse : ${errorMessage || "Erreur inconnue"}. Veuillez réessayer.`;
+                    lastMsg.content = `❌ ${errorMessage}. Veuillez réessayer ou contacter le support si le problème persiste.`;
                   } else {
                     // Ajouter un nouveau message d'erreur
                     updated.push({
                       id: `error-${Date.now()}`,
                       role: "assistant",
-                      content: `❌ Erreur lors de la génération de la réponse : ${errorMessage || "Erreur inconnue"}. Veuillez réessayer.`,
+                      content: `❌ ${errorMessage}. Veuillez réessayer ou contacter le support si le problème persiste.`,
                     });
                   }
                   return updated;
                 });
                 
-                // Ne pas throw pour éviter de casser le flux
-                // throw new Error(errorMessage || "Erreur du stream");
+                // Arrêter le chargement
+                setIsLoading(false);
                 break;
             }
           } catch (parseError) {

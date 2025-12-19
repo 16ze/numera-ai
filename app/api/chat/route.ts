@@ -2378,9 +2378,19 @@ export async function POST(req: Request) {
       onError: (error) => {
         console.error("❌ ERREUR DANS streamText :", error);
         console.error(
+          "Type:",
+          error instanceof Error ? error.constructor.name : typeof error
+        );
+        console.error(
+          "Message:",
+          error instanceof Error ? error.message : String(error)
+        );
+        console.error(
           "Stack trace:",
           error instanceof Error ? error.stack : "N/A"
         );
+        // Note: Les erreurs dans onError sont automatiquement propagées au client
+        // via le stream, mais on les log aussi pour debugging
       },
     });
 
