@@ -532,6 +532,7 @@ export function DocumentsPageClient({
                   ? "border-2 border-blue-500 bg-blue-50 shadow-lg"
                   : ""
               }`}
+              onClick={() => handleFolderDoubleClick(folder.id)}
               onDoubleClick={() => handleFolderDoubleClick(folder.id)}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -589,13 +590,21 @@ export function DocumentsPageClient({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute top-0 right-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => e.stopPropagation()}
+                        className="absolute top-0 right-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
                       >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenuContent 
+                      align="end" 
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
                       <DropdownMenuItem
                         onClick={async () => {
                           // Télécharger tous les documents du dossier (récursif)
