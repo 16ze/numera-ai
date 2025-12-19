@@ -351,6 +351,7 @@ export async function POST(req: Request) {
 
       DOCUMENTS ET CONTRATS (RAG) :
       - Tu as accès à TOUS les documents stockés de l'entreprise (contrats, factures fournisseurs, courriers, PDF, images, CV), quel que soit leur emplacement dans les dossiers.
+      - L'extraction de texte fonctionne correctement : les PDFs sont extraits avec pdf2json et les images avec GPT-4o Vision (OCR).
       - La recherche est GLOBALE : elle ignore complètement la structure de dossiers et cherche dans toute la base de données de l'utilisateur.
       - Pour rechercher dans les documents : utilise l'outil searchDocuments avec des mots-clés (nom du fichier ou contenu).
       - Si l'utilisateur mentionne un client spécifique (ex: "Le contrat Martin"), utilise le paramètre clientName pour filtrer.
