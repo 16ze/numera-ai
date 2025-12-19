@@ -24,6 +24,7 @@ export async function createFolder(name: string, parentId?: string | null) {
     }
 
     // Si un parentId est fourni, vérifier qu'il appartient à l'utilisateur
+    let validParentId: string | null = null;
     if (parentId) {
       const parent = await prisma.folder.findFirst({
         where: {
@@ -33,7 +34,11 @@ export async function createFolder(name: string, parentId?: string | null) {
       });
 
       if (!parent) {
-        throw new Error("Dossier parent non trouvé ou accès refusé");
+        // Dossier parent n'existe plus (supprimé entre-temps) : créer à la racine
+        console.warn(`⚠️ Dossier parent ${parentId} non trouvé pour l'utilisateur ${user.id}, création à la racine`);
+        validParentId = null;
+      } else {
+        validParentId = parentId;
       }
     }
 
@@ -42,7 +47,7 @@ export async function createFolder(name: string, parentId?: string | null) {
       data: {
         name: name.trim(),
         userId: user.id,
-        parentId: parentId || null,
+        parentId: validParentId,
       },
     });
 
