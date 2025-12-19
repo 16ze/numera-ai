@@ -350,15 +350,27 @@ export async function POST(req: Request) {
       - "Ajoute un consommable Shampooing à 20€" → upsertResource (type: supply)
 
       DOCUMENTS ET CONTRATS (RAG) :
-      - Tu as accès à TOUS les documents stockés de l'entreprise (contrats, factures fournisseurs, courriers, PDF, images), quel que soit leur emplacement dans les dossiers.
+      - Tu as accès à TOUS les documents stockés de l'entreprise (contrats, factures fournisseurs, courriers, PDF, images, CV), quel que soit leur emplacement dans les dossiers.
       - La recherche est GLOBALE : elle ignore complètement la structure de dossiers et cherche dans toute la base de données de l'utilisateur.
-      - Pour rechercher dans les documents : utilise l'outil searchDocuments avec des mots-clés.
+      - Pour rechercher dans les documents : utilise l'outil searchDocuments avec des mots-clés (nom du fichier ou contenu).
       - Si l'utilisateur mentionne un client spécifique (ex: "Le contrat Martin"), utilise le paramètre clientName pour filtrer.
-      - L'outil retourne : titre, type (PDF/IMAGE), résumé, client associé, date, dossier (chemin complet comme "Clients > 2024 > Martin" ou "À la racine"), extrait du texte (1000 premiers caractères), et URL.
+      - L'outil retourne : titre, type (PDF/IMAGE), résumé, client associé, date, dossier (chemin complet), contenu (extractedText complet jusqu'à 10 000 caractères), et URL.
       - IMPORTANT : Quand tu cites un document trouvé, PRÉCISE TOUJOURS dans quel dossier il se trouve (ex: "Le contrat Martin se trouve dans le dossier 'Clients > 2024 > Martin'"). Cela aide l'utilisateur à le retrouver facilement.
+      
+      DÉBRIEF ET RÉSUMÉ DE DOCUMENTS :
+      - Si l'utilisateur demande un "débrief", un "résumé", un "aperçu" ou veut connaître le "contenu" d'un document (ex: "débrief du fichier cv bryan hilaire", "résume-moi le contrat Martin"), TU DOIS :
+        1. Utiliser l'outil searchDocuments avec les mots-clés appropriés (nom du fichier ou mots du contenu).
+        2. Si aucun document n'est trouvé, dis-le clairement : "Je n'ai trouvé aucun document correspondant à cette recherche."
+        3. Si un document est trouvé, ANALYSE son contenu (champ 'contenu' dans la réponse) et fournis un débrief textuel clair et concis.
+        4. Précise TOUJOURS le nom du document et son emplacement (dossier).
+        5. Structure ta réponse : Nom du document > Emplacement > Résumé/Analyse du contenu.
+      - Exemple de débrief : "📄 Document trouvé : CV_Bryan_Hilaire.pdf (dans le dossier 'Recrutement > 2024'). Voici un résumé : [analyse du contenu du CV]..."
+      - Si le document est trop long (> 10 000 caractères), l'outil retournera un avertissement. Dans ce cas, précise que tu n'as qu'un aperçu partiel.
+      
+      RECHERCHE ET QUESTIONS SUR DOCUMENTS :
       - Si l'utilisateur pose une question sur un document (ex: "Qu'est-ce qui est écrit dans le contrat avec Martin ?", "Le contrat du 15 novembre"), utilise searchDocuments pour lire son contenu et répondre.
-      - Présente les résultats de manière claire : liste les documents trouvés avec leur résumé, leur emplacement (dossier), et l'extrait pertinent.
-      - Exemple de réponse : "J'ai trouvé le contrat Martin dans le dossier 'Clients > 2024 > Martin'. Voici son contenu : [extrait]..."
+      - Présente les résultats de manière claire : liste les documents trouvés avec leur résumé, leur emplacement (dossier), et analyse le contenu pour répondre à la question.
+      - Exemple de réponse : "J'ai trouvé le contrat Martin dans le dossier 'Clients > 2024 > Martin'. Voici son contenu : [analyse]..."
       - "Crée une nouvelle prestation Coupe 60min" → upsertServiceRecipe
       - "Quelle est ma rentabilité globale ?" → calculateGlobalProfitability
       - "Donne-moi un conseil pour améliorer ma rentabilité" → getProfitabilityAdvice
@@ -2180,12 +2192,12 @@ export async function POST(req: Request) {
 
         searchDocuments: tool({
           description:
-            "Recherche dans TOUS les documents stockés (PDF/Images) de l'entreprise, quel que soit leur emplacement dans les dossiers. Utilise cet outil si l'utilisateur pose une question sur un document, un contrat, une facture fournisseur, ou un courrier. Tu peux filtrer par client si le nom est fourni. La recherche est globale et ignore la structure de dossiers.",
+            "Recherche dans TOUS les documents stockés (PDF/Images) de l'entreprise, quel que soit leur emplacement dans les dossiers. Utilise cet outil si l'utilisateur pose une question sur un document, demande un débrief, un résumé, ou veut connaître le contenu d'un fichier. La recherche est globale et ignore la structure de dossiers. Retourne le contenu complet (extractedText) pour permettre l'analyse par l'IA.",
           inputSchema: z.object({
             keywords: z
               .string()
               .describe(
-                "Mots-clés à rechercher dans le nom ou le contenu du document"
+                "Mots-clés à rechercher dans le nom OU le contenu du document. Peut être un nom de fichier (ex: 'cv bryan hilaire') ou des mots du contenu."
               ),
             clientName: z
               .string()
@@ -2229,6 +2241,7 @@ export async function POST(req: Request) {
               }
 
               // Recherche dans TOUS les documents (pas de filtre par folderId)
+              // Recherche dans name ET extractedText avec mode insensible à la casse
               const documents = await prisma.document.findMany({
                 where: {
                   userId: user.id,
@@ -2272,8 +2285,17 @@ export async function POST(req: Request) {
                 orderBy: {
                   createdAt: "desc",
                 },
-                take: 10, // Limiter à 10 résultats
+                take: 2, // Limiter à 2 documents pertinents pour ne pas surcharger l'IA
               });
+
+              // Si aucun document trouvé
+              if (documents.length === 0) {
+                return {
+                  success: false,
+                  message: "Je n'ai trouvé aucun document correspondant à cette recherche.",
+                  documents: [],
+                };
+              }
 
               // Fonction helper pour construire le chemin du dossier
               const buildFolderPath = (folder: any | null): string => {
@@ -2297,6 +2319,13 @@ export async function POST(req: Request) {
                 documents: documents.map((doc) => {
                   const folderPath = buildFolderPath(doc.folder);
                   
+                  // Gestion des documents volumineux
+                  const maxLength = 10000; // Limite à 10 000 caractères
+                  const isTooLong = doc.extractedText.length > maxLength;
+                  const extractedText = isTooLong
+                    ? doc.extractedText.substring(0, maxLength) + "\n\n[... Document tronqué - contenu trop long ...]"
+                    : doc.extractedText;
+                  
                   return {
                     id: doc.id,
                     titre: doc.name,
@@ -2305,10 +2334,11 @@ export async function POST(req: Request) {
                     client: doc.client?.name || null,
                     date: doc.createdAt.toISOString().split("T")[0],
                     dossier: folderPath,
-                    extrait:
-                      doc.extractedText.length > 1000
-                        ? doc.extractedText.substring(0, 1000) + "..."
-                        : doc.extractedText,
+                    contenu: extractedText, // Renommé de 'extrait' à 'contenu' pour plus de clarté
+                    contenuComplet: !isTooLong, // Indique si le contenu est complet
+                    avertissement: isTooLong
+                      ? "Le document est trop long. Je ne peux vous donner qu'un aperçu des 10 000 premiers caractères."
+                      : null,
                     url: doc.url,
                   };
                 }),
