@@ -3,9 +3,12 @@
  * Récupère les données financières pour l'utilisateur connecté via Clerk
  */
 
+import {
+  getCashFlowForecast,
+  type CashFlowForecast,
+} from "@/app/actions/forecast";
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { prisma } from "@/app/lib/prisma";
-import { getCashFlowForecast, type CashFlowForecast } from "@/app/actions/forecast";
 
 /**
  * Type pour les données du graphique
@@ -50,6 +53,10 @@ export type DashboardData = {
   taxAmount: number; // Montant des taxes estimées (CA * taxRate / 100)
   netAvailable: number; // Trésorerie réelle disponible après provisions taxes (CA - taxAmount)
   taxRate: number; // Taux de taxes configuré
+  monthlyBudget: number; // Budget mensuel défini par l'utilisateur
+  budgetAlertThreshold: number; // Seuil d'alerte : montant 'Reste à dépenser' minimum avant alerte rouge
+  budgetUsedPercent: number; // Pourcentage du budget utilisé (totalExpenses / monthlyBudget) * 100
+  budgetRemaining: number; // Reste disponible : monthlyBudget - totalExpenses
   recentTransactions: RecentTransaction[];
   chartData: ChartDataPoint[];
   historyData: HistoryDataPoint[];
@@ -63,7 +70,47 @@ export type DashboardData = {
 export async function getDashboardData(): Promise<DashboardData> {
   try {
     // Récupération de l'utilisateur connecté via Clerk (redirige vers /sign-in si non connecté)
-    const user = await getCurrentUser();
+    let user;
+    try {
+      user = await getCurrentUser();
+    } catch (authError) {
+      // Vérifier si l'erreur vient du fait que le champ monthlyBudget n'existe pas encore
+      const errorMessage =
+        authError instanceof Error ? authError.message : String(authError);
+      if (
+        errorMessage.includes("monthlyBudget") ||
+        errorMessage.includes("Migration requise")
+      ) {
+        console.error(
+          "⚠️ Migration Prisma requise pour le champ 'monthlyBudget'. " +
+            "Retour de données par défaut."
+        );
+        // Retourner des données par défaut si la migration n'a pas été appliquée
+        return {
+          totalRevenue: 0,
+          totalExpenses: 0,
+          netIncome: 0,
+          annualRevenue: 0,
+          taxAmount: 0,
+          netAvailable: 0,
+          taxRate: 22.0,
+          monthlyBudget: 0,
+          budgetUsedPercent: 0,
+          budgetRemaining: 0,
+          recentTransactions: [],
+          chartData: [],
+          historyData: [],
+          cashFlowForecast: {
+            forecastData: [],
+            currentBalance: 0,
+            burnRate: 0,
+            hasEnoughData: false,
+          },
+        };
+      }
+      // Relancer l'erreur si ce n'est pas lié à monthlyBudget
+      throw authError;
+    }
 
     // Récupération de la première company de l'utilisateur
     // Si l'utilisateur vient d'être créé, il aura déjà une company "Ma Société"
@@ -82,6 +129,10 @@ export async function getDashboardData(): Promise<DashboardData> {
         taxAmount: 0,
         netAvailable: 0,
         taxRate: 22.0,
+        monthlyBudget: 0,
+        budgetAlertThreshold: 100.0,
+        budgetUsedPercent: 0,
+        budgetRemaining: 0,
         recentTransactions: [],
         chartData: [],
         historyData: [],
@@ -155,6 +206,14 @@ export async function getDashboardData(): Promise<DashboardData> {
     const taxRate = company.taxRate ?? 22.0; // Par défaut 22%
     const taxAmount = (totalRevenue * taxRate) / 100;
     const netAvailable = totalRevenue - taxAmount;
+
+    // Calcul du budget mensuel et des métriques associées
+    // Gestion robuste des champs qui pourraient ne pas exister si la migration n'a pas été appliquée
+    const monthlyBudget = (company as any).monthlyBudget ?? 0;
+    const budgetAlertThreshold = (company as any).budgetAlertThreshold ?? 100.0;
+    const budgetUsedPercent =
+      monthlyBudget > 0 ? (totalExpenses / monthlyBudget) * 100 : 0;
+    const budgetRemaining = monthlyBudget - totalExpenses;
 
     // Récupération des 5 dernières transactions (toutes périodes confondues)
     const recentTransactionsData = await prisma.transaction.findMany({
@@ -346,7 +405,10 @@ export async function getDashboardData(): Promise<DashboardData> {
     try {
       cashFlowForecast = await getCashFlowForecast();
     } catch (forecastError) {
-      console.error("Erreur lors de la récupération des prévisions:", forecastError);
+      console.error(
+        "Erreur lors de la récupération des prévisions:",
+        forecastError
+      );
       // On retourne des données vides pour les prévisions plutôt que de faire échouer tout le dashboard
       cashFlowForecast = {
         forecastData: [],
@@ -364,6 +426,10 @@ export async function getDashboardData(): Promise<DashboardData> {
       taxAmount,
       netAvailable,
       taxRate,
+      monthlyBudget,
+      budgetAlertThreshold,
+      budgetUsedPercent,
+      budgetRemaining,
       recentTransactions,
       chartData,
       historyData,
@@ -383,6 +449,9 @@ export async function getDashboardData(): Promise<DashboardData> {
       taxAmount: 0,
       netAvailable: 0,
       taxRate: 22.0,
+      monthlyBudget: 0,
+      budgetUsedPercent: 0,
+      budgetRemaining: 0,
       recentTransactions: [],
       chartData: [],
       historyData: [],

@@ -271,7 +271,9 @@ export async function getCurrentUser(): Promise<
     if (existingUserByEmail) {
       // CAS 2a : L'utilisateur existe avec cet email mais sans clerkUserId (ou un autre)
       // Mettre à jour le clerkUserId pour lier l'utilisateur Clerk existant
-      console.log(`🔗 Liaison de l'utilisateur existant (${existingUserByEmail.id}) avec Clerk: ${clerkUserId}`);
+      console.log(
+        `🔗 Liaison de l'utilisateur existant (${existingUserByEmail.id}) avec Clerk: ${clerkUserId}`
+      );
 
       user = await prisma.user.update({
         where: { id: existingUserByEmail.id },
@@ -338,6 +340,27 @@ export async function getCurrentUser(): Promise<
     return user;
   } catch (error) {
     console.error("❌ Erreur lors de la récupération de l'utilisateur:", error);
+
+    // Vérifier si l'erreur vient du fait que le champ monthlyBudget n'existe pas encore dans la base
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      errorMessage.includes("monthlyBudget") ||
+      errorMessage.includes("Unknown argument") ||
+      errorMessage.includes("Unknown field") ||
+      (errorMessage.includes("column") &&
+        errorMessage.includes("does not exist"))
+    ) {
+      console.error(
+        "⚠️ Le champ 'monthlyBudget' n'existe pas encore dans la base de données. " +
+          "Migration requise : npx prisma db push"
+      );
+      // Relancer l'erreur avec un message plus clair
+      throw new Error(
+        "Le champ 'monthlyBudget' n'existe pas encore dans la base de données. " +
+          "Veuillez exécuter la migration Prisma : npx prisma db push"
+      );
+    }
+
     throw new Error(
       "Erreur lors de la synchronisation de l'utilisateur. Veuillez réessayer."
     );

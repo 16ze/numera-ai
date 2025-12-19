@@ -5,13 +5,14 @@
  * Permet la mise à jour dynamique des données sans rechargement de page
  */
 
-import { useEffect, useState } from "react";
+import type { DashboardData } from "@/app/(dashboard)/actions/dashboard";
 import { AdvisorCard } from "@/components/dashboard/AdvisorCard";
+import { BudgetCard } from "@/components/dashboard/BudgetCard";
+import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
 import { InteractiveCards } from "@/components/dashboard/InteractiveCards";
+import { OverdueAlerts } from "@/components/dashboard/OverdueAlerts";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { TaxRadarCard } from "@/components/dashboard/TaxRadarCard";
-import { OverdueAlerts } from "@/components/dashboard/OverdueAlerts";
-import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -21,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { DashboardData } from "@/app/(dashboard)/actions/dashboard";
+import { useEffect, useState } from "react";
 
 interface DashboardClientProps {
   initialData: DashboardData;
@@ -60,39 +61,51 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       console.log(`🔄 Rafraîchissement Dashboard déclenché par: ${source}`);
       refreshData();
     };
-    
+
     // Méthode 1: BroadcastChannel pour communication inter-composants
     let channel: BroadcastChannel | null = null;
     const handleBroadcastMessage = (event: MessageEvent) => {
-      if (event.data?.type === "transaction-added" || event.data?.type === "transaction-updated") {
+      if (
+        event.data?.type === "transaction-added" ||
+        event.data?.type === "transaction-updated"
+      ) {
         triggerRefresh("BroadcastChannel");
       }
     };
-    
+
     try {
       channel = new BroadcastChannel("dashboard-updates");
       channel.addEventListener("message", handleBroadcastMessage);
     } catch (err) {
       console.warn("⚠️ BroadcastChannel non disponible:", err);
     }
-    
+
     // Méthode 2: window.postMessage (fallback)
     const handlePostMessage = (event: MessageEvent) => {
       // Vérifier que le message vient de notre application (sécurité)
-      if (event.data?.source === "ai-chat" && 
-          (event.data?.type === "transaction-added" || event.data?.type === "transaction-updated")) {
+      if (
+        event.data?.source === "ai-chat" &&
+        (event.data?.type === "transaction-added" ||
+          event.data?.type === "transaction-updated")
+      ) {
         triggerRefresh("postMessage");
       }
     };
     window.addEventListener("message", handlePostMessage);
-    
+
     // Méthode 3: Événement personnalisé
     const handleCustomEvent = (event: CustomEvent) => {
-      if (event.detail?.type === "transaction-added" || event.detail?.type === "transaction-updated") {
+      if (
+        event.detail?.type === "transaction-added" ||
+        event.detail?.type === "transaction-updated"
+      ) {
         triggerRefresh("CustomEvent");
       }
     };
-    window.addEventListener("dashboard-refresh", handleCustomEvent as EventListener);
+    window.addEventListener(
+      "dashboard-refresh",
+      handleCustomEvent as EventListener
+    );
 
     // Rafraîchir quand la page redevient visible (utilisateur revient sur l'onglet)
     const handleVisibilityChange = () => {
@@ -123,7 +136,10 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       // Nettoyer postMessage
       window.removeEventListener("message", handlePostMessage);
       // Nettoyer CustomEvent
-      window.removeEventListener("dashboard-refresh", handleCustomEvent as EventListener);
+      window.removeEventListener(
+        "dashboard-refresh",
+        handleCustomEvent as EventListener
+      );
       // Nettoyer visibility et focus
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
@@ -144,7 +160,9 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Tableau de bord</h2>
         {isRefreshing && (
-          <span className="text-sm text-muted-foreground">Actualisation...</span>
+          <span className="text-sm text-muted-foreground">
+            Actualisation...
+          </span>
         )}
       </div>
 
@@ -163,12 +181,18 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         historyData={data.historyData}
       />
 
-      {/* Carte Radar à Taxes - Trésorerie Réelle */}
+      {/* Carte Radar à Taxes et Budget Mensuel - Côte à côte */}
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
         <TaxRadarCard
           netAvailable={data.netAvailable}
           taxAmount={data.taxAmount}
           taxRate={data.taxRate}
+        />
+        <BudgetCard
+          totalExpenses={data.totalExpenses}
+          monthlyBudget={data.monthlyBudget}
+          budgetAlertThreshold={data.budgetAlertThreshold}
+          budgetRemaining={data.budgetRemaining}
         />
       </div>
 

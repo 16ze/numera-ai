@@ -45,9 +45,9 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "20mb", // Limite pour les uploads (images et PDFs)
     },
   },
-  // Configuration Turbopack vide pour permettre l'utilisation de webpack par next-pwa
-  // next-pwa utilise webpack, donc on doit permettre les deux systèmes
-  turbopack: {},
+  // Configuration Turbopack désactivée pour éviter les conflits avec next-pwa
+  // next-pwa utilise webpack, donc on utilise webpack en mode dev aussi
+  // turbopack: {}, // Désactivé temporairement pour éviter les erreurs de build-manifest
   // On ignore les erreurs strictes pour le build de prod
   typescript: {
     ignoreBuildErrors: true,

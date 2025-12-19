@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "prisma generate && next build --webpack",
     "start": "next start",
     "lint": "eslint",
@@ -37,6 +37,7 @@
     "ai": "^5.0.108",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.556.0",
     "next": "16.0.8",

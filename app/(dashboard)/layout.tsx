@@ -2,6 +2,7 @@ import { AIChatButtonWrapper } from "@/components/chat/AIChatButtonWrapper";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { UserButtonWrapper } from "@/components/layout/UserButtonWrapper";
+import { GlobalSearchBar } from "@/components/layout/GlobalSearchBar";
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { redirect } from "next/navigation";
 
@@ -41,19 +42,23 @@ export default async function DashboardLayout({
       <div className="flex flex-1 flex-col md:ml-20 w-full transition-all duration-300">
         {/* Header Desktop uniquement - Caché sur mobile */}
         <header className="sticky top-0 z-10 hidden md:flex h-16 items-center border-b bg-white px-6 print:hidden">
-          {/* Spacer pour pousser l'avatar à droite */}
+          {/* Spacer pour pousser les éléments à droite */}
           <div className="flex-1"></div>
           
-          {/* Avatar utilisateur aligné à droite */}
-          <div className="flex items-center">
-            <UserButtonWrapper
-              appearance={{
-                elements: {
-                  avatarBox: "h-10 w-10",
-                },
-              }}
-              afterSignOutUrl="/sign-in"
-            />
+          {/* Barre de recherche et Avatar utilisateur alignés à droite */}
+          {/* Le conteneur doit être relative pour que le dropdown se positionne correctement */}
+          <div className="flex items-center gap-4 relative ml-auto">
+            <GlobalSearchBar />
+            <div className="shrink-0">
+              <UserButtonWrapper
+                appearance={{
+                  elements: {
+                    avatarBox: "h-10 w-10",
+                  },
+                }}
+                afterSignOutUrl="/sign-in"
+              />
+            </div>
           </div>
         </header>
 

@@ -123,6 +123,8 @@ model Company {
   isAutoEntrepreneur Boolean  @default(false) // Si true, TVA non applicable (art. 293 B du CGI)
   revenueKeywords     String? // Mots-clés séparés par des virgules pour identifier le CA (ex: "STRIPE,VRST,VIR")
   taxRate             Float    @default(22.0) // Pourcentage du CA à mettre de côté pour les taxes (URSSAF/Impôts)
+  monthlyBudget       Float    @default(0) // Budget mensuel limite pour les dépenses
+  budgetAlertThreshold Float    @default(100.0) // Seuil d'alerte : montant 'Reste à dépenser' minimum avant alerte rouge
   userId             String // Propriétaire de l'entreprise
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
