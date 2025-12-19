@@ -81,43 +81,56 @@ async function extractText(file: File): Promise<string> {
       console.log("📑 DÉBUT EXTRACTION PDF");
       
       try {
-        // Import dynamique de pdf-parse
+        // Import dynamique de pdf-parse (v2 utilise la classe PDFParse)
         console.log("📥 Import dynamique de pdf-parse...");
         const pdfModule = await import("pdf-parse");
         console.log("✅ Module pdf-parse importé");
 
-        // FIX CRITIQUE : Gestion de l'import CommonJS/ESM
-        // Parfois pdf est la fonction, parfois il est dans pdf.default
-        let parser: any = pdfModule.default || pdfModule;
+        // FIX CRITIQUE : La nouvelle version de pdf-parse utilise une classe PDFParse
+        // Il faut importer PDFParse et créer une instance
+        let PDFParseClass: any = pdfModule.PDFParse || pdfModule.default?.PDFParse || pdfModule.default;
         
-        // On vérifie si 'parser' est bien la fonction, sinon on cherche dans .default
-        if (typeof parser !== 'function' && typeof parser.default === 'function') {
-          console.log("🔧 Correction de l'import PDF (utilisation de .default)");
-          parser = parser.default;
+        // Si c'est un objet avec PDFParse dedans
+        if (!PDFParseClass && typeof pdfModule === 'object') {
+          PDFParseClass = pdfModule.PDFParse;
+        }
+        
+        // Si c'est toujours undefined, chercher dans default
+        if (!PDFParseClass && pdfModule.default) {
+          PDFParseClass = pdfModule.default.PDFParse || pdfModule.default;
         }
 
-        // Si après ça ce n'est toujours pas une fonction, on lance une erreur explicite
-        if (typeof parser !== 'function') {
-          console.error(`❌ Type de parser reçu: ${typeof parser}`);
+        // Vérifier que PDFParse est bien une classe/fonction constructible
+        if (!PDFParseClass || (typeof PDFParseClass !== 'function' && typeof PDFParseClass !== 'object')) {
+          console.error(`❌ PDFParse non trouvé dans le module`);
           console.error(`❌ Structure du module:`, Object.keys(pdfModule));
-          throw new Error(`La librairie pdf-parse n'a pas pu être chargée correctement. Type reçu: ${typeof parser}`);
+          console.error(`❌ Type de pdfModule.default:`, typeof pdfModule.default);
+          throw new Error(`La classe PDFParse n'a pas pu être chargée depuis pdf-parse`);
         }
 
-        console.log("✅ Parser PDF validé (fonction détectée)");
+        console.log("✅ Classe PDFParse détectée");
 
-        // Exécution de l'extraction
-        console.log("🔍 Appel à pdf-parse(buffer)...");
-        const pdfData = await parser(buffer);
-        console.log(`✅ PDF parsé. Nombre de pages: ${pdfData.numpages || 'N/A'}`);
-        console.log(`📝 Texte brut extrait: ${pdfData.text?.length || 0} caractères`);
+        // Créer une instance de PDFParse avec le buffer
+        console.log("🔍 Création instance PDFParse avec buffer...");
+        const parser = new PDFParseClass({ data: buffer });
+        
+        // Extraire le texte avec getText()
+        console.log("📖 Appel à parser.getText()...");
+        const result = await parser.getText();
+        
+        // Nettoyer l'instance
+        await parser.destroy();
+        
+        console.log(`✅ PDF parsé. Nombre de pages: ${result.total || 'N/A'}`);
+        console.log(`📝 Texte brut extrait: ${result.text?.length || 0} caractères`);
 
         // Vérification que le texte existe
-        if (!pdfData || !pdfData.text) {
-          console.error("❌ PDF parsé mais pdfData.text est vide ou undefined");
+        if (!result || !result.text) {
+          console.error("❌ PDF parsé mais result.text est vide ou undefined");
           throw new Error("PDF Parse: Texte vide - PDF peut-être scanné (OCR requis)");
         }
 
-        const rawText = pdfData.text;
+        const rawText = result.text;
         console.log(`📄 Texte brut (premiers 200 chars): ${rawText.substring(0, 200)}...`);
 
         // Nettoyage du texte : remplace les sauts de ligne multiples par un seul

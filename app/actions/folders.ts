@@ -87,8 +87,12 @@ export async function getFileSystem(parentId?: string | null) {
         },
       });
 
+      // Si le dossier n'existe pas, on retourne la racine au lieu de lancer une erreur
+      // Cela permet de gérer gracieusement les cas où un dossier a été supprimé
       if (!currentFolder) {
-        throw new Error("Dossier non trouvé ou accès refusé");
+        console.warn(`⚠️ Dossier ${parentId} non trouvé pour l'utilisateur ${user.id}, retour à la racine`);
+        // On continue avec parentId = null pour retourner la racine
+        parentId = null;
       }
     }
 
