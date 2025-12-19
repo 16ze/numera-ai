@@ -28,6 +28,55 @@ type Message = {
 };
 
 /**
+ * Fonction helper : Transforme les URLs en liens cliquables
+ * Remplace les URLs par un lien "Lien" en bleu qui s'ouvre dans un nouvel onglet
+ */
+function renderMessageWithLinks(content: string) {
+  // Regex pour détecter les URLs (http, https, ou URLs Supabase)
+  const urlRegex = /(https?:\/\/[^\s]+|https:\/\/[^\s]+\.supabase\.co[^\s]*)/gi;
+  
+  const parts: (string | JSX.Element)[] = [];
+  let lastIndex = 0;
+  let match;
+  let linkIndex = 0;
+
+  while ((match = urlRegex.exec(content)) !== null) {
+    // Ajouter le texte avant l'URL
+    if (match.index > lastIndex) {
+      parts.push(content.substring(lastIndex, match.index));
+    }
+
+    // Ajouter le lien cliquable
+    const url = match[0];
+    parts.push(
+      <a
+        key={`link-${linkIndex++}`}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 hover:text-blue-800 underline font-medium"
+      >
+        Lien
+      </a>
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Ajouter le texte restant
+  if (lastIndex < content.length) {
+    parts.push(content.substring(lastIndex));
+  }
+
+  // Si aucune URL trouvée, retourner le contenu tel quel
+  if (parts.length === 0) {
+    return content;
+  }
+
+  return <>{parts}</>;
+}
+
+/**
  * Composant AIChatButton
  *
  * Affiche un bouton flottant qui ouvre une fenêtre de chat avec l'assistant CFO.
@@ -481,7 +530,7 @@ export function AIChatButton() {
                               : "bg-slate-100 text-slate-800 rounded-tl-none"
                           }`}
                         >
-                          {m.content}
+                          {renderMessageWithLinks(m.content)}
                         </div>
                       )}
 

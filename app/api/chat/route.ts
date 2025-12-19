@@ -24,6 +24,7 @@ import {
 } from "@/app/actions/simulator";
 import { getCurrentUser } from "@/app/lib/auth-helper";
 import { prisma } from "@/app/lib/prisma";
+import { getSupabaseServerClient } from "@/app/lib/supabase-client";
 import { openai } from "@ai-sdk/openai";
 import { currentUser } from "@clerk/nextjs/server";
 import {
@@ -2333,6 +2334,35 @@ export async function POST(req: Request) {
                       "\n\n[... Document tronqué - contenu trop long ...]"
                     : doc.extractedText;
 
+                  // Régénérer l'URL publique à partir du chemin du fichier pour garantir qu'elle est correcte
+                  // Le format de l'URL stockée est : userId/timestamp_filename.pdf
+                  // On extrait le chemin relatif depuis l'URL stockée
+                  let documentUrl = doc.url;
+                  
+                  // Si l'URL contient déjà le chemin complet Supabase, on l'utilise
+                  // Sinon, on régénère l'URL à partir du chemin relatif
+                  if (doc.url && !doc.url.startsWith("http")) {
+                    // L'URL stockée est un chemin relatif, on doit le reconstruire
+                    // Format attendu : userId/timestamp_filename.pdf
+                    const supabase = getSupabaseServerClient();
+                    const {
+                      data: { publicUrl },
+                    } = supabase.storage.from("documents").getPublicUrl(doc.url);
+                    documentUrl = publicUrl || doc.url;
+                  } else if (doc.url && doc.url.includes("/storage/v1/object/public/documents/")) {
+                    // L'URL est déjà complète, on la garde
+                    documentUrl = doc.url;
+                  } else {
+                    // Fallback : essayer de reconstruire depuis le nom du fichier
+                    // Format : userId/timestamp_filename.pdf
+                    const fileName = doc.url.split("/").slice(-2).join("/");
+                    const supabase = getSupabaseServerClient();
+                    const {
+                      data: { publicUrl },
+                    } = supabase.storage.from("documents").getPublicUrl(fileName);
+                    documentUrl = publicUrl || doc.url;
+                  }
+
                   return {
                     id: doc.id,
                     titre: doc.name,
@@ -2346,7 +2376,7 @@ export async function POST(req: Request) {
                     avertissement: isTooLong
                       ? "Le document est trop long. Je ne peux vous donner qu'un aperçu des 10 000 premiers caractères."
                       : null,
-                    url: doc.url,
+                    url: documentUrl,
                   };
                 }),
               };
