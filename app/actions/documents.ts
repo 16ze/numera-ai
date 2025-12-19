@@ -12,38 +12,7 @@ import { revalidatePath } from "next/cache";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import OpenAI from "openai";
-
-// --- POLYFILL POUR PDF-PARSE ---
-// Permet d'éviter le crash DOMMatrix sur Node.js
-// pdf-parse utilise pdfjs-dist qui essaie d'utiliser DOMMatrix (API navigateur)
-// Ce polyfill fournit une implémentation minimale pour Node.js
-if (typeof window === "undefined" && typeof (global as any).DOMMatrix === "undefined") {
-  // @ts-ignore - Polyfill pour Node.js
-  (global as any).DOMMatrix = class DOMMatrix {
-    constructor() {
-      return this;
-    }
-    toFloat32Array() {
-      return new Float32Array([1, 0, 0, 1, 0, 0]);
-    }
-    translate() {
-      return this;
-    }
-    scale() {
-      return this;
-    }
-    rotate() {
-      return this;
-    }
-    multiply() {
-      return this;
-    }
-    inverse() {
-      return this;
-    }
-  };
-  console.log("✅ Polyfill DOMMatrix installé pour Node.js");
-}
+import PDFParser from "pdf2json";
 
 /**
  * Client OpenAI pour l'API Vision (extraction texte depuis images)
@@ -81,80 +50,58 @@ async function extractText(file: File): Promise<string> {
       console.log("📑 DÉBUT EXTRACTION PDF");
       
       try {
-        // FIX CRITIQUE : pdf-parse v2 utilise des workers incompatibles avec Next.js Server Actions
-        // On utilise pdf2json à la place, qui fonctionne sans worker et est déjà installé
-        console.log("📥 Import dynamique de pdf2json...");
-        
-        // Import dynamique avec require pour CommonJS
-        const PDFParser = (await import("pdf2json")).default || require("pdf2json");
-        console.log("✅ Module pdf2json importé");
+        // Utilisation de pdf2json (robuste en environnement Node.js pur)
+        console.log("📥 Utilisation de pdf2json pour l'extraction...");
 
-        // Créer une instance de PDFParser
-        console.log("🔍 Création instance PDFParser avec buffer...");
-        const pdfParser = new PDFParser(null, 1); // null = pas de callback, 1 = verbosity
-        
-        // Promesse pour attendre la fin du parsing
-        const parsePromise = new Promise<{ text: string; numpages: number }>((resolve, reject) => {
-          let extractedText = "";
-          let pageCount = 0;
-
-          // Écouter les événements de parsing
+        // Envelopper pdf2json dans une Promise (car il utilise des callbacks)
+        const pdfText = await new Promise<string>((resolve, reject) => {
+          // Créer une instance de PDFParser (1 = mode texte brut)
+          const pdfParser = new PDFParser(null, 1);
+          
+          // Gérer les erreurs de parsing
           pdfParser.on("pdfParser_dataError", (errData: any) => {
             console.error("❌ Erreur parsing PDF:", errData);
-            reject(new Error(`Erreur parsing PDF: ${errData.parserError || "Erreur inconnue"}`));
+            const errorMsg = errData.parserError || errData.message || "Erreur inconnue lors du parsing PDF";
+            reject(new Error(`Erreur parsing PDF: ${errorMsg}`));
           });
-
+          
+          // Quand le parsing est terminé
           pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
             try {
               console.log("✅ PDF parsé avec succès");
-              pageCount = pdfData.Pages?.length || 0;
-              console.log(`📄 Nombre de pages: ${pageCount}`);
-
-              // Extraire le texte de toutes les pages
-              if (pdfData.Pages && pdfData.Pages.length > 0) {
-                extractedText = pdfData.Pages.map((page: any) => {
-                  if (page.Texts && page.Texts.length > 0) {
-                    return page.Texts.map((text: any) => {
-                      // Les textes sont dans un format spécial avec R (runs)
-                      if (text.R && text.R.length > 0) {
-                        return text.R.map((r: any) => decodeURIComponent(r.T || "")).join("");
-                      }
-                      return "";
-                    }).join(" ");
-                  }
-                  return "";
-                }).join("\n");
+              
+              // Extraire le texte brut avec getRawTextContent()
+              const rawText = pdfParser.getRawTextContent();
+              
+              if (!rawText || rawText.trim().length === 0) {
+                console.warn("⚠️ PDF parsé mais texte vide - format image détecté");
+                resolve(""); // Retourner chaîne vide pour détecter PDF scanné
+              } else {
+                console.log(`📝 Texte brut extrait: ${rawText.length} caractères`);
+                resolve(rawText);
               }
-
-              console.log(`📝 Texte brut extrait: ${extractedText.length} caractères`);
-              resolve({ text: extractedText, numpages: pageCount });
-            } catch (parseError) {
-              console.error("❌ Erreur lors de l'extraction du texte:", parseError);
-              reject(parseError);
+            } catch (extractError) {
+              console.error("❌ Erreur lors de l'extraction du texte:", extractError);
+              reject(new Error(`Erreur extraction texte: ${extractError instanceof Error ? extractError.message : "Erreur inconnue"}`));
             }
           });
-
-          // Lancer le parsing
+          
+          // Lancer le parsing du buffer
           try {
             pdfParser.parseBuffer(buffer);
           } catch (parseError) {
-            reject(parseError);
+            console.error("❌ Erreur lors du parseBuffer:", parseError);
+            reject(new Error(`Erreur parseBuffer: ${parseError instanceof Error ? parseError.message : "Erreur inconnue"}`));
           }
         });
 
-        // Attendre la fin du parsing
-        const result = await parsePromise;
-        
-        console.log(`✅ PDF parsé. Nombre de pages: ${result.numpages}`);
-        console.log(`📝 Texte brut extrait: ${result.text?.length || 0} caractères`);
-
         // Vérification que le texte existe
-        if (!result || !result.text || result.text.trim().length === 0) {
-          console.error("❌ PDF parsé mais texte vide");
-          throw new Error("PDF Parse: Texte vide - PDF peut-être scanné (OCR requis)");
+        if (!pdfText || pdfText.trim().length === 0) {
+          console.warn("⚠️ PDF non lisible - format image détecté");
+          return "PDF non lisible, format image détecté";
         }
 
-        const rawText = result.text;
+        const rawText = pdfText;
         console.log(`📄 Texte brut (premiers 200 chars): ${rawText.substring(0, 200)}...`);
 
         // Nettoyage du texte : remplace les sauts de ligne multiples par un seul
@@ -168,7 +115,7 @@ async function extractText(file: File): Promise<string> {
         // CRUCIAL : Détection de PDF scanné (texte très court)
         if (cleanedText.length < 50) {
           console.warn(`⚠️ PDF Scanné détecté: seulement ${cleanedText.length} caractères extraits`);
-          return "[PDF Scanné - Texte non sélectionnable. Le contenu n'a pas pu être lu directement.]";
+          return "PDF non lisible, format image détecté";
         }
 
         console.log(`✅ Texte PDF extrait avec succès : ${cleanedText.length} caractères`);
@@ -179,12 +126,17 @@ async function extractText(file: File): Promise<string> {
         console.error("   Message:", pdfError instanceof Error ? pdfError.message : String(pdfError));
         console.error("   Stack:", pdfError instanceof Error ? pdfError.stack : "N/A");
         
-        // Retourner un message d'erreur explicite
+        // Retourner un message d'erreur explicite (ne pas throw pour éviter de planter)
         const errorMessage = pdfError instanceof Error 
           ? pdfError.message 
           : "Erreur inconnue lors de l'extraction PDF";
         
-        throw new Error(`Erreur PDF Parse: ${errorMessage}`);
+        // Si c'est une erreur de parsing, retourner un message spécifique
+        if (errorMessage.includes("parsing") || errorMessage.includes("parse")) {
+          return "PDF non lisible, format image détecté";
+        }
+        
+        return `[ERREUR EXTRACTION: ${errorMessage}]`;
       }
     }
 
