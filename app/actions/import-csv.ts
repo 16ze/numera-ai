@@ -77,10 +77,10 @@ export async function parseAndCategorizeCSV(
     }
 
     // Appeler GPT-4o pour parser et catégoriser le CSV
-    console.log("🤖 Envoi du CSV à GPT-4o pour extraction des transactions...");
+    console.log("🤖 Envoi du CSV à GPT-4o-mini pour extraction des transactions...");
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini", // Optimisation coûts : analyse texte CSV → mini
       messages: [
         {
           role: "system",

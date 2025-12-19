@@ -213,9 +213,9 @@ async function extractText(file: File): Promise<string> {
 
         console.log("🤖 Appel OpenAI Vision API (gpt-4o)...");
 
-        // Appel à l'API OpenAI Vision
+        // Appel à l'API OpenAI Vision (gpt-4o requis pour la précision OCR)
         const response = await openaiClient.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-4o", // Vision/OCR : garder gpt-4o pour la précision
           messages: [
             {
               role: "user",
@@ -384,7 +384,7 @@ export async function uploadAndAnalyzeDocument(
     if (extractedText && extractedText.length > 50 && !extractedText.startsWith("[")) {
       try {
         const { text: summaryText } = await generateText({
-          model: openai("gpt-4o"),
+          model: openai("gpt-4o-mini"), // Optimisation coûts : résumé texte → mini
           prompt: `Génère un résumé concis en 2 phrases maximum de ce document :\n\n${extractedText.substring(0, 4000)}`,
         });
         summary = summaryText || null;

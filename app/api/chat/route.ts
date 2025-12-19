@@ -1,32 +1,29 @@
 import { updateInvoiceStatus } from "@/app/(dashboard)/actions/invoices";
 import { updateTransaction } from "@/app/(dashboard)/actions/transactions-management";
-import {
-  generateReminderEmail,
-  getOverdueInvoices,
-  sendReminderEmail,
-} from "@/app/actions/reminders";
-import { sendInvoiceEmail } from "@/app/actions/send-invoice-email";
-import { connectStripe, getIntegrations, syncStripeTransactions } from "@/app/actions/integrations";
 import { getCashFlowForecast } from "@/app/actions/forecast";
+import {
+  connectStripe,
+  getIntegrations,
+  syncStripeTransactions,
+} from "@/app/actions/integrations";
 import {
   calculateServicePrice,
   getCostProfile,
   getServices,
 } from "@/app/actions/profitability";
 import {
-  calculateGlobalProfitability,
+  generateReminderEmail,
+  getOverdueInvoices,
+  sendReminderEmail,
+} from "@/app/actions/reminders";
+import { sendInvoiceEmail } from "@/app/actions/send-invoice-email";
+import {
   calculateServiceProfitability,
-  deleteResource,
-  deleteServiceRecipe,
   getResources,
   getServiceRecipes,
-  upsertResource,
-  upsertServiceRecipe,
 } from "@/app/actions/simulator";
-import { getProfitabilityAdvice } from "@/app/actions/advisor";
-import { getDocuments } from "@/app/actions/documents";
-import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth-helper";
+import { prisma } from "@/app/lib/prisma";
 import { openai } from "@ai-sdk/openai";
 import { currentUser } from "@clerk/nextjs/server";
 import {
@@ -74,8 +71,8 @@ export async function POST(req: Request) {
     console.log(`📅 Date actuelle: ${currentDateFormatted} (${currentDate})`);
 
     const result = streamText({
-      // 1. Force l'utilisation du modèle gpt-4o (pas le mini) pour assurer la fiabilité
-      model: openai("gpt-4o"),
+      // 1. Utilisation de gpt-4o-mini pour optimiser les coûts (analyse de texte/JSON uniquement)
+      model: openai("gpt-4o-mini"),
       messages,
 
       // 2. INDISPENSABLE : stopWhen permet de continuer jusqu'à ce qu'il n'y ait plus d'appels d'outils
@@ -1347,7 +1344,7 @@ export async function POST(req: Request) {
               // Calcul de la date d'émission
               const now = new Date();
               let calculatedIssuedDate: Date;
-              
+
               if (issuedDate) {
                 // Si une date d'émission est fournie, l'utiliser (peut être dans le passé pour factures en retard)
                 calculatedIssuedDate = new Date(issuedDate + "T00:00:00.000Z");
@@ -1377,7 +1374,7 @@ export async function POST(req: Request) {
                     "Date d'échéance invalide. Format attendu: YYYY-MM-DD"
                   );
                 }
-                
+
                 // Si la date d'échéance est dans le passé, c'est une facture en retard
                 if (calculatedDueDate < now) {
                   finalPaymentTerms = paymentTerms || "à payer maintenant";
@@ -1413,7 +1410,7 @@ export async function POST(req: Request) {
 
                   calculatedDueDate = new Date(calculatedIssuedDate);
                   calculatedDueDate.setDate(calculatedDueDate.getDate() + days);
-                  
+
                   // Si la date d'échéance calculée est dans le passé, c'est une facture en retard
                   if (calculatedDueDate < now) {
                     invoiceStatus = InvoiceStatus.OVERDUE;
@@ -1958,7 +1955,10 @@ export async function POST(req: Request) {
             );
 
             try {
-              const result = await calculateServicePrice(serviceId, marginPercent);
+              const result = await calculateServicePrice(
+                serviceId,
+                marginPercent
+              );
 
               return {
                 success: true,
@@ -2069,7 +2069,9 @@ export async function POST(req: Request) {
             sellingPrice: z
               .number()
               .optional()
-              .describe("Prix de vente envisagé (optionnel, pour calculer la marge)"),
+              .describe(
+                "Prix de vente envisagé (optionnel, pour calculer la marge)"
+              ),
           }),
           execute: async ({ serviceRecipeId, sellingPrice }) => {
             console.log(
@@ -2096,7 +2098,10 @@ export async function POST(req: Request) {
                 message: `Coût de revient total : ${result.totalCost.toFixed(2)} € (Consommables: ${result.suppliesCost.toFixed(2)} €, Matériel: ${result.equipmentCost.toFixed(2)} €, Main d'œuvre: ${result.laborCost.toFixed(2)} €, Charges: ${result.overheadCost.toFixed(2)} €)${result.netMargin !== undefined ? `. Marge : ${result.netMargin >= 0 ? "+" : ""}${result.netMargin.toFixed(2)} € (${result.marginPercent?.toFixed(1)}%)` : ""}`,
               };
             } catch (err) {
-              console.error("❌ ERREUR dans calculateServiceProfitability:", err);
+              console.error(
+                "❌ ERREUR dans calculateServiceProfitability:",
+                err
+              );
               throw new Error(
                 err instanceof Error
                   ? err.message
@@ -2204,9 +2209,7 @@ export async function POST(req: Request) {
             clientName: z
               .string()
               .optional()
-              .describe(
-                "Nom du client pour filtrer les documents (optionnel)"
-              ),
+              .describe("Nom du client pour filtrer les documents (optionnel)"),
           }),
           execute: async ({ keywords, clientName }) => {
             console.log("📄 Outil 'searchDocuments' en cours...");
@@ -2294,7 +2297,8 @@ export async function POST(req: Request) {
               if (documents.length === 0) {
                 return {
                   success: false,
-                  message: "Je n'ai trouvé aucun document correspondant à cette recherche.",
+                  message:
+                    "Je n'ai trouvé aucun document correspondant à cette recherche.",
                   documents: [],
                 };
               }
@@ -2302,16 +2306,16 @@ export async function POST(req: Request) {
               // Fonction helper pour construire le chemin du dossier
               const buildFolderPath = (folder: any | null): string => {
                 if (!folder) return "À la racine";
-                
+
                 const path: string[] = [];
                 let current: any = folder;
-                
+
                 // Remonter la hiérarchie
                 while (current) {
                   path.unshift(current.name);
                   current = current.parent;
                 }
-                
+
                 return path.join(" > ");
               };
 
@@ -2320,14 +2324,15 @@ export async function POST(req: Request) {
                 count: documents.length,
                 documents: documents.map((doc) => {
                   const folderPath = buildFolderPath(doc.folder);
-                  
+
                   // Gestion des documents volumineux
                   const maxLength = 10000; // Limite à 10 000 caractères
                   const isTooLong = doc.extractedText.length > maxLength;
                   const extractedText = isTooLong
-                    ? doc.extractedText.substring(0, maxLength) + "\n\n[... Document tronqué - contenu trop long ...]"
+                    ? doc.extractedText.substring(0, maxLength) +
+                      "\n\n[... Document tronqué - contenu trop long ...]"
                     : doc.extractedText;
-                  
+
                   return {
                     id: doc.id,
                     titre: doc.name,

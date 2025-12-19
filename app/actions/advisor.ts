@@ -115,7 +115,7 @@ CONSEIL :`;
     console.log("🤖 Génération du conseil financier via OpenAI...");
 
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-4o-mini"), // Optimisation coûts : analyse JSON → mini
       prompt,
       temperature: 0.7,
     });
@@ -212,7 +212,7 @@ Tu dois analyser cette structure de coût et donner un conseil business stratég
 Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
 
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-4o-mini"), // Optimisation coûts : analyse JSON → mini
       prompt,
       temperature: 0.7,
       maxTokens: 500,
