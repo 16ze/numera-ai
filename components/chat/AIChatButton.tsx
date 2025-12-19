@@ -278,8 +278,42 @@ export function AIChatButton() {
                 break;
 
               case "error":
-                console.error("❌ Erreur du stream:", event);
-                throw new Error(event.error || "Erreur du stream");
+                // Extraction détaillée de l'erreur
+                const errorMessage = 
+                  event.error?.message || 
+                  event.error?.toString() || 
+                  (typeof event.error === 'string' ? event.error : null) ||
+                  event.message ||
+                  JSON.stringify(event, null, 2);
+                
+                console.error("❌ Erreur du stream:", {
+                  event,
+                  error: event.error,
+                  message: event.message,
+                  errorMessage,
+                  fullEvent: JSON.stringify(event, null, 2)
+                });
+                
+                // Afficher l'erreur à l'utilisateur au lieu de throw
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  const lastMsg = updated[updated.length - 1];
+                  if (lastMsg && lastMsg.role === "assistant") {
+                    lastMsg.content = `❌ Erreur lors de la génération de la réponse : ${errorMessage || "Erreur inconnue"}. Veuillez réessayer.`;
+                  } else {
+                    // Ajouter un nouveau message d'erreur
+                    updated.push({
+                      id: `error-${Date.now()}`,
+                      role: "assistant",
+                      content: `❌ Erreur lors de la génération de la réponse : ${errorMessage || "Erreur inconnue"}. Veuillez réessayer.`,
+                    });
+                  }
+                  return updated;
+                });
+                
+                // Ne pas throw pour éviter de casser le flux
+                // throw new Error(errorMessage || "Erreur du stream");
+                break;
             }
           } catch (parseError) {
             console.error("Erreur de parsing:", parseError, "Line:", line);
