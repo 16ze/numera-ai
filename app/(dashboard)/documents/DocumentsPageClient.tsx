@@ -121,6 +121,9 @@ export function DocumentsPageClient({
     type: "folder" | "doc";
   } | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [draggedItemType, setDraggedItemType] = useState<"doc" | "folder" | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Recharger le système de fichiers quand le folderId change
@@ -470,8 +473,59 @@ export function DocumentsPageClient({
           {fileSystem.folders.map((folder) => (
             <Card
               key={folder.id}
-              className="hover:shadow-md transition-all cursor-pointer group"
+              className={`hover:shadow-md transition-all cursor-pointer group ${
+                dragOverFolderId === folder.id
+                  ? "border-2 border-blue-500 bg-blue-50 shadow-lg"
+                  : ""
+              }`}
               onDoubleClick={() => handleFolderDoubleClick(folder.id)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (draggedItemId && draggedItemType === "doc") {
+                  setDragOverFolderId(folder.id);
+                }
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Vérifier qu'on quitte vraiment le dossier (pas juste un enfant)
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX;
+                const y = e.clientY;
+                if (
+                  x < rect.left ||
+                  x > rect.right ||
+                  y < rect.top ||
+                  y > rect.bottom
+                ) {
+                  setDragOverFolderId(null);
+                }
+              }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragOverFolderId(null);
+
+                if (draggedItemId && draggedItemType === "doc") {
+                  try {
+                    await moveItem(draggedItemId, "doc", folder.id);
+                    toast.success("✅ Fichier déplacé");
+                    await loadFileSystem(currentFolderId);
+                    router.refresh();
+                  } catch (error) {
+                    console.error("Erreur déplacement:", error);
+                    toast.error(
+                      error instanceof Error
+                        ? error.message
+                        : "Erreur lors du déplacement"
+                    );
+                  }
+                }
+
+                setDraggedItemId(null);
+                setDraggedItemType(null);
+              }}
             >
               <CardContent className="p-4 flex flex-col items-center text-center">
                 <div className="relative w-full">
@@ -573,8 +627,24 @@ export function DocumentsPageClient({
           {fileSystem.documents.map((doc) => (
             <Card
               key={doc.id}
-              className="hover:shadow-md transition-all group cursor-pointer"
+              className={`hover:shadow-md transition-all group cursor-pointer ${
+                draggedItemId === doc.id ? "opacity-50 scale-95" : ""
+              }`}
               onClick={() => window.open(doc.url, "_blank")}
+              draggable
+              onDragStart={(e) => {
+                setDraggedItemId(doc.id);
+                setDraggedItemType("doc");
+                // Permettre le drag
+                e.dataTransfer.effectAllowed = "move";
+                // Optionnel : ajouter des données au drag
+                e.dataTransfer.setData("text/plain", doc.id);
+              }}
+              onDragEnd={() => {
+                setDraggedItemId(null);
+                setDraggedItemType(null);
+                setDragOverFolderId(null);
+              }}
             >
               <CardContent className="p-4 flex flex-col items-center text-center">
                 <div className="relative w-full">
