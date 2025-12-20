@@ -43,6 +43,17 @@ export type HistoryDataPoint = {
 };
 
 /**
+ * Type pour un compte bancaire
+ */
+export type BankAccountData = {
+  id: string;
+  bankName: string;
+  mask: string | null;
+  currentBalance: number | null;
+  currency: string;
+};
+
+/**
  * Type de retour de la Server Action
  */
 export type DashboardData = {
@@ -57,6 +68,7 @@ export type DashboardData = {
   budgetAlertThreshold: number; // Seuil d'alerte : montant 'Reste à dépenser' minimum avant alerte rouge
   budgetUsedPercent: number; // Pourcentage du budget utilisé (totalExpenses / monthlyBudget) * 100
   budgetRemaining: number; // Reste disponible : monthlyBudget - totalExpenses
+  bankAccounts: BankAccountData[]; // Liste des comptes bancaires connectés
   recentTransactions: RecentTransaction[];
   chartData: ChartDataPoint[];
   historyData: HistoryDataPoint[];
@@ -66,8 +78,13 @@ export type DashboardData = {
 /**
  * Server Action pour récupérer les données du Dashboard
  * Utilise l'utilisateur authentifié via Clerk
+ * @param from - Date de début (format YYYY-MM-DD) - optionnel
+ * @param to - Date de fin (format YYYY-MM-DD) - optionnel
  */
-export async function getDashboardData(): Promise<DashboardData> {
+export async function getDashboardData(
+  from?: string,
+  to?: string
+): Promise<DashboardData> {
   try {
     // Récupération de l'utilisateur connecté via Clerk (redirige vers /sign-in si non connecté)
     let user;
@@ -95,8 +112,10 @@ export async function getDashboardData(): Promise<DashboardData> {
           netAvailable: 0,
           taxRate: 22.0,
           monthlyBudget: 0,
+          budgetAlertThreshold: 100.0,
           budgetUsedPercent: 0,
           budgetRemaining: 0,
+          bankAccounts: [],
           recentTransactions: [],
           chartData: [],
           historyData: [],
@@ -145,29 +164,46 @@ export async function getDashboardData(): Promise<DashboardData> {
       };
     }
 
-    // Calcul des dates pour le mois en cours
+    // Calcul des dates selon les paramètres fournis ou le mois en cours par défaut
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      0,
-      23,
-      59,
-      59
-    );
+    let startDate: Date;
+    let endDate: Date;
 
-    // Calcul des dates pour les 30 derniers jours (pour le graphique)
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    if (from && to) {
+      // Utiliser les dates fournies dans l'URL
+      startDate = new Date(from + "T00:00:00.000Z");
+      endDate = new Date(to + "T23:59:59.999Z");
+      console.log(`📅 Période personnalisée : ${from} au ${to}`);
+    } else {
+      // Par défaut : mois en cours
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      console.log(
+        `📅 Période par défaut : mois en cours (${startDate.toLocaleDateString()} au ${endDate.toLocaleDateString()})`
+      );
+    }
 
-    // Récupération des transactions du mois en cours
+    // Validation des dates
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      console.warn("⚠️ Dates invalides, utilisation du mois en cours");
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    }
+
+    // Calcul des dates pour le graphique (période sélectionnée ou 30 derniers jours)
+    const chartStartDate = from && to ? startDate : new Date(now);
+    if (!from || !to) {
+      chartStartDate.setDate(chartStartDate.getDate() - 30);
+    }
+    const chartEndDate = from && to ? endDate : now;
+
+    // Récupération des transactions de la période sélectionnée
     const monthlyTransactions = await prisma.transaction.findMany({
       where: {
         companyId: company.id,
         date: {
-          gte: startOfMonth,
-          lte: endOfMonth,
+          gte: startDate,
+          lte: endDate,
         },
       },
     });
@@ -215,10 +251,14 @@ export async function getDashboardData(): Promise<DashboardData> {
       monthlyBudget > 0 ? (totalExpenses / monthlyBudget) * 100 : 0;
     const budgetRemaining = monthlyBudget - totalExpenses;
 
-    // Récupération des 5 dernières transactions (toutes périodes confondues)
+    // Récupération des 5 dernières transactions de la période sélectionnée
     const recentTransactionsData = await prisma.transaction.findMany({
       where: {
         companyId: company.id,
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
       },
       orderBy: {
         date: "desc",
@@ -238,13 +278,13 @@ export async function getDashboardData(): Promise<DashboardData> {
       })
     );
 
-    // Récupération des transactions des 30 derniers jours pour le graphique
+    // Récupération des transactions de la période pour le graphique
     const chartTransactions = await prisma.transaction.findMany({
       where: {
         companyId: company.id,
         date: {
-          gte: thirtyDaysAgo,
-          lte: now,
+          gte: chartStartDate,
+          lte: chartEndDate,
         },
       },
       orderBy: {
@@ -258,9 +298,15 @@ export async function getDashboardData(): Promise<DashboardData> {
       { recettes: number; depenses: number }
     >();
 
-    // Initialisation de tous les jours des 30 derniers jours avec 0
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(thirtyDaysAgo);
+    // Initialisation de tous les jours de la période avec 0
+    const daysDiff = Math.ceil(
+      (chartEndDate.getTime() - chartStartDate.getTime()) /
+        (1000 * 60 * 60 * 24)
+    );
+    const daysToShow = Math.max(1, Math.min(daysDiff, 90)); // Limiter à 90 jours max pour les performances
+
+    for (let i = 0; i < daysToShow; i++) {
+      const date = new Date(chartStartDate);
       date.setDate(date.getDate() + i);
       const dateKey = date.toISOString().split("T")[0];
       chartDataMap.set(dateKey, { recettes: 0, depenses: 0 });
@@ -399,6 +445,40 @@ export async function getDashboardData(): Promise<DashboardData> {
       });
     }
 
+    // Récupération des comptes bancaires connectés
+    // Gestion robuste des champs qui pourraient ne pas exister si la migration n'a pas été appliquée
+    let bankAccounts: BankAccountData[] = [];
+    try {
+      const bankAccountsData = await prisma.bankAccount.findMany({
+        where: { userId: user.id },
+        select: {
+          id: true,
+          bankName: true,
+          mask: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      // Récupération des champs optionnels avec gestion d'erreur
+      bankAccounts = bankAccountsData.map((acc) => {
+        const account = acc as any;
+        return {
+          id: account.id,
+          bankName: account.bankName,
+          mask: account.mask,
+          currentBalance: account.currentBalance ?? null,
+          currency: account.currency ?? "EUR",
+        };
+      });
+    } catch (error) {
+      console.warn(
+        "⚠️ Erreur lors de la récupération des comptes bancaires:",
+        error
+      );
+      // Retourner un tableau vide si erreur
+      bankAccounts = [];
+    }
+
     // Récupération des prévisions de trésorerie
     // Récupération des prévisions de trésorerie (avec gestion d'erreur pour éviter de casser le dashboard)
     let cashFlowForecast: CashFlowForecast;
@@ -422,6 +502,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       totalRevenue,
       totalExpenses,
       netIncome,
+      bankAccounts,
       annualRevenue,
       taxAmount,
       netAvailable,
@@ -450,6 +531,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       netAvailable: 0,
       taxRate: 22.0,
       monthlyBudget: 0,
+      budgetAlertThreshold: 100.0,
       budgetUsedPercent: 0,
       budgetRemaining: 0,
       recentTransactions: [],

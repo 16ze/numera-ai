@@ -205,6 +205,21 @@ export async function POST(req: Request) {
       - Le taux de taxes est configurable dans les paramètres (Settings > Fiscalité).
       - Recommandations : 22% pour Auto-Entrepreneur de services, 12% pour Auto-Entrepreneur de vente.
 
+      BUDGET MENSUEL :
+      - L'application permet de définir un budget mensuel limite pour les dépenses et un seuil d'alerte.
+      - L'outil getStats retourne aussi les données de budget :
+        * monthlyBudget : Budget mensuel total défini par l'utilisateur (en euros)
+        * budgetAlertThreshold : Seuil d'alerte (montant 'Reste à dépenser' minimum avant alerte rouge, par défaut 100€)
+        * budgetRemaining : Reste disponible (monthlyBudget - expense)
+        * budgetUsedPercent : Pourcentage du budget utilisé (expense / monthlyBudget × 100)
+        * isBudgetCritical : true si le reste est inférieur au seuil d'alerte (budgetRemaining < budgetAlertThreshold)
+      - Si l'utilisateur demande "quel est mon budget", "budget mensuel", "seuil d'alerte", "combien il me reste", "reste disponible", 
+        "seuil à ne pas dépasser", ou des questions sur le budget, utilise ces données.
+      - Le budget mensuel permet de suivre les dépenses par rapport à un montant limite défini.
+      - Le seuil d'alerte (budgetAlertThreshold) déclenche une alerte visuelle rouge lorsque le reste disponible est inférieur à ce montant.
+      - Si isBudgetCritical est true, alerte l'utilisateur que le budget est en danger (reste < seuil).
+      - Exemple de réponse : "Votre budget mensuel est de 2000€. Vous avez dépensé 1500€, il vous reste 500€. Le seuil d'alerte est de 100€, vous êtes donc en sécurité."
+
       PRÉVISIONS DE TRÉSORERIE (CASH FLOW FORECAST) :
       - L'application calcule automatiquement les prévisions de trésorerie sur 6 mois.
       - L'outil getCashFlowForecast retourne :
@@ -380,7 +395,7 @@ export async function POST(req: Request) {
       tools: {
         getStats: tool({
           description:
-            "Donne le CA (income), les dépenses (expense), le résultat net, et les données du Radar à Taxes (taxAmount, netAvailable, taxRate) du mois en cours. IMPORTANT : Le CA est filtré selon les mots-clés définis dans les paramètres (ex: STRIPE, VRST). Seules les transactions INCOME contenant ces mots-clés sont comptées comme CA. Le Radar à Taxes calcule automatiquement les provisions pour les taxes (URSSAF/Impôts) selon le taux configuré.",
+            "Donne le CA (income), les dépenses (expense), le résultat net, les données du Radar à Taxes (taxAmount, netAvailable, taxRate) ET les données du Budget Mensuel (monthlyBudget, budgetAlertThreshold, budgetRemaining, budgetUsedPercent, isBudgetCritical) du mois en cours. IMPORTANT : Le CA est filtré selon les mots-clés définis dans les paramètres (ex: STRIPE, VRST). Seules les transactions INCOME contenant ces mots-clés sont comptées comme CA. Le Radar à Taxes calcule automatiquement les provisions pour les taxes (URSSAF/Impôts) selon le taux configuré. Le Budget Mensuel indique le budget total défini, le seuil d'alerte (reste minimum avant alerte rouge), le reste disponible, le pourcentage utilisé et si le budget est en état critique (reste < seuil).",
           inputSchema: z.object({}),
           execute: async () => {
             console.log("🛠️ Outil 'getStats' en cours...");
@@ -471,8 +486,18 @@ export async function POST(req: Request) {
               const taxAmount = (revenue * taxRate) / 100;
               const netAvailable = revenue - taxAmount;
 
+              // Récupération des données de budget mensuel
+              const monthlyBudget = (company as any).monthlyBudget ?? 0;
+              const budgetAlertThreshold =
+                (company as any).budgetAlertThreshold ?? 100.0;
+              const budgetRemaining = monthlyBudget - expense;
+              const budgetUsedPercent =
+                monthlyBudget > 0 ? (expense / monthlyBudget) * 100 : 0;
+              const isBudgetCritical =
+                monthlyBudget > 0 && budgetRemaining < budgetAlertThreshold;
+
               console.log(
-                `💰 Succès : CA=${revenue} (filtré: ${revenueKeywords.length > 0 ? "OUI" : "NON"}) | Dépenses=${expense} | Net=${net} | Taxes=${taxAmount} (${taxRate}%) | Disponible=${netAvailable}`
+                `💰 Succès : CA=${revenue} (filtré: ${revenueKeywords.length > 0 ? "OUI" : "NON"}) | Dépenses=${expense} | Net=${net} | Taxes=${taxAmount} (${taxRate}%) | Disponible=${netAvailable} | Budget=${monthlyBudget} | Reste=${budgetRemaining}`
               );
 
               // On retourne le résultat
@@ -486,6 +511,12 @@ export async function POST(req: Request) {
                 revenueFiltered: revenueKeywords.length > 0,
                 revenueKeywords:
                   revenueKeywords.length > 0 ? revenueKeywords : null,
+                // Données de budget mensuel
+                monthlyBudget, // Budget mensuel total défini
+                budgetAlertThreshold, // Seuil d'alerte (reste minimum avant alerte rouge)
+                budgetRemaining, // Reste disponible : monthlyBudget - expense
+                budgetUsedPercent, // Pourcentage du budget utilisé
+                isBudgetCritical, // true si le reste est inférieur au seuil d'alerte
               };
             } catch (err) {
               console.error("❌ CRASH dans execute :", err);
@@ -2336,17 +2367,21 @@ export async function POST(req: Request) {
 
                   // Régénérer l'URL publique à partir du chemin du fichier pour garantir qu'elle est correcte
                   let documentUrl = doc.url;
-                  
+
                   try {
                     const supabase = getSupabaseServerClient();
-                    
+
                     // Extraire le chemin relatif du fichier depuis l'URL stockée
                     // Format attendu dans la BDD : URL complète Supabase ou chemin relatif userId/timestamp_filename.pdf
                     let filePath: string;
-                    
-                    if (doc.url.includes("/storage/v1/object/public/documents/")) {
+
+                    if (
+                      doc.url.includes("/storage/v1/object/public/documents/")
+                    ) {
                       // URL complète Supabase : extraire le chemin après /documents/
-                      const urlParts = doc.url.split("/storage/v1/object/public/documents/");
+                      const urlParts = doc.url.split(
+                        "/storage/v1/object/public/documents/"
+                      );
                       if (urlParts.length > 1) {
                         filePath = urlParts[1].split("?")[0]; // Retirer les query params
                       } else {
@@ -2357,19 +2392,26 @@ export async function POST(req: Request) {
                       // L'URL stockée est déjà un chemin relatif (userId/timestamp_filename.pdf)
                       filePath = doc.url;
                     }
-                    
+
                     // Régénérer l'URL publique avec le chemin correct
                     const {
                       data: { publicUrl },
-                    } = supabase.storage.from("documents").getPublicUrl(filePath);
-                    
+                    } = supabase.storage
+                      .from("documents")
+                      .getPublicUrl(filePath);
+
                     if (publicUrl) {
                       documentUrl = publicUrl;
                     } else {
-                      console.warn(`⚠️ Impossible de régénérer l'URL pour le document ${doc.id}, utilisation de l'URL stockée`);
+                      console.warn(
+                        `⚠️ Impossible de régénérer l'URL pour le document ${doc.id}, utilisation de l'URL stockée`
+                      );
                     }
                   } catch (urlError) {
-                    console.error(`❌ Erreur lors de la régénération de l'URL pour le document ${doc.id}:`, urlError);
+                    console.error(
+                      `❌ Erreur lors de la régénération de l'URL pour le document ${doc.id}:`,
+                      urlError
+                    );
                     // En cas d'erreur, on garde l'URL stockée
                   }
 

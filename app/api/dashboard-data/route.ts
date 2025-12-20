@@ -7,9 +7,14 @@ import { NextResponse } from "next/server";
  *
  * Note: L'authentification est gérée par getDashboardData() via getCurrentUser()
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const data = await getDashboardData();
+    // Extraction des paramètres de date depuis l'URL
+    const { searchParams } = new URL(request.url);
+    const from = searchParams.get("from") || undefined;
+    const to = searchParams.get("to") || undefined;
+
+    const data = await getDashboardData(from, to);
 
     // Headers pour éviter le cache côté client
     return NextResponse.json(data, {
@@ -47,8 +52,10 @@ export async function GET() {
         netAvailable: 0,
         taxRate: 22.0,
         monthlyBudget: 0,
+        budgetAlertThreshold: 100.0,
         budgetUsedPercent: 0,
         budgetRemaining: 0,
+        bankAccounts: [],
         recentTransactions: [],
         chartData: [],
         historyData: [],

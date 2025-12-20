@@ -372,21 +372,41 @@ export function TransactionsPageClient({
         ),
       },
       {
+        accessorKey: "type",
+        header: "Type",
+        cell: ({ row }) => {
+          const tx = row.original;
+          const isIncome = tx.type === "INCOME";
+          return (
+            <Badge
+              variant="outline"
+              className={
+                isIncome
+                  ? "bg-green-50 text-green-700 border-green-200"
+                  : "bg-red-50 text-red-700 border-red-200"
+              }
+            >
+              {isIncome ? "Recette" : "Dépense"}
+            </Badge>
+          );
+        },
+      },
+      {
         accessorKey: "amount",
         header: "Montant",
         cell: ({ row }) => {
           const tx = row.original;
-          // Utiliser le signe réel du montant plutôt que le type de transaction
-          const isPositive = tx.amount >= 0;
-          const displayAmount = Math.abs(tx.amount);
+          // Utiliser le type de transaction (INCOME = recette, EXPENSE = dépense)
+          const isIncome = tx.type === "INCOME";
+          const displayAmount = Math.abs(Number(tx.amount));
 
           return (
             <div
               className={`text-right font-bold ${
-                isPositive ? "text-green-600" : "text-red-600"
+                isIncome ? "text-green-600" : "text-red-600"
               }`}
             >
-              {isPositive ? "+" : "-"}
+              {isIncome ? "+" : "-"}
               {formatMoney(displayAmount)}
             </div>
           );

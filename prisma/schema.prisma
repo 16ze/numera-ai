@@ -231,21 +231,23 @@ model InvoiceRow {
  * Base de la comptabilité quotidienne
  */
 model Transaction {
-  id          String              @id @default(uuid())
-  date        DateTime // Date de la transaction
-  amount      Decimal             @db.Decimal(10, 2) // Montant (toujours positif)
-  description String?
-  type        TransactionType // INCOME ou EXPENSE
-  category    TransactionCategory // Catégorie comptable
-  status      TransactionStatus   @default(PENDING)
-  receiptUrl  String? // URL de la photo du ticket (pour OCR futur)
-  stripeId    String? @unique // ID de la transaction Stripe (pour dédoublonner)
-  companyId   String // Entreprise propriétaire
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id            String              @id @default(uuid())
+  date          DateTime // Date de la transaction
+  amount        Decimal             @db.Decimal(10, 2) // Montant (toujours positif)
+  description   String?
+  type          TransactionType // INCOME ou EXPENSE
+  category      TransactionCategory // Catégorie comptable
+  status        TransactionStatus   @default(PENDING)
+  receiptUrl    String? // URL de la photo du ticket (pour OCR futur)
+  stripeId      String? @unique // ID de la transaction Stripe (pour dédoublonner)
+  companyId     String // Entreprise propriétaire
+  bankAccountId String? // Compte bancaire associé (optionnel pour rétrocompatibilité)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
   // Relations
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bankAccount BankAccount? @relation(fields: [bankAccountId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
   @@index([date])
@@ -253,6 +255,7 @@ model Transaction {
   @@index([category])
   @@index([status])
   @@index([stripeId])
+  @@index([bankAccountId])
   @@map("transactions")
 }
 
@@ -282,22 +285,27 @@ model AssistantThread {
  * Permet la synchronisation automatique des transactions bancaires
  */
 model BankAccount {
-  id           String    @id @default(uuid())
-  userId       String // Propriétaire du compte
-  bankName     String // Nom de la banque (ex: "Chase", "Bank of America")
-  mask         String? // 4 derniers chiffres du compte (ex: "1234")
-  itemId       String    @unique // ID Plaid de l'objet Item
-  accessToken  String // Token secret Plaid pour accéder aux données (à chiffrer en production)
-  cursor       String? // Curseur pour la pagination des transactions Plaid
-  lastSyncedAt DateTime? // Dernière synchronisation des transactions
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  userId        String // Propriétaire du compte
+  bankName      String // Nom de la banque (ex: "Chase", "Bank of America")
+  mask          String? // 4 derniers chiffres du compte (ex: "1234")
+  type          String    @default("PLAID") // Type de compte : 'PLAID' ou 'MANUAL'
+  itemId        String?   @unique // ID Plaid de l'objet Item (optionnel pour comptes manuels)
+  accessToken   String? // Token secret Plaid pour accéder aux données (optionnel pour comptes manuels, à chiffrer en production)
+  cursor        String? // Curseur pour la pagination des transactions Plaid
+  lastSyncedAt  DateTime? // Dernière synchronisation des transactions
+  currentBalance Float? // Solde actuel du compte (en devise)
+  currency      String    @default("EUR") // Devise du compte (EUR, USD, etc.)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 
   @@index([userId])
   @@index([itemId])
+  @@index([type])
   @@map("bank_accounts")
 }
 

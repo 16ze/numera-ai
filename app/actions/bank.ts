@@ -5,11 +5,11 @@
  * Gère la connexion des comptes bancaires et la synchronisation des transactions
  */
 
-import { prisma } from "@/app/lib/prisma";
 import { getCurrentUser } from "@/app/lib/auth-helper";
-import { plaidClient, APP_URL } from "@/app/lib/plaid";
-import { CountryCode, Products } from "plaid";
+import { plaidClient } from "@/app/lib/plaid";
+import { prisma } from "@/app/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { CountryCode, Products } from "plaid";
 
 /**
  * Crée un Link Token pour initialiser Plaid Link
@@ -45,9 +45,9 @@ export async function createLinkToken(): Promise<{ linkToken: string }> {
     };
   } catch (error) {
     console.error("❌ Erreur création Link Token:", error);
-    
+
     // Log détaillé pour debugging
-    if (error && typeof error === 'object' && 'response' in error) {
+    if (error && typeof error === "object" && "response" in error) {
       const axiosError = error as any;
       console.error("Détails erreur Plaid:", {
         status: axiosError.response?.status,
@@ -55,7 +55,7 @@ export async function createLinkToken(): Promise<{ linkToken: string }> {
         message: axiosError.message,
       });
     }
-    
+
     throw new Error(
       error instanceof Error
         ? error.message
@@ -112,16 +112,44 @@ export async function exchangePublicToken(
       }
     }
 
-    // 4. Sauvegarde dans la base de données
+    // 4. Récupération du solde initial et de la devise
+    let currentBalance: number | null = null;
+    let currency: string = "EUR";
+
+    try {
+      const balanceResponse = await plaidClient.accountsBalanceGet({
+        access_token: accessToken,
+      });
+
+      const balanceAccount = balanceResponse.data.accounts[0];
+      if (balanceAccount) {
+        const balance =
+          balanceAccount.balances.available ?? balanceAccount.balances.current;
+        if (balance !== null) {
+          currentBalance = balance;
+        }
+        currency = balanceAccount.balances.iso_currency_code || "EUR";
+      }
+    } catch (balanceError) {
+      console.warn(
+        "⚠️ Impossible de récupérer le solde initial:",
+        balanceError
+      );
+    }
+
+    // 5. Sauvegarde dans la base de données
     const bankAccount = await prisma.bankAccount.create({
       data: {
         userId: user.id,
         bankName,
         mask: account.mask || null,
+        type: "PLAID",
         itemId,
         accessToken, // ⚠️ En production, chiffrer ce token
         cursor: null,
         lastSyncedAt: null,
+        currentBalance,
+        currency,
       },
     });
 
@@ -175,7 +203,36 @@ export async function syncTransactions(
       throw new Error("Aucune entreprise trouvée");
     }
 
-    // 3. Synchronisation via Plaid
+    // 3. Récupération du solde actuel du compte via Plaid
+    let currentBalance: number | null = null;
+    let currency: string = "EUR";
+
+    try {
+      const balanceResponse = await plaidClient.accountsBalanceGet({
+        access_token: bankAccount.accessToken,
+      });
+
+      // Récupération du premier compte (ou du compte principal)
+      const account = balanceResponse.data.accounts[0];
+      if (account) {
+        // Plaid retourne le solde disponible (available) ou le solde courant (current)
+        // On utilise le solde disponible s'il existe, sinon le solde courant
+        const balance = account.balances.available ?? account.balances.current;
+        if (balance !== null) {
+          currentBalance = balance;
+        }
+        // Récupération de la devise du compte
+        currency = account.balances.iso_currency_code || "EUR";
+      }
+      console.log(`💰 Solde récupéré: ${currentBalance} ${currency}`);
+    } catch (balanceError) {
+      console.warn(
+        "⚠️ Impossible de récupérer le solde du compte:",
+        balanceError
+      );
+    }
+
+    // 4. Synchronisation des transactions via Plaid
     let cursor = bankAccount.cursor || undefined;
     let hasMore = true;
     let addedCount = 0;
@@ -188,7 +245,7 @@ export async function syncTransactions(
 
       const { added, has_more, next_cursor } = response.data;
 
-      // 4. Insertion des nouvelles transactions
+      // 5. Insertion des nouvelles transactions
       for (const transaction of added) {
         // Plaid envoie les dépenses en positif, on inverse pour notre système
         const amount = Math.abs(transaction.amount);
@@ -216,12 +273,14 @@ export async function syncTransactions(
       hasMore = has_more;
     }
 
-    // 5. Mise à jour du cursor et de la date de sync
+    // 6. Mise à jour du cursor, de la date de sync, du solde et de la devise
     await prisma.bankAccount.update({
       where: { id: bankAccountId },
       data: {
         cursor,
         lastSyncedAt: new Date(),
+        currentBalance,
+        currency,
       },
     });
 
@@ -268,6 +327,165 @@ export async function getBankAccounts() {
 }
 
 /**
+ * Crée un compte bancaire manuel
+ *
+ * @param name - Nom du compte (ex: "Caisse Épargne", "Compte Courant")
+ * @param initialBalance - Solde initial du compte
+ * @returns {Promise<{ success: true; bankAccountId: string }>} ID du compte créé
+ */
+export async function createManualAccount(
+  name: string,
+  initialBalance: number
+): Promise<{ success: true; bankAccountId: string }> {
+  try {
+    const user = await getCurrentUser();
+
+    console.log("📝 Création d'un compte bancaire manuel:", name);
+
+    // Gestion robuste des champs qui pourraient ne pas exister si la migration n'a pas été appliquée
+    const accountData: any = {
+      userId: user.id,
+      bankName: name,
+      mask: null,
+      itemId: null,
+      accessToken: null,
+      cursor: null,
+      lastSyncedAt: null,
+      currency: "EUR",
+    };
+
+    // Ajouter les champs optionnels seulement s'ils existent dans le schéma
+    try {
+      // Essayer d'abord avec tous les champs
+      accountData.type = "MANUAL";
+      accountData.currentBalance = initialBalance;
+
+      const bankAccount = await prisma.bankAccount.create({
+        data: accountData,
+      });
+
+      console.log("✅ Compte bancaire manuel créé:", bankAccount.id);
+
+      revalidatePath("/settings/bank");
+      revalidatePath("/");
+
+      return {
+        success: true,
+        bankAccountId: bankAccount.id,
+      };
+    } catch (createError: any) {
+      // Si l'erreur vient du champ 'type' ou 'currentBalance' manquant, essayer sans
+      const errorMessage = createError?.message || String(createError);
+      if (
+        errorMessage.includes("type") ||
+        errorMessage.includes("currentBalance") ||
+        errorMessage.includes("Unknown argument") ||
+        errorMessage.includes("Unknown field")
+      ) {
+        console.warn(
+          "⚠️ Champs 'type' ou 'currentBalance' non disponibles, création sans ces champs"
+        );
+
+        // Retirer les champs problématiques
+        delete accountData.type;
+        delete accountData.currentBalance;
+
+        // Créer sans ces champs
+        const bankAccount = await prisma.bankAccount.create({
+          data: accountData,
+        });
+
+        // Si currentBalance existe, essayer de le mettre à jour séparément
+        if (initialBalance !== 0) {
+          try {
+            await prisma.bankAccount.update({
+              where: { id: bankAccount.id },
+              data: { currentBalance: initialBalance } as any,
+            });
+          } catch (updateError) {
+            console.warn(
+              "⚠️ Impossible de définir le solde initial:",
+              updateError
+            );
+          }
+        }
+
+        console.log(
+          "✅ Compte bancaire manuel créé (sans type/solde):",
+          bankAccount.id
+        );
+
+        revalidatePath("/settings/bank");
+        revalidatePath("/");
+
+        return {
+          success: true,
+          bankAccountId: bankAccount.id,
+        };
+      }
+
+      // Si c'est une autre erreur, la relancer
+      throw createError;
+    }
+  } catch (error) {
+    console.error("❌ Erreur création compte manuel:", error);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Erreur lors de la création du compte"
+    );
+  }
+}
+
+/**
+ * Met à jour le solde d'un compte bancaire
+ *
+ * @param bankAccountId - ID du compte à mettre à jour
+ * @param newBalance - Nouveau solde
+ * @returns {Promise<{ success: true }>}
+ */
+export async function updateAccountBalance(
+  bankAccountId: string,
+  newBalance: number
+): Promise<{ success: true }> {
+  try {
+    const user = await getCurrentUser();
+
+    // Vérification que le compte appartient à l'utilisateur
+    const bankAccount = await prisma.bankAccount.findUnique({
+      where: { id: bankAccountId },
+    });
+
+    if (!bankAccount || bankAccount.userId !== user.id) {
+      throw new Error("Compte non trouvé ou non autorisé");
+    }
+
+    await prisma.bankAccount.update({
+      where: { id: bankAccountId },
+      data: {
+        currentBalance: newBalance,
+      },
+    });
+
+    console.log(
+      `✅ Solde mis à jour pour le compte ${bankAccountId}: ${newBalance}`
+    );
+
+    revalidatePath("/settings/bank");
+    revalidatePath("/");
+
+    return { success: true };
+  } catch (error) {
+    console.error("❌ Erreur mise à jour solde:", error);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Erreur lors de la mise à jour du solde"
+    );
+  }
+}
+
+/**
  * Supprime un compte bancaire
  *
  * @param bankAccountId - ID du compte à supprimer
@@ -293,6 +511,7 @@ export async function deleteBankAccount(bankAccountId: string) {
     console.log("✅ Compte bancaire supprimé:", bankAccountId);
 
     revalidatePath("/settings/bank");
+    revalidatePath("/"); // Rafraîchir le dashboard
 
     return { success: true };
   } catch (error) {
@@ -306,7 +525,14 @@ export async function deleteBankAccount(bankAccountId: string) {
  */
 function mapPlaidCategory(
   plaidCategories: string[] | null | undefined
-): "TRANSPORT" | "REPAS" | "MATERIEL" | "PRESTATION" | "IMPOTS" | "SALAIRES" | "AUTRE" {
+):
+  | "TRANSPORT"
+  | "REPAS"
+  | "MATERIEL"
+  | "PRESTATION"
+  | "IMPOTS"
+  | "SALAIRES"
+  | "AUTRE" {
   if (!plaidCategories || plaidCategories.length === 0) {
     return "AUTRE";
   }
@@ -352,4 +578,3 @@ function mapPlaidCategory(
 
   return "AUTRE";
 }
-

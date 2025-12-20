@@ -13,7 +13,7 @@
 import {
   extractDataFromPDF,
   saveImportedTransactions,
-  type ExtractedTransaction,
+  type ExtractedData,
 } from "@/app/actions/import-pdf";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +33,16 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { TransactionCategory } from "@prisma/client";
-import { FileText, Loader2, Upload, CheckCircle2, X, AlertCircle } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  FileText,
+  Landmark,
+  Loader2,
+  Sparkles,
+  Upload,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, DragEvent, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -62,8 +71,21 @@ export default function ImportPDFPage() {
   const [pageState, setPageState] = useState<PageState>("upload");
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [extractedTransactions, setExtractedTransactions] = useState<ExtractedTransaction[]>([]);
+  const [extractedData, setExtractedData] = useState<ExtractedData | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
+
+  // Helper pour formater le montant avec devise
+  const formatMoney = (amount: number | null, currency: string = "EUR") => {
+    if (amount === null) return "N/A";
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
 
   /**
    * Gère le drag over (pour le style visuel)
@@ -112,7 +134,10 @@ export default function ImportPDFPage() {
    */
   const handleFileSelect = (file: File) => {
     // Validation du type
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    if (
+      file.type !== "application/pdf" &&
+      !file.name.toLowerCase().endsWith(".pdf")
+    ) {
       toast.error("Le fichier doit être au format PDF");
       return;
     }
@@ -146,17 +171,48 @@ export default function ImportPDFPage() {
       formData.append("pdf", selectedFile);
 
       // Appeler la Server Action pour extraire les données
-      const transactions = await extractDataFromPDF(formData);
+      const data = await extractDataFromPDF(formData);
 
-      if (transactions.length === 0) {
+      console.log("📊 Données reçues du backend:", data);
+      console.log("📊 Type de données:", typeof data);
+      console.log("📊 Est un tableau?", Array.isArray(data));
+      console.log("📊 Transactions:", data.transactions);
+      console.log("📊 Accounts:", data.accounts);
+
+      // Vérifier que data est bien un objet avec transactions
+      if (!data || typeof data !== "object" || Array.isArray(data)) {
+        console.error("❌ Format de données invalide:", data);
+        toast.error("Format de données invalide reçu du serveur");
+        setPageState("upload");
+        return;
+      }
+
+      // Vérifier que transactions existe et est un tableau
+      if (!data.transactions || !Array.isArray(data.transactions)) {
+        console.error("❌ Transactions manquantes ou invalides:", data);
         toast.error("Aucune transaction trouvée dans le PDF");
         setPageState("upload");
         return;
       }
 
-      setExtractedTransactions(transactions);
+      if (data.transactions.length === 0) {
+        toast.error("Aucune transaction trouvée dans le PDF");
+        setPageState("upload");
+        return;
+      }
+
+      setExtractedData(data);
       setPageState("preview");
-      toast.success(`${transactions.length} transaction(s) extraite(s) avec succès`);
+
+      let successMessage = `${data.transactions.length} transaction(s) extraite(s)`;
+      if (
+        data.accounts &&
+        Array.isArray(data.accounts) &&
+        data.accounts.length > 0
+      ) {
+        successMessage += `, ${data.accounts.length} compte(s) détecté(s)`;
+      }
+      toast.success(successMessage);
     } catch (error) {
       console.error("Erreur lors de l'extraction:", error);
       const errorMessage =
@@ -170,10 +226,10 @@ export default function ImportPDFPage() {
   };
 
   /**
-   * Enregistre les transactions dans la base de données
+   * Enregistre les transactions et crée/met à jour les comptes détectés
    */
   const handleSaveTransactions = async () => {
-    if (extractedTransactions.length === 0) {
+    if (!extractedData || extractedData.transactions.length === 0) {
       toast.error("Aucune transaction à enregistrer");
       return;
     }
@@ -181,10 +237,20 @@ export default function ImportPDFPage() {
     try {
       setPageState("saving");
 
-      // Appeler la Server Action pour enregistrer
-      const result = await saveImportedTransactions(extractedTransactions);
+      // Appeler la Server Action pour enregistrer (avec les comptes détectés)
+      const result = await saveImportedTransactions(
+        extractedData.transactions,
+        extractedData.accounts
+      );
 
-      toast.success(`${result.count} transaction(s) enregistrée(s) avec succès !`);
+      let message = `${result.count} transaction(s) enregistrée(s) avec succès !`;
+      if (result.accountsCreated > 0) {
+        message += ` ${result.accountsCreated} compte(s) créé(s).`;
+      }
+      if (result.accountsUpdated > 0) {
+        message += ` ${result.accountsUpdated} compte(s) mis à jour.`;
+      }
+      toast.success(message);
 
       // Rediriger vers le dashboard après un court délai
       setTimeout(() => {
@@ -208,7 +274,7 @@ export default function ImportPDFPage() {
   const handleReset = () => {
     setPageState("upload");
     setSelectedFile(null);
-    setExtractedTransactions([]);
+    setExtractedData(null);
     setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -240,8 +306,8 @@ export default function ImportPDFPage() {
           Importer un relevé bancaire PDF
         </h1>
         <p className="text-slate-600">
-          Téléchargez votre relevé bancaire au format PDF. Nous utiliserons l'IA pour
-          extraire automatiquement toutes les transactions.
+          Déposez votre relevé bancaire. L'IA détectera automatiquement vos
+          comptes et extraira toutes les transactions.
         </p>
       </div>
 
@@ -249,9 +315,13 @@ export default function ImportPDFPage() {
       {pageState === "upload" && (
         <Card>
           <CardHeader>
-            <CardTitle>Télécharger le PDF</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-blue-500" />
+              Déposez votre relevé bancaire
+            </CardTitle>
             <CardDescription>
-              Sélectionnez ou glissez-déposez votre fichier PDF de relevé bancaire
+              L'application détectera automatiquement vos comptes et leurs
+              soldes
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -337,11 +407,12 @@ export default function ImportPDFPage() {
               <Loader2 className="h-16 w-16 animate-spin text-blue-500" />
               <div className="text-center">
                 <h2 className="text-xl font-semibold text-slate-900 mb-2">
-                  Lecture du relevé bancaire...
+                  L'IA analyse vos comptes et transactions...
                 </h2>
                 <p className="text-slate-600">
-                  Nous analysons votre PDF et extrayons les transactions avec l'IA.
-                  Cela peut prendre quelques secondes.
+                  Nous détectons automatiquement vos comptes bancaires et
+                  extrayons toutes les transactions. Cela peut prendre quelques
+                  secondes.
                 </p>
               </div>
             </div>
@@ -350,30 +421,95 @@ export default function ImportPDFPage() {
       )}
 
       {/* État : Prévisualisation */}
-      {pageState === "preview" && (
+      {pageState === "preview" && extractedData && (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                Prévisualisation des transactions ({extractedTransactions.length})
-              </CardTitle>
-              <CardDescription>
-                Vérifiez que l'IA a correctement extrait toutes les transactions avant
-                de les enregistrer.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Message d'erreur si présent */}
-              {error && (
-                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+          {/* Message d'erreur si présent */}
+          {error && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
                   <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
                   <div>
                     <p className="font-semibold text-red-900">Erreur</p>
                     <p className="text-sm text-red-700">{error}</p>
                   </div>
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          )}
 
+          {/* Carte : Comptes détectés */}
+          {extractedData.accounts &&
+            Array.isArray(extractedData.accounts) &&
+            extractedData.accounts.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Landmark className="h-5 w-5 text-blue-500" />
+                    Comptes détectés ({extractedData.accounts.length})
+                  </CardTitle>
+                  <CardDescription>
+                    L'application va créer ou mettre à jour ces comptes
+                    automatiquement
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {extractedData.accounts.map((account, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border hover:bg-slate-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                            <Landmark className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-900">
+                              {account.name}
+                            </p>
+                            <p className="text-sm text-slate-600">
+                              {account.currency || "EUR"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-lg text-green-600">
+                            {formatMoney(
+                              account.balance,
+                              account.currency || "EUR"
+                            )}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Solde détecté
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-900">
+                      <strong>✨ Magie automatique :</strong> Ces comptes seront
+                      créés s'ils n'existent pas, ou mis à jour s'ils existent
+                      déjà.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+          {/* Carte : Transactions extraites */}
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Transactions extraites ({extractedData.transactions.length})
+              </CardTitle>
+              <CardDescription>
+                Vérifiez que l'IA a correctement extrait toutes les transactions
+                avant de les enregistrer.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               {/* Tableau de prévisualisation */}
               <div className="overflow-x-auto">
                 <Table>
@@ -386,7 +522,7 @@ export default function ImportPDFPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {extractedTransactions.map((tx, index) => (
+                    {extractedData.transactions.map((tx, index) => (
                       <TableRow key={index}>
                         <TableCell className="font-mono text-sm">
                           {formatDate(tx.date)}
@@ -411,7 +547,8 @@ export default function ImportPDFPage() {
               <div className="flex gap-3 mt-6">
                 <Button onClick={handleSaveTransactions} className="gap-2">
                   <CheckCircle2 className="h-4 w-4" />
-                  Valider l'import ({extractedTransactions.length} transaction(s))
+                  Confirmer l'import ({extractedData.transactions.length}{" "}
+                  transaction(s))
                 </Button>
                 <Button variant="outline" onClick={handleReset}>
                   <X className="h-4 w-4 mr-2" />
@@ -434,8 +571,8 @@ export default function ImportPDFPage() {
                   Enregistrement des transactions...
                 </h2>
                 <p className="text-slate-600">
-                  Les transactions sont en cours d'enregistrement dans votre base de
-                  données.
+                  Les transactions sont en cours d'enregistrement dans votre
+                  base de données.
                 </p>
               </div>
             </div>
@@ -445,4 +582,3 @@ export default function ImportPDFPage() {
     </div>
   );
 }
-

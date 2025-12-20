@@ -7,8 +7,10 @@
 
 import type { DashboardData } from "@/app/(dashboard)/actions/dashboard";
 import { AdvisorCard } from "@/components/dashboard/AdvisorCard";
+import { BankBalanceCard } from "@/components/dashboard/BankBalanceCard";
 import { BudgetCard } from "@/components/dashboard/BudgetCard";
 import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
+import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
 import { InteractiveCards } from "@/components/dashboard/InteractiveCards";
 import { OverdueAlerts } from "@/components/dashboard/OverdueAlerts";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
@@ -22,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 interface DashboardClientProps {
@@ -32,13 +35,22 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
   const [data, setData] = useState<DashboardData>(initialData);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const searchParams = useSearchParams();
+
   /**
    * Rafraîchit les données du Dashboard
    */
   const refreshData = async () => {
     try {
       setIsRefreshing(true);
-      const response = await fetch("/api/dashboard-data", {
+      // Inclure les paramètres de date dans la requête
+      const from = searchParams.get("from");
+      const to = searchParams.get("to");
+      const url = new URL("/api/dashboard-data", window.location.origin);
+      if (from) url.searchParams.set("from", from);
+      if (to) url.searchParams.set("to", to);
+
+      const response = await fetch(url.toString(), {
         cache: "no-store",
       });
       if (response.ok) {
@@ -51,6 +63,12 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       setIsRefreshing(false);
     }
   };
+
+  // Rafraîchir automatiquement quand les paramètres de date changent
+  useEffect(() => {
+    refreshData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.toString()]);
 
   /**
    * Écoute les changements et rafraîchit automatiquement le Dashboard
@@ -146,7 +164,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       // Nettoyer interval
       clearInterval(interval);
     };
-  }, [refreshData]);
+  }, [refreshData, searchParams]);
 
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat("fr-FR", {
@@ -172,6 +190,11 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       {/* Alertes Factures en Retard - Le Bad Cop */}
       <OverdueAlerts />
 
+      {/* Filtre de date */}
+      <div className="flex items-center justify-end">
+        <DateRangePicker />
+      </div>
+
       {/* Cartes Interactives avec Dialog et graphiques */}
       <InteractiveCards
         totalRevenue={data.totalRevenue}
@@ -181,7 +204,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
         historyData={data.historyData}
       />
 
-      {/* Carte Radar à Taxes et Budget Mensuel - Côte à côte */}
+      {/* Carte Radar à Taxes, Budget Mensuel et Soldes Bancaires - Côte à côte */}
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
         <TaxRadarCard
           netAvailable={data.netAvailable}
@@ -194,6 +217,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           budgetAlertThreshold={data.budgetAlertThreshold}
           budgetRemaining={data.budgetRemaining}
         />
+        <BankBalanceCard bankAccounts={data.bankAccounts} />
       </div>
 
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
